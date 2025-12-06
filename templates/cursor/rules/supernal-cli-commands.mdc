@@ -1,0 +1,94 @@
+# 🛠️ Supernal Coding CLI Commands
+
+**All commands can be run with either 'sc' or 'supernal-coding' prefix**
+
+## Quick Reference
+
+### Core Workflow
+
+**`sc kanban`** - Kanban task management system
+  Options: `--filter <type>`, `--priority <level>`
+  Example: `sc kanban list`
+
+**`sc validate`** - Validate project structure and requirements
+  Options: `--requirements`, `--tests`
+  Example: `sc validate --all`
+
+**`sc priority`** - Priority management for requirements and tasks
+  Options: `--file <file>`, `--dry-run`
+  Example: `sc priority --help`
+
+### Development
+
+**`sc generate`** - Generate project files and documentation
+  Options: `--templates`, `--docs`
+  Example: `sc generate --help`
+
+**`sc docs`** - Documentation management system
+  Options: `--format <format>`, `--output <path>`
+  Example: `sc docs --help`
+
+**`sc dev`** - Development tools and utilities
+  Options: `--max-ratio <ratio>`, `--output <file>`
+  Example: `sc dev --help`
+
+### System Management
+
+**`sc install`** - Install supernal-coding system in target repository
+  Options: `--mode <mode>`, `--components <components>`
+  Example: `sc install /path/to/project`
+
+**`sc git-hooks`** - Git hooks management and installation
+  Example: `sc git-hooks install`
+
+**`sc git-smart`** - Smart git workflow utilities
+  Options: `--branch <branch>`, `--verbose`
+  Example: `sc git-smart --help`
+
+**`sc deploy`** - Deploy project components
+  Options: `--env <environment>`, `--service <service>`
+  Example: `sc deploy --help`
+
+### Feedback & Support
+
+**`sc suggest`** - Instantly create GitHub issues with context
+  Examples: 
+  - `sc suggest "The kanban command is slow"`
+  - `sc suggest bug "CLI crashes on empty directory"`
+  - `sc suggest feature "Add dark mode support"`
+
+### Help
+
+**`sc help`** - Show comprehensive help
+  Example: `sc help --help`
+
+## Full Command Details
+
+For complete help on any command:
+```bash
+sc <command> --help
+```
+
+## Agent-Specific Usage Patterns
+
+### Task Management Workflow
+```bash
+sc kanban list          # See current tasks
+sc kanban todo "task"   # Create new task  
+sc kanban done <id>     # Mark task complete
+```
+
+### Validation & Quality
+```bash
+sc validate --all       # Full project validation
+sc validate --requirements  # Just requirements check
+```
+
+### Getting Help
+```bash
+sc suggest "feedback"   # Quick GitHub issue creation
+sc help                 # Show all commands
+```
+
+**Total Commands Available: 13**
+**Last Updated: 7/17/2025, 12:07:45 PM**

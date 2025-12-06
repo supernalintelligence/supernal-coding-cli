@@ -1,0 +1,41 @@
+---
+description: Smart documentation and commit practices aligned with the epic/requirement system 
+globs: 
+alwaysApply: true
+---
+
+# Document and Commit Rules
+
+## **Smart Documentation Updates**
+
+### **✅ DO: System-Aligned Documentation**
+- **Update handoff documents** when completing work or transferring to another agent
+- **Update requirements** (Gherkin files) when specifications change during implementation
+- **Move completed items to DONE** with completion notes and timestamps
+- **Update epic progress** when requirements are completed
+- **Create new requirements** when new needs are discovered during implementation
+
+### **✅ DO: Commit with Requirements Traceability**
+- **Use REQ-XXX commit format** when implementing requirements: `REQ-001: Implement user login validation`
+- **Reference specific requirements** in commit messages
+- **Update requirement status** when code is committed
+- **Create feature branches** following pattern: `feature/req-001-user-login`
+
+### **✅ DO: Smart Commit Practices**
+- **Commit specific files** related to the requirement being implemented
+- **Stage requirement updates** along with code changes
+- **Update rule files** when new patterns emerge from actual implementation
+- **Commit handoff documents** when work is complete
+
+### **❌ DON'T: Scattered Documentation**
+- Don't create random documentation files that don't fit the system
+- Don't commit unrelated changes together
+- Don't update documentation without corresponding code changes
+- Don't commit without updating relevant requirement status
+
+## **Implementation Pattern**
+1. **Work on requirement** → Code changes
+2. **Update requirement** → Mark progress or completion
+3. **Commit together** → Code + requirement updates
+4. **Follow naming** → Use REQ-XXX format
+5. **Update handoff** → When work is complete or transferred

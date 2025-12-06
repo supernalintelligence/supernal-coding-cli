@@ -1,0 +1,10 @@
+---
+description: Intelligently commit your changes
+globs: 
+alwaysApply: true
+---
+When you commit, (only when asked to do so) please: 
+
+* Commit your changes **of the specific files you've changed** with messages 
+* Commit with an appropriate message that is not excessively long and provides informative inforamtion
+* Commit with a message containing other required information regarding to issues etc... 

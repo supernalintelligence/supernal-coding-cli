@@ -1,0 +1,46 @@
+# 🛠️ Supernal Coding CLI Commands
+
+**All commands can be run with either 'sc' or 'supernal-coding' prefix**
+
+## Quick Reference
+
+### Core Workflow
+
+### Development
+
+### System Management
+
+### Feedback & Support
+
+### Help
+
+## Full Command Details
+
+For complete help on any command:
+```bash
+sc <command> --help
+```
+
+## Agent-Specific Usage Patterns
+
+### Task Management Workflow
+```bash
+sc kanban list          # See current tasks
+sc kanban todo "task"   # Create new task  
+sc kanban done <id>     # Mark task complete
+```
+
+### Validation & Quality
+```bash
+sc validate --all       # Full project validation
+sc validate --requirements  # Just requirements check
+```
+
+### Getting Help
+```bash
+sc suggest "feedback"   # Quick GitHub issue creation
+sc help                 # Show all commands
+```
+
+**Total Commands Available: 0**
+**Last Updated: 8/13/2025, 10:39:53 PM**

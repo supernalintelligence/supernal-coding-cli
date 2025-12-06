@@ -1,0 +1,6 @@
+---
+description: DO NOT COMMIT WITHOUT PERMISSION
+alwaysApply: true
+---
+
+DO NOT COMMIT unless asked appropriately. If you have been asked to commit try to do so. If there are blocks due to githooks, fix those until you can commit. After you successfully commit, DO NOT COMMIT AGAIN until asked to do so. 

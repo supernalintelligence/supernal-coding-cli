@@ -1,0 +1,6 @@
+# .supernal-coding folder - local sync state management
+# ALL files should NOT be committed as they contain only local state
+# Configuration is handled by the main YAML config system (supernal.yaml)
+
+# Exclude entire folder (auto-managed by sc sync init)
+.supernal-coding/

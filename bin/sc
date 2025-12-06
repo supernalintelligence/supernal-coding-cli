@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+
+/**
+ * Supernal Coding CLI Entry Point
+ * Uses the full CLI system with all commands
+ */
+
+require('../lib/cli/index.js');

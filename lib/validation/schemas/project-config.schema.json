@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "project-config",
+  "title": "Supernal Project Configuration",
+  "description": "Configuration schema for .supernal/project.yaml",
+  "type": "object",
+  "required": ["version", "workflow"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-z0-9]+)?$",
+      "description": "Semantic version (e.g., '3.0.0', '3.0.0-alpha')"
+    },
+    "workflow": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Workflow pattern name (e.g., 'loopora-22-phase')"
+    },
+    "defaults": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Simple pattern reference"
+          },
+          {
+            "type": "object",
+            "description": "Explicit pattern reference"
+          }
+        ]
+      },
+      "description": "Composition list for Hydra-style loading"
+    },
+    "project": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "docs_dir": {
+          "type": "string",
+          "default": "docs"
+        },
+        "templates_dir": {
+          "type": "string",
+          "default": ".supernal/templates"
+        }
+      }
+    },
+    "repos": {
+      "type": "object",
+      "properties": {
+        "discover_subdirs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable sub-repo discovery"
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["node_modules", "dist", "build"]
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3
+        }
+      }
+    }
+  }
+}

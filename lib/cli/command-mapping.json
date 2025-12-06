@@ -1,0 +1,742 @@
+{
+  "metadata": {
+    "generated": "2025-11-03T12:00:00.000Z",
+    "totalCommands": 19,
+    "cliVersion": "1.0.0"
+  },
+  "commands": {
+    "validate": {
+      "name": "validate",
+      "description": "Validate project structure and requirements",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--requirements",
+          "description": "Validate requirements files",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--tests",
+          "description": "Validate test files",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--config",
+          "description": "Validate configuration",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--all",
+          "description": "Validate everything",
+          "defaultValue": null,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": [
+        "sc validate --all",
+        "sc validate --requirements",
+        "sc validate --tests"
+      ],
+      "implementationFile": "validate.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": true,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 858,
+          "functions": 23,
+          "classes": 0,
+          "conditionals": 79,
+          "score": 10
+        },
+        "dependencies": [
+          "chalk",
+          "fs-extra",
+          "path",
+          "child_process",
+          "js-yaml"
+        ]
+      }
+    },
+    "date-validate": {
+      "name": "date-validate",
+      "description": "Detect and fix hardcoded dates that don't match actual file dates",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--file <path>",
+          "description": "Validate specific file",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--fix",
+          "description": "Fix detected issues automatically",
+          "defaultValue": false,
+          "required": false
+        },
+        {
+          "flags": "--dry-run",
+          "description": "Show what would be fixed without making changes",
+          "defaultValue": false,
+          "required": false
+        },
+        {
+          "flags": "--verbose, -v",
+          "description": "Show detailed output",
+          "defaultValue": false,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": [
+        "sc date-validate",
+        "sc date-validate --fix",
+        "sc date-validate --file=README.md",
+        "sc date-validate --dry-run --fix"
+      ],
+      "implementationFile": "date-validate.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": true,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 150,
+          "functions": 5,
+          "classes": 1,
+          "conditionals": 15,
+          "score": 6
+        },
+        "dependencies": ["chalk", "validation/date-validator"]
+      }
+    },
+    "generate": {
+      "name": "generate",
+      "description": "Generate project files and documentation",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--templates",
+          "description": "Generate from templates",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--docs",
+          "description": "Generate documentation",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--workflows",
+          "description": "Generate workflow templates",
+          "defaultValue": null,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": ["sc generate --help"],
+      "implementationFile": "generate.js",
+      "implementation": {
+        "hasHelpFunction": false,
+        "hasErrorHandling": false,
+        "usesChalk": false,
+        "usesFileSystem": false,
+        "complexity": {
+          "lines": 5,
+          "functions": 0,
+          "classes": 0,
+          "conditionals": 0,
+          "score": 1
+        },
+        "dependencies": []
+      }
+    },
+    "deploy": {
+      "name": "deploy",
+      "description": "Deploy project components",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--env <environment>",
+          "description": "Target environment",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--service <service>",
+          "description": "Specific service to deploy",
+          "defaultValue": null,
+          "required": true
+        }
+      ],
+      "action": null,
+      "examples": ["sc deploy --help"],
+      "implementationFile": "deploy.js",
+      "implementation": {
+        "hasHelpFunction": false,
+        "hasErrorHandling": false,
+        "usesChalk": false,
+        "usesFileSystem": false,
+        "complexity": {
+          "lines": 4,
+          "functions": 0,
+          "classes": 0,
+          "conditionals": 0,
+          "score": 1
+        },
+        "dependencies": []
+      }
+    },
+    "agent": {
+      "name": "agent",
+      "description": "Agent workflow management",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (onboard, handoff, status)",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "options": [
+        {
+          "flags": "--interactive",
+          "description": "Interactive mode",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--branch <branch>",
+          "description": "Specific branch",
+          "defaultValue": null,
+          "required": true
+        }
+      ],
+      "action": null,
+      "examples": ["sc agent --help"],
+      "implementationFile": "agent.js",
+      "implementation": {
+        "hasHelpFunction": false,
+        "hasErrorHandling": true,
+        "usesChalk": true,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 297,
+          "functions": 8,
+          "classes": 0,
+          "conditionals": 14,
+          "score": 8
+        },
+        "dependencies": [
+          "chalk",
+          "fs-extra",
+          "path",
+          "child_process",
+          "./git-smart",
+          "../../scripts/config-loader"
+        ]
+      }
+    },
+    "priority": {
+      "name": "priority",
+      "description": "Priority management for requirements and tasks",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (update, show, validate)",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "options": [
+        {
+          "flags": "--file <file>",
+          "description": "Specific file to process",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--dry-run",
+          "description": "Show what would be changed without making changes",
+          "defaultValue": null,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": ["sc priority --help"],
+      "implementationFile": "priority.js",
+      "implementation": {
+        "hasHelpFunction": false,
+        "hasErrorHandling": true,
+        "usesChalk": true,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 261,
+          "functions": 7,
+          "classes": 0,
+          "conditionals": 32,
+          "score": 8
+        },
+        "dependencies": ["fs", "path", "chalk", "child_process"]
+      }
+    },
+    "git-smart": {
+      "name": "git-smart",
+      "description": "Smart git workflow utilities",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (check-branch, status, sync)",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "options": [
+        {
+          "flags": "--branch <branch>",
+          "description": "Specific branch",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--verbose",
+          "description": "Verbose output",
+          "defaultValue": null,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": ["sc git-smart --help"],
+      "implementationFile": "git-smart.js",
+      "implementation": {
+        "hasHelpFunction": false,
+        "hasErrorHandling": true,
+        "usesChalk": false,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 496,
+          "functions": 1,
+          "classes": 1,
+          "conditionals": 40,
+          "score": 10
+        },
+        "dependencies": ["child_process", "fs", "path"]
+      }
+    },
+    "kanban": {
+      "name": "kanban",
+      "description": "Kanban task management system",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (list, todo, priority, etc.)",
+          "required": true,
+          "variadic": false
+        },
+        {
+          "syntax": "[...args]",
+          "description": "Additional arguments for the action",
+          "required": false,
+          "variadic": true
+        }
+      ],
+      "options": [
+        {
+          "flags": "--filter <type>",
+          "description": "Filter tasks by type",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--priority <level>",
+          "description": "Set priority level (0-4)",
+          "defaultValue": null,
+          "required": true
+        }
+      ],
+      "action": null,
+      "examples": [
+        "sc kanban list",
+        "sc kanban todo \"New task\"",
+        "sc kanban stats"
+      ],
+      "implementationFile": "kanban.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": false,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 154,
+          "functions": 1,
+          "classes": 1,
+          "conditionals": 9,
+          "score": 4
+        },
+        "dependencies": ["child_process", "path", "fs"]
+      }
+    },
+    "docs": {
+      "name": "docs",
+      "description": "Documentation management system",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (generate, validate, build)",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "options": [
+        {
+          "flags": "--format <format>",
+          "description": "Output format (html, pdf, markdown)",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--output <path>",
+          "description": "Output directory",
+          "defaultValue": null,
+          "required": true
+        }
+      ],
+      "action": null,
+      "examples": ["sc docs --help"],
+      "implementationFile": "docs.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": false,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 136,
+          "functions": 1,
+          "classes": 1,
+          "conditionals": 6,
+          "score": 4
+        },
+        "dependencies": ["child_process", "path", "fs"]
+      }
+    },
+    "dev": {
+      "name": "dev",
+      "description": "Development tools and utilities",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (find-logs)",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "options": [
+        {
+          "flags": "--max-ratio <ratio>",
+          "description": "Maximum allowed ratio for find-logs",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--output <file>",
+          "description": "Output file path for find-logs",
+          "defaultValue": null,
+          "required": true
+        }
+      ],
+      "action": null,
+      "examples": ["sc dev --help"],
+      "implementationFile": "dev.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": false,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 106,
+          "functions": 0,
+          "classes": 1,
+          "conditionals": 4,
+          "score": 3
+        },
+        "dependencies": ["child_process", "path", "fs"]
+      }
+    },
+    "git-hooks": {
+      "name": "git-hooks",
+      "description": "Git hooks management and installation",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (install, pre-commit, safety, status)",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "options": [],
+      "action": null,
+      "examples": [
+        "sc git-hooks install",
+        "sc git-hooks status",
+        "sc git-hooks pre-commit"
+      ],
+      "implementationFile": "git-hooks.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": false,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 199,
+          "functions": 0,
+          "classes": 1,
+          "conditionals": 10,
+          "score": 5
+        },
+        "dependencies": ["child_process", "path", "fs"]
+      }
+    },
+    "suggest": {
+      "name": "suggest",
+      "description": "Instantly create GitHub issues with context",
+      "arguments": [
+        {
+          "syntax": "<feedback>",
+          "description": "Your feedback, bug report, or feature request",
+          "required": true,
+          "variadic": false
+        },
+        {
+          "syntax": "[...args]",
+          "description": "Additional words for the feedback",
+          "required": false,
+          "variadic": true
+        }
+      ],
+      "options": [],
+      "action": null,
+      "examples": [
+        "sc suggest \"The kanban command is slow\"",
+        "sc suggest \"Better error messages needed\"",
+        "sc suggest bug \"CLI crashes on empty directory\"",
+        "sc suggest feature \"Add dark mode support\""
+      ],
+      "implementationFile": "suggest.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": true,
+        "usesFileSystem": false,
+        "complexity": {
+          "lines": 137,
+          "functions": 3,
+          "classes": 0,
+          "conditionals": 5,
+          "score": 4
+        },
+        "dependencies": ["chalk", "child_process", "path"]
+      }
+    },
+    "map": {
+      "name": "map",
+      "description": "Generate and manage command mappings from code",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (generate, help, docs, check, show)",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "options": [
+        {
+          "flags": "--output <file>",
+          "description": "Output file for documentation",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--command <name>",
+          "description": "Show details for specific command",
+          "defaultValue": null,
+          "required": true
+        },
+        {
+          "flags": "--help",
+          "description": "Show help in mapping output",
+          "defaultValue": null,
+          "required": false
+        },
+        {
+          "flags": "--docs",
+          "description": "Show docs in mapping output",
+          "defaultValue": null,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": ["sc map --help"],
+      "implementationFile": "map.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": true,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 170,
+          "functions": 1,
+          "classes": 0,
+          "conditionals": 11,
+          "score": 4
+        },
+        "dependencies": ["chalk", "./command-mapper", "fs-extra"]
+      }
+    },
+    "init-req-tracking": {
+      "name": "init-req-tracking",
+      "description": "Initialize git tracking metadata for all requirement markdown files",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-n, --dry-run",
+          "description": "Show what would be done without making changes",
+          "defaultValue": false,
+          "required": false
+        },
+        {
+          "flags": "-v, --verbose",
+          "description": "Show detailed progress information",
+          "defaultValue": false,
+          "required": false
+        },
+        {
+          "flags": "-f, --force",
+          "description": "Update files even if they already have git_tracking",
+          "defaultValue": false,
+          "required": false
+        },
+        {
+          "flags": "-p, --pattern <pattern>",
+          "description": "Custom glob pattern for finding files",
+          "defaultValue": null,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": [
+        "sc init-req-tracking",
+        "sc init-req-tracking --dry-run --verbose",
+        "sc init-req-tracking --pattern '**/my-reqs/*.md'",
+        "sc init-tracking --force --verbose"
+      ],
+      "implementationFile": "init-requirements-tracking.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": false,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 320,
+          "functions": 7,
+          "classes": 1,
+          "conditionals": 15,
+          "score": 8
+        }
+      }
+    },
+    "fix-frontmatter": {
+      "name": "fix-frontmatter",
+      "description": "Auto-fix common frontmatter issues in requirement files",
+      "arguments": [],
+      "options": [],
+      "action": null,
+      "examples": ["sc fix-frontmatter"],
+      "implementationFile": "validation/fix-frontmatter.js",
+      "implementation": {}
+    },
+    "workflow": {
+      "name": "workflow",
+      "description": "Workflow state tracking and guidance system",
+      "arguments": [
+        {
+          "syntax": "<action>",
+          "description": "Action to perform (status, check, complete, start-req, complete-req, reset, guide, help)",
+          "required": false,
+          "variadic": false
+        }
+      ],
+      "options": [
+        {
+          "flags": "--init",
+          "description": "Initialize workflow tracking after sc init",
+          "defaultValue": null,
+          "required": false
+        }
+      ],
+      "action": null,
+      "examples": [
+        "sc workflow status",
+        "sc workflow check",
+        "sc workflow guide",
+        "sc workflow complete create_first_requirement",
+        "sc workflow start-req 001",
+        "sc workflow complete-req 001"
+      ],
+      "implementationFile": "workflow.js",
+      "implementation": {
+        "hasHelpFunction": true,
+        "hasErrorHandling": true,
+        "usesChalk": true,
+        "usesFileSystem": true,
+        "complexity": {
+          "lines": 300,
+          "functions": 8,
+          "classes": 1,
+          "conditionals": 20,
+          "score": 8
+        },
+        "dependencies": ["chalk", "./workflow/state-tracker"]
+      }
+    },
+    "help": {
+      "name": "help",
+      "description": "Show comprehensive help",
+      "arguments": [],
+      "options": [],
+      "action": null,
+      "examples": ["sc help --help"],
+      "implementationFile": null,
+      "implementation": {}
+    }
+  },
+  "mcp": {
+    "name": "mcp",
+    "description": "Start the Supernal Coding MCP server",
+    "arguments": [],
+    "options": [],
+    "action": null,
+    "examples": ["sc mcp"],
+    "implementationFile": "mcp.js",
+    "implementation": {
+      "hasHelpFunction": false,
+      "hasErrorHandling": true,
+      "usesChalk": true,
+      "usesFileSystem": false,
+      "complexity": {
+        "lines": 250,
+        "functions": 8,
+        "classes": 1,
+        "conditionals": 15,
+        "score": 7
+      },
+      "dependencies": ["@modelcontextprotocol/sdk", "child_process", "chalk"]
+    }
+  }
+}

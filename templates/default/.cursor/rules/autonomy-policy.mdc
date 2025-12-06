@@ -1,0 +1,42 @@
+---
+description: Default autonomy policy for AI agents — pre-approvals, guardrails, and execution flow centered on the `sc` CLI
+globs: 
+alwaysApply: true
+---
+
+**Core Principle: Use Supernal Coding (Use `sc`)**
+
+**Pre‑Approvals (via `sc`)**
+  - `sc req` lifecycle: `new`, `validate`, `generate-tests`, `update`, `show`, `list`
+  - `sc git-smart`: `branch`, `check-branch`, `check-context`, `merge --push --delete-local`, `deploy` (when relevant)
+  - `sc git-hooks`: `install`, `pre-commit`, `pre-push`, `safety`, `status`
+  - `sc test` and `sc test-map` for guidance/mapping; run full suite with `npm test` unless a project `TESTME.sh` exists (then follow its interface)
+  - `sc docs` and `sc rules` where documentation or rules require changes
+  - `sc init`/`install` only when initializing or equipping repositories (not during regular feature work)
+
+**Execution Flow (Do Not Ask; Use `sc`)**
+  - Analyze → Plan → Implement → Test → Finalize metadata/docs → Merge → Report
+  - Use `sc git-smart branch --branch REQ-XXX` for feature branches and keep requirement traceability in commits (`REQ-XXX: ...`)
+  - Use `sc git-smart merge --push --delete-local` once tests are green and the working tree is clean
+
+**Tests & Build**
+  - Run `npm test` for the full suite; treat fixture-induced console warnings as noise unless they fail tests
+  - If `TESTME.sh` exists, follow that interface; otherwise default to `npm test`
+
+**Hooks & Metadata**
+  - Install hooks with `sc git-hooks install` and respect them during commits
+  - If hooks auto‑update requirement metadata (e.g., `git_tracking`), continue committing the metadata using normal commits until the working tree is clean; do not bypass hooks unless they create a non‑progress loop
+  - Only bypass hooks for final metadata stabilization when: tests are green, changes are metadata‑only, and repeated commits do not converge to a clean state
+
+**Destructive Changes (Guardrails)**
+  - Remove redundant legacy artifacts when a canonical `sc`/JS path exists (e.g., shell scripts superseded by a JS module)
+  - For non‑redundant or ambiguous deletions, refactor in place or open a PR
+  - Never remove business logic or specs without equivalent/updated coverage
+
+**Commit Policy**
+  - Use requirement‑traceable commit messages when applicable: `REQ-XXX: Description`
+  - Group related changes and include associated rule/doc updates
+
+**Merge Policy**
+  - Merge when: working tree is clean, tests are green, and scope matches the intended goal
+  - Prefer `sc git-smart merge --push --delete-local`; open a PR only if repository policy or technical constraints require it

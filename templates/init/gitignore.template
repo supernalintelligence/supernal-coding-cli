@@ -1,0 +1,112 @@
+# Supernal Coding .gitignore Template
+# Created by sc init
+
+# ============================================================================
+# Supernal Coding System Files
+# ============================================================================
+
+# Local state (don't commit - contains absolute paths and local preferences)
+.supernal-coding/rules-state.json
+.supernal-coding/suggestions/
+.supernal-coding/last-upgrade-check.json
+
+# WIP registry (local WIP state - Work-In-Progress tracking)
+.supernal/wip-registry.yaml
+
+# Feature registry (optional - commit if using feature-based commits on shared repo)
+# .supernal/features.yaml
+
+# ============================================================================
+# Dependencies
+# ============================================================================
+
+node_modules/
+.pnp
+.pnp.js
+
+# ============================================================================
+# Testing
+# ============================================================================
+
+coverage/
+*.lcov
+.nyc_output
+junit.xml
+test-results/
+playwright-report/
+
+# ============================================================================
+# Build Output
+# ============================================================================
+
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# ============================================================================
+# Environment & Secrets
+# ============================================================================
+
+.env
+.env.local
+.env.*.local
+.env.production
+*.key
+*.pem
+
+# ============================================================================
+# IDE & Editor
+# ============================================================================
+
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================================================
+# Logs
+# ============================================================================
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# ============================================================================
+# OS
+# ============================================================================
+
+.DS_Store
+Thumbs.db
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+
+*.tmp
+*.temp
+.temp/
+temp/
+tmp/
+
+# ============================================================================
+# Project-Specific (uncomment as needed)
+# ============================================================================
+
+# Database
+# *.db
+# *.sqlite
+# *.sqlite3
+
+# Compiled assets
+# public/assets/
+# static/compiled/
+

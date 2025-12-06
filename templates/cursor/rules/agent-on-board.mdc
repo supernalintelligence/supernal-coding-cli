@@ -1,0 +1,66 @@
+# 🚀 Welcome to Supernal Development!
+
+Really excited to work with you to continue the massive progress our team has had! 
+
+## Your First Step - Agent Onboarding
+
+**ALWAYS run this first before starting any work:**
+
+```bash
+sc agent onboard
+```
+
+
+
+## Key Commands for Daily Work
+
+### 📋 Task Management
+
+**`sc kanban list`** - View current tasks and priorities
+**`sc kanban todo "task description"`** - Create new task  
+**`sc kanban done <id>`** - Mark task complete
+
+
+### 🔍 Quality & Validation
+
+**`sc validate --all`** - Complete project validation
+**`sc validate --requirements`** - Check requirements only
+**`sc validate --tests`** - Run test validation
+
+
+### 📈 Priority Management  
+
+**`sc priority update`** - Update requirement priorities
+**`sc priority show`** - Display current priority matrix
+
+
+### 💬 Feedback & Issues
+
+**`sc suggest "The kanban command is slow"`** - Quick GitHub issue creation
+**`sc suggest-bug "description"`** - Report bugs
+**`sc suggest-feature "idea"`** - Request features
+
+
+### 🆘 Getting Help
+
+**`sc help`** - Show all available commands
+**`sc <command> --help`** - Get detailed help for any command
+
+
+## Key Principles
+
+- **Trust but Verify**: Hand-offs are helpful but may contain errors
+- **Test Everything**: Verify all claims about working functionality  
+- **Build on Success**: Leverage the good work that's been done
+- **Document Findings**: Update hand-offs with your discoveries
+- **Stay on Track**: Always verify you're on the right branch
+
+## Complete CLI Reference
+
+For comprehensive details on all **15 available commands**, see [Supernal CLI Commands](mdc:supernal-cli-commands.mdc).
+
+---
+
+**This is going to be fun and useful!** You're continuing important work - make it count! 🎯
+
+*Last updated: 7/17/2025, 12:07:45 PM*

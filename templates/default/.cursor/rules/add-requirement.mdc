@@ -1,0 +1,61 @@
+---
+description: Use sc requirement commands for all requirement management - never create files manually
+globs: supernal-coding/requirements/**/*.md, .cursor/rules/*.mdc
+alwaysApply: true
+---
+
+# Requirement Management
+
+## **✅ DO: Use CLI for All Requirements**
+
+```bash
+# Create new requirement (system assigns ID automatically)
+sc requirement new "Feature Title" --epic=epic-name --priority=high --request-type=feature
+
+# Quick workflow with request type classification
+sc req new "Title" --epic=epic --priority=high --request-type=feature  # New feature
+sc req new "Fix Bug" --epic=epic --priority=high --request-type=bug    # Bug fix
+sc req validate 036                                                    # Check quality  
+sc req update 036 --status=in-progress                                 # Mark as in-progress
+sc req update 036 --status=done                                        # Mark complete
+```
+
+## **❌ DON'T: Manual File Creation**
+
+```bash
+# Wrong - bypasses validation and creates conflicts
+edit supernal-coding/requirements/req-XXX-title.md
+```
+
+## **Request Types & Priority Levels**
+
+### **Request Types**
+- `--request-type=feature` - 🆕 New Feature (default)
+- `--request-type=bug` - 🐛 Bug Fix 
+- `--request-type=enhancement` - ⚡ Enhancement
+- `--request-type=maintenance` - 🔧 Maintenance
+
+### **Priority Levels**
+- `--priority=critical` - 🚨 Critical
+- `--priority=high` - 🔥 High  
+- `--priority=medium` - 📋 Medium (default)
+- `--priority=low` - 📝 Low
+
+## **Common Commands**
+
+```bash
+sc req list                    # Show all requirements
+sc req show 036               # View specific requirement
+sc req validate 036           # Check quality
+sc req generate-tests 036     # Create test framework
+sc req update 036 --status=in-progress  # Mark as in-progress
+```
+
+## **Get Help**
+
+```bash
+sc requirement --help         # Full command reference
+sc requirement validate --help # Specific command help
+```
+
+**Remember: Always use `sc requirement` commands - never create requirement files manually. The system handles IDs, validation, and integration automatically.**

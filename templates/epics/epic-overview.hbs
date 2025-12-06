@@ -1,0 +1,87 @@
+# Epic:
+{{epicName}}
+
+**Epic ID**:
+{{epicId}}
+**Created**:
+{{createdDate}}
+**Status**:
+{{status}}
+**Priority**:
+{{priority}}
+**Estimated Effort**:
+{{estimatedEffort}}
+
+## 🎯 Overview
+{{description}}
+
+## 💰 Business Value
+{{businessValue}}
+
+## 🎖️ Success Criteria
+{{#each successCriteria}}
+  - [ ]
+  {{this}}
+{{/each}}
+
+## 📋 Requirements
+{{#each requirements}}
+  - [ ] [REQ-{{id}}](./requirements/req-{{id}}/requirement.md):
+  {{title}}
+  {{#if status}}({{status}}){{/if}}
+{{/each}}
+
+## 🔗 Dependencies
+{{#if dependencies}}
+  {{#each dependencies}}
+    -
+    {{type}}:
+    {{description}}
+    {{#if status}}({{status}}){{/if}}
+  {{/each}}
+{{else}}
+  No external dependencies identified.
+{{/if}}
+
+## 📅 Timeline - **Planning**:
+{{timeline.planning}}
+- **Implementation**:
+{{timeline.implementation}}
+- **Testing**:
+{{timeline.testing}}
+- **Completion**:
+{{timeline.completion}}
+
+## 📊 Progress Tracking - **Requirements**:
+{{progress.completedRequirements}}/{{progress.totalRequirements}}
+complete ({{progress.requirementsPercentage}}%) - **Tasks**:
+{{progress.completedTasks}}/{{progress.totalTasks}}
+complete ({{progress.tasksPercentage}}%) - **Overall**:
+{{progress.overallPercentage}}% complete ## 🚧 Current Status
+{{currentStatus}}
+
+## 🧠 Key Decisions
+{{#each keyDecisions}}
+  ###
+  {{date}}:
+  {{title}}
+  {{decision}}
+  {{#if rationale}}
+    **Rationale**:
+    {{rationale}}
+  {{/if}}
+{{/each}}
+
+## 🔄 Next Actions
+{{#each nextActions}}
+  - [ ]
+  {{action}}
+  {{#if assignee}}(@{{assignee}}){{/if}}
+  {{#if dueDate}}(Due: {{dueDate}}){{/if}}
+{{/each}}
+
+## 📝 Notes
+{{notes}}
+
+--- *Epic managed by Supernal Coding workflow system. Last updated:
+{{lastUpdated}}*

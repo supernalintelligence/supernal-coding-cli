@@ -1,0 +1,170 @@
+name: medical-csv
+description: FDA Computer System Validation (21 CFR Part 11) workflow for medical device software
+version: 1.0.0
+author: Supernal Team
+tags:
+  - medical
+  - fda
+  - csv
+  - compliance
+  - 21cfr11
+usageExample: |
+  # .supernal/project.yaml
+  workflow:
+    defaults: medical-csv
+
+phases:
+  - id: planning
+    name: Validation Planning
+    description: Define validation approach and requirements
+    order: 1
+    documents:
+      - type: validation-plan
+        template: vmp
+        required: true
+        description: Validation Master Plan
+      - type: user-requirements
+        template: urs
+        required: true
+        description: User Requirements Specification
+    validation:
+      - check: plan-approved
+        required: true
+      - check: risk-assessment-complete
+        required: true
+    transitions:
+      - to: design
+
+  - id: design
+    name: Design Specification
+    description: Define functional and design specifications
+    order: 2
+    documents:
+      - type: functional-spec
+        template: fs
+        required: true
+        description: Functional Specification
+      - type: design-spec
+        template: ds
+        required: true
+        description: Design Specification
+      - type: traceability-matrix
+        required: true
+    validation:
+      - check: design-reviewed
+        required: true
+      - check: traceability-verified
+        required: true
+    transitions:
+      - to: implementation
+
+  - id: implementation
+    name: System Development
+    description: Develop and unit test the system
+    order: 3
+    documents:
+      - type: code
+        required: true
+        description: Source code with version control
+      - type: unit-tests
+        required: true
+        description: Unit test protocols and results
+    validation:
+      - check: code-reviewed
+        required: true
+      - check: unit-tests-passing
+        required: true
+    transitions:
+      - to: iq
+
+  - id: iq
+    name: Installation Qualification (IQ)
+    description: Verify system installation meets specifications
+    order: 4
+    documents:
+      - type: iq-protocol
+        required: true
+        description: Installation Qualification Protocol
+      - type: iq-report
+        required: true
+        description: IQ execution results
+    validation:
+      - check: iq-approved
+        required: true
+      - check: deviations-resolved
+        required: true
+    transitions:
+      - to: oq
+
+  - id: oq
+    name: Operational Qualification (OQ)
+    description: Verify system operates per specifications
+    order: 5
+    documents:
+      - type: oq-protocol
+        required: true
+        description: Operational Qualification Protocol
+      - type: oq-report
+        required: true
+        description: OQ execution results
+    validation:
+      - check: oq-approved
+        required: true
+      - check: all-tests-passed
+        required: true
+    transitions:
+      - to: pq
+
+  - id: pq
+    name: Performance Qualification (PQ)
+    description: Verify system performs in production environment
+    order: 6
+    documents:
+      - type: pq-protocol
+        required: true
+        description: Performance Qualification Protocol
+      - type: pq-report
+        required: true
+        description: PQ execution results
+    validation:
+      - check: pq-approved
+        required: true
+      - check: system-ready-for-production
+        required: true
+    transitions:
+      - to: validation-summary
+
+  - id: validation-summary
+    name: Validation Summary
+    description: Compile validation summary report
+    order: 7
+    documents:
+      - type: validation-summary
+        template: vsr
+        required: true
+        description: Validation Summary Report
+      - type: traceability-matrix-final
+        required: true
+        description: Complete requirements traceability
+    validation:
+      - check: all-documentation-complete
+        required: true
+      - check: validation-approved
+        required: true
+    transitions: []
+
+metadata:
+  complexity: high
+  industry:
+    - medical-devices
+    - pharmaceuticals
+    - healthcare-it
+  estimatedDuration: 16-24 weeks
+  regulatoryFramework:
+    - FDA 21 CFR Part 11
+    - ISO 13485
+    - IEC 62304
+  documentCount: 15+
+  qualityGates: 7
+  traceabilityRequired: true
+  auditTrailRequired: true

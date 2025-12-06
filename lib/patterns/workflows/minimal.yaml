@@ -1,0 +1,39 @@
+name: minimal
+description: Single-phase minimal workflow for prototypes and quick experiments
+version: 1.0.0
+author: Supernal Team
+tags:
+  - minimal
+  - prototype
+  - simple
+usageExample: |
+  # .supernal/project.yaml
+  workflow:
+    defaults: minimal
+
+phases:
+  - id: build
+    name: Build
+    description: Build and validate in a single phase
+    order: 1
+    documents:
+      - type: code
+        required: true
+        description: Implementation code
+      - type: tests
+        required: false
+        description: Optional test suite
+    validation:
+      - check: builds-successfully
+        required: true
+    transitions: []
+
+metadata:
+  complexity: minimal
+  industry:
+    - prototyping
+    - poc
+    - experimentation
+  estimatedDuration: days to weeks
+  documentCount: minimal
+  traceabilityRequired: false

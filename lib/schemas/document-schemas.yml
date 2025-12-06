@@ -1,0 +1,221 @@
+# Document Schema Definitions for REQ-075
+# These schemas define the structure and validation rules for all document types
+
+evidence_schema:
+  type: object
+  required: [id, title, category, date, confidence, impact]
+  properties:
+    id:
+      type: string
+      pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}-.+$'
+      description: 'YYYY-MM-DD-{DESCRIPTION} format'
+    title:
+      type: string
+      minLength: 10
+      maxLength: 200
+    category:
+      type: string
+      enum: [communications, analysis, evaluations, observations, notes]
+    date:
+      type: string
+      format: date
+    participants:
+      type: array
+      items:
+        type: string
+    systems:
+      type: array
+      items:
+        type: string
+    domains:
+      type: array
+      items:
+        type: string
+        enum: [auth, seller, buyer, data, compliance, platform]
+    confidence:
+      type: string
+      enum: [high, medium, low]
+    impact:
+      type: string
+      enum: [high, medium, low]
+    tags:
+      type: array
+      items:
+        type: string
+
+problem_schema:
+  type: object
+  required: [id, title, affects, evidence, impact, status]
+  properties:
+    id:
+      type: string
+      pattern: '^PROB-(USER|ADMIN|OPS|DEV|COMPLIANCE)-[0-9]{3}-.+$'
+      description: 'PROB-{WHO}-{NUMBER}-{PROBLEM-NAME} format'
+    title:
+      type: string
+      minLength: 10
+      maxLength: 200
+    affects:
+      type: string
+      enum: [user, admin, ops, dev, compliance]
+    evidence:
+      type: array
+      items:
+        type: string
+        pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}-.+\.md$'
+    impact:
+      type: string
+      enum: [high, medium, low]
+    status:
+      type: string
+      enum: [identified, analyzing, solving, solved, validated]
+    created:
+      type: string
+      format: date
+    updated:
+      type: string
+      format: date
+
+architecture_schema:
+  type: object
+  required: [id, title, layer, domain, status]
+  properties:
+    id:
+      type: string
+      pattern: '^ARCH-(PLATFORM|BACKEND|FRONTEND|INTEGRATION)-.+-[0-9]{3}-.+$'
+      description: 'ARCH-{LAYER}-{DOMAIN}-{NUMBER}-{DESCRIPTION} format'
+    title:
+      type: string
+      minLength: 10
+      maxLength: 200
+    layer:
+      type: string
+      enum: [platform, backend, frontend, integration]
+    domain:
+      type: string
+      minLength: 2
+    dependencies:
+      type: array
+      items:
+        type: string
+        pattern: '^ARCH-.+$'
+    status:
+      type: string
+      enum: [draft, review, approved, implemented]
+
+functional_requirement_schema:
+  type: object
+  required: [id, title, domain, priority, status]
+  properties:
+    id:
+      type: string
+      pattern: '^REQ-.+-[0-9]{3}-.+$'
+      description: 'REQ-{DOMAIN}-{NUMBER}-{REQUIREMENT-NAME} format'
+    title:
+      type: string
+      minLength: 10
+      maxLength: 200
+    domain:
+      type: string
+      minLength: 2
+    problem:
+      type: string
+      pattern: '^PROB-.+$'
+    architecture:
+      type: array
+      items:
+        type: string
+        pattern: '^ARCH-.+$'
+    priority:
+      type: string
+      enum: [critical, high, medium, low]
+    status:
+      type: string
+      enum: [draft, review, approved, implemented, tested]
+
+user_story_schema:
+  type: object
+  required: [id, title, persona, requirement, priority, status]
+  properties:
+    id:
+      type: string
+      pattern: '^STORY-(BUYER|SELLER|ADMIN|DEVELOPER|AUDITOR)-[0-9]{3}-.+$'
+      description: 'STORY-{PERSONA}-{NUMBER}-{STORY-NAME} format'
+    title:
+      type: string
+      minLength: 10
+      maxLength: 200
+    persona:
+      type: string
+      enum: [buyer, seller, admin, developer, auditor]
+    requirement:
+      type: string
+      pattern: '^REQ-.+$'
+    domains:
+      type: array
+      items:
+        type: string
+    priority:
+      type: string
+      enum: [must-have, should-have, could-have, wont-have]
+    status:
+      type: string
+      enum: [draft, ready, in-progress, done, accepted]
+
+design_document_schema:
+  type: object
+  required: [id, title, architecture, requirements]
+  properties:
+    id:
+      type: string
+      pattern: '^DD-[0-9]{3}-.+$'
+      description: 'DD-{NUMBER}-{SERVICE-NAME} format'
+    title:
+      type: string
+      minLength: 10
+      maxLength: 200
+    architecture:
+      type: array
+      items:
+        type: string
+        pattern: '^ARCH-.+$'
+    requirements:
+      type: array
+      items:
+        type: string
+        pattern: '^REQ-.+$'
+    status:
+      type: string
+      enum: [draft, review, approved, implemented]
+
+business_case_schema:
+  type: object
+  required:
+    [id, title, evidence, problems, opportunity_type, confidence, status]
+  properties:
+    id:
+      type: string
+      pattern: '^BIZ-[0-9]{3}-.+$'
+      description: 'BIZ-{NUMBER}-{OPPORTUNITY} format'
+    title:
+      type: string
+      minLength: 10
+      maxLength: 200
+    evidence:
+      type: array
+      items:
+        type: string
+    problems:
+      type: array
+      items:
+        type: string
+        pattern: '^PROB-.+$'
+    opportunity_type:
+      type: string
+      enum: [market, competitive, regulatory, operational]
+    confidence:
+      type: string
+      enum: [high, medium, low]
+    status:
+      type: string
+      enum: [draft, review, approved, rejected]

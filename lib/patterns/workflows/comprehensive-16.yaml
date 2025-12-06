@@ -1,0 +1,328 @@
+name: comprehensive-16
+description: Comprehensive 16-phase enterprise workflow for complex projects requiring thorough documentation, quality gates, and traceability
+version: 1.0.0
+author: Supernal Team
+tags:
+  - enterprise
+  - comprehensive
+  - regulated
+  - traceable
+usageExample: |
+  # .supernal/project.yaml
+  workflow:
+    defaults: comprehensive-16
+
+phases:
+  # ==================
+  # Discovery (P1-P3)
+  # ==================
+
+  - id: business-requirements
+    name: Business Requirements
+    description: Gather and document business needs and objectives
+    order: 1
+    documents:
+      - type: business-requirements
+        template: brd
+        required: true
+        description: Business Requirements Document
+      - type: stakeholder-analysis
+        required: true
+    validation:
+      - check: stakeholders-identified
+        required: true
+      - check: requirements-reviewed
+        required: true
+    transitions:
+      - to: feasibility-study
+
+  - id: feasibility-study
+    name: Feasibility Study
+    description: Assess technical and business feasibility
+    order: 2
+    documents:
+      - type: feasibility-report
+        required: true
+        description: Technical and business feasibility analysis
+      - type: risk-assessment
+        required: true
+    validation:
+      - check: feasibility-approved
+        required: true
+    transitions:
+      - to: scope-definition
+
+  - id: scope-definition
+    name: Scope Definition
+    description: Define project scope, boundaries, and deliverables
+    order: 3
+    documents:
+      - type: scope-document
+        required: true
+        description: Detailed scope definition
+      - type: acceptance-criteria
+        required: true
+    validation:
+      - check: scope-approved
+        required: true
+    transitions:
+      - to: technical-requirements
+
+  # =====================
+  # Architecture (P4-P6)
+  # =====================
+
+  - id: technical-requirements
+    name: Technical Requirements
+    description: Define technical specifications and constraints
+    order: 4
+    documents:
+      - type: technical-requirements
+        template: trd
+        required: true
+        description: Technical Requirements Document
+      - type: nonfunctional-requirements
+        required: true
+    validation:
+      - check: requirements-traceable
+        required: true
+    transitions:
+      - to: architecture-design
+
+  - id: architecture-design
+    name: Architecture Design
+    description: Design system architecture and components
+    order: 5
+    documents:
+      - type: architecture
+        template: sad
+        required: true
+        description: Software Architecture Document
+      - type: architecture-decisions
+        template: add
+        required: true
+        description: Architecture Decision Documents
+    validation:
+      - check: architecture-reviewed
+        required: true
+    transitions:
+      - to: security-design
+
+  - id: security-design
+    name: Security Design
+    description: Design security controls and threat mitigations
+    order: 6
+    documents:
+      - type: security-requirements
+        required: true
+        description: Security requirements and threat model
+      - type: security-architecture
+        required: true
+    validation:
+      - check: security-review-complete
+        required: true
+    transitions:
+      - to: ux-design
+
+  # ================
+  # Design (P7-P9)
+  # ================
+
+  - id: ux-design
+    name: UX/UI Design
+    description: Design user experience and interface
+    order: 7
+    documents:
+      - type: ux-specifications
+        required: true
+        description: User experience specifications
+      - type: wireframes
+        required: true
+      - type: design-system
+        required: false
+    validation:
+      - check: ux-approved
+        required: true
+    transitions:
+      - to: detailed-design
+
+  - id: detailed-design
+    name: Detailed Design
+    description: Create detailed component and module designs
+    order: 8
+    documents:
+      - type: detailed-design
+        template: tdd
+        required: true
+        description: Technical Design Document
+      - type: interface-specifications
+        required: true
+    validation:
+      - check: design-reviewed
+        required: true
+    transitions:
+      - to: data-modeling
+
+  - id: data-modeling
+    name: Data Modeling
+    description: Design data structures, schemas, and flows
+    order: 9
+    documents:
+      - type: data-model
+        required: true
+        description: Database schema and data flow diagrams
+      - type: api-specifications
+        required: true
+    validation:
+      - check: data-model-approved
+        required: true
+    transitions:
+      - to: development-setup
+
+  # =========================
+  # Implementation (P10-P13)
+  # =========================
+
+  - id: development-setup
+    name: Development Setup
+    description: Prepare development environment and tooling
+    order: 10
+    documents:
+      - type: setup-guide
+        required: true
+        description: Development environment setup
+      - type: coding-standards
+        required: true
+    validation:
+      - check: environment-ready
+        required: true
+    transitions:
+      - to: implementation
+
+  - id: implementation
+    name: Implementation
+    description: Implement features according to design
+    order: 11
+    documents:
+      - type: code
+        required: true
+        description: Source code implementation
+      - type: inline-documentation
+        required: true
+    validation:
+      - check: code-complete
+        required: true
+      - check: lint-passing
+        required: true
+    transitions:
+      - to: unit-testing
+
+  - id: unit-testing
+    name: Unit Testing
+    description: Write and execute unit tests
+    order: 12
+    documents:
+      - type: unit-tests
+        required: true
+        description: Unit test suite
+      - type: test-coverage-report
+        required: true
+    validation:
+      - check: unit-tests-passing
+        required: true
+      - check: coverage-threshold-met
+        required: true
+    transitions:
+      - to: code-review
+
+  - id: code-review
+    name: Code Review
+    description: Peer review of code and tests
+    order: 13
+    documents:
+      - type: review-checklist
+        required: true
+        description: Code review checklist and findings
+    validation:
+      - check: review-approved
+        required: true
+      - check: issues-resolved
+        required: true
+    transitions:
+      - to: integration-testing
+
+  # =======================
+  # Deployment (P14-P16)
+  # =======================
+
+  - id: integration-testing
+    name: Integration Testing
+    description: Test system integration and E2E scenarios
+    order: 14
+    documents:
+      - type: integration-tests
+        required: true
+        description: Integration and E2E test suites
+      - type: test-results
+        required: true
+    validation:
+      - check: integration-tests-passing
+        required: true
+      - check: e2e-tests-passing
+        required: true
+    transitions:
+      - to: production-deployment
+
+  - id: production-deployment
+    name: Production Deployment
+    description: Deploy to production environment
+    order: 15
+    documents:
+      - type: deployment-plan
+        required: true
+        description: Production deployment procedure
+      - type: rollback-plan
+        required: true
+      - type: deployment-log
+        required: true
+    validation:
+      - check: smoke-tests-passing
+        required: true
+      - check: monitoring-active
+        required: true
+    transitions:
+      - to: documentation-finalization
+
+  - id: documentation-finalization
+    name: Documentation Finalization
+    description: Complete all project documentation
+    order: 16
+    documents:
+      - type: user-manual
+        required: true
+        description: End-user documentation
+      - type: operations-manual
+        template: sop
+        required: true
+        description: Standard Operating Procedures
+      - type: traceability-matrix
+        required: true
+    validation:
+      - check: documentation-complete
+        required: true
+      - check: traceability-verified
+        required: true
+    transitions: []
+
+metadata:
+  complexity: high
+  industry:
+    - enterprise
+    - healthcare
+    - finance
+    - government
+    - aerospace
+  estimatedDuration: 12-24 weeks per cycle
+  documentCount: 30+
+  qualityGates: 16
+  traceabilityRequired: true

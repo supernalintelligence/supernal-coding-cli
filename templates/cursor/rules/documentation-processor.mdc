@@ -1,0 +1,231 @@
+---
+description: Use documentation processor to extract and implement code blocks from planning docs
+globs: docs/**/*.md, *.md
+alwaysApply: false
+---
+
+# Documentation-Driven Development Pattern
+
+## **Core Principle: Plan → Process → Implement**
+
+When creating implementation plans or design documents with code examples, use the documentation processor to automatically extract and create files.
+
+## **The Pattern**
+
+Use this exact format in your markdown documentation:
+
+```markdown
+**File**: `path/to/file.ext`
+
+```language
+// Your code here
+```
+```
+
+After processing with `sc docs process <doc-file>`, the system will:
+- ✅ Create the file at the specified path
+- ✅ Create necessary directory structure
+- ✅ Mark the block as `**File IMPLEMENTED**:` in the documentation
+- ✅ Remove the code block (DRY principle - code lives in files, not docs)
+- ⚠️ Detect conflicts if file already exists with different content
+
+## **When to Use**
+
+- **✅ DO Use For**:
+  - Large refactors affecting multiple files
+  - New feature implementations with clear structure
+  - Architecture changes with defined file organization
+  - Migration plans with step-by-step code changes
+  - Planning documents that become implementation guides
+
+- **❌ DON'T Use For**:
+  - Single file changes (just edit directly)
+  - Exploratory code snippets (use regular code blocks)
+  - Examples that shouldn't become files
+  - Documentation that's purely explanatory
+
+## **Complete Example**
+
+```markdown
+# Feature Implementation Plan
+
+## Step 1: Create Utility Helper
+
+**File**: `src/utils/stringHelper.ts`
+
+```typescript
+export const capitalize = (str: string): string => {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
+export const truncate = (str: string, maxLength: number): string => {
+  return str.length > maxLength ? str.slice(0, maxLength) + '...' : str;
+};
+```
+
+## Step 2: Create Main Module
+
+**File**: `src/features/userDisplay.ts`
+
+```typescript
+import { capitalize, truncate } from '../utils/stringHelper';
+
+export const formatUsername = (username: string): string => {
+  return capitalize(truncate(username, 20));
+};
+```
+
+## Step 3: Tests
+
+**File**: `tests/features/userDisplay.test.ts`
+
+```typescript
+import { formatUsername } from '../../src/features/userDisplay';
+
+describe('formatUsername', () => {
+  it('should capitalize and truncate long usernames', () => {
+    expect(formatUsername('verylongusername123456789')).toBe('Verylongusername1234...');
+  });
+});
+```
+```
+
+## **Workflow**
+
+### 1. Create Planning Document
+Write your implementation plan with the `**File**: \`path\`` pattern for each file.
+
+### 2. Process the Documentation
+```bash
+sc docs process docs/features/developer-tooling/my-feature/planning/implementation-plan.md
+```
+
+### 3. Review Results
+The processor will:
+- Create all files that don't exist
+- Report conflicts for files that exist but differ
+- Update the markdown to mark blocks as IMPLEMENTED
+- Remove code blocks to avoid duplication
+
+### 4. Handle Conflicts
+If conflicts are detected:
+```markdown
+**File CONFLICT ⚠️**: `src/existing.ts`
+
+> **CONFLICT RESOLUTION NEEDED:**
+> - Existing file differs from documentation
+> - Check `.proposed` file for new content
+> - Manually resolve differences
+> - Remove this conflict marker when done
+```
+
+### 5. Complete Implementation
+After processing, your planning doc becomes a clean checklist:
+```markdown
+**File IMPLEMENTED**: `src/utils/stringHelper.ts`
+**File IMPLEMENTED**: `src/features/userDisplay.ts`
+**File IMPLEMENTED**: `tests/features/userDisplay.test.ts`
+```
+
+## **Advanced Features**
+
+### Similarity Detection
+Files are compared using normalized line-based comparison:
+- **>90% similar**: Considered matching, code block removed
+- **<90% similar**: Marked as conflict, requires manual review
+
+### Directory Creation
+Nested directory structures are created automatically:
+```markdown
+**File**: `src/deeply/nested/path/to/file.ts`
+```
+This will create all intermediate directories.
+
+### Multiple File Types
+Supports any file type:
+- TypeScript: `.ts`, `.tsx`
+- JavaScript: `.js`, `.jsx`, `.cjs`, `.mjs`
+- Configuration: `.json`, `.yaml`, `.yml`
+- Styles: `.css`, `.scss`
+- Any text-based file format
+
+## **Best Practices**
+
+### ✅ DO:
+- Use descriptive file paths
+- Include necessary imports in code blocks
+- Test the processor on a copy first for large refactors
+- Keep planning docs under version control
+- Use the processor for systematic, planned changes
+
+### ❌ DON'T:
+- Process the same doc multiple times without reviewing
+- Use for quick experimental changes
+- Expect it to merge complex conflicts
+- Mix implementation code with unrelated examples
+- Forget to review and commit changes after processing
+
+## **Error Handling**
+
+The processor handles common scenarios:
+- **Missing parent directories**: Creates them automatically
+- **File already exists**: Checks similarity, marks conflicts
+- **Invalid paths**: Reports error, continues with other files
+- **Permission issues**: Reports error with details
+
+## **Integration with Requirements**
+
+When implementing requirements:
+
+```markdown
+# REQ-042: User Profile Display
+
+**Requirement**: Users need formatted display names
+
+## Implementation
+
+**File**: `src/features/userProfile.ts`
+
+```typescript
+// Implementation for REQ-042
+export const formatUserProfile = (user: User): DisplayProfile => {
+  return {
+    displayName: formatUsername(user.name),
+    // ... REQ-042 implementation
+  };
+};
+```
+```
+
+After processing, commit with:
+```bash
+sc docs process docs/requirements/req-042-user-profile.md
+git add src/features/userProfile.ts docs/requirements/req-042-user-profile.md
+git commit -m "REQ-042: Implement user profile display formatting"
+```
+
+## **Troubleshooting**
+
+### Problem: Code blocks not detected
+**Solution**: Ensure exact format `**File**: \`path\`` with backticks
+
+### Problem: Wrong directory created
+**Solution**: Use paths relative to project root, not docs directory
+
+### Problem: Conflicts on clean files
+**Solution**: Check for whitespace differences, formatter settings
+
+### Problem: Files not created
+**Solution**: Check file permissions, path validity, disk space
+
+## **Related Commands**
+
+- `sc docs cleanup`: Clean up documentation structure
+- `sc docs validate`: Validate documentation format
+- `sc requirement new`: Create new requirement with proper structure
+
+## **See Also**
+
+- [Documentation-Driven Development Guide](mdc:docs/guides/documentation-driven-development.md)
+- [Planning Document Template](mdc:templates/planning-document.md)
+- [CLI Commands Reference](mdc:docs/reference/cli-commands.md)

@@ -1,0 +1,84 @@
+#
+{{title}}
+
+**Task ID**:
+{{taskId}}
+**Created**:
+{{createdDate}}
+**Status**:
+{{status}}
+**Priority**: P{{priority}}
+**Estimated Effort**:
+{{estimatedEffort}}
+**Type**:
+{{type}}
+
+## 📋 Description
+{{description}}
+
+{{#if requirementLink}}
+  ## 🔗 Related Requirement [REQ-{{requirementLink.id}}](../../docs/requirements/req-{{requirementLink.id}}/requirement.md):
+  {{requirementLink.title}}
+{{/if}}
+
+{{#if epicLink}}
+  ## 🎯 Related Epic [{{epicLink.name}}](../../docs/planning/epics/{{epicLink.name}}/epic-overview.md):
+  {{epicLink.title}}
+{{/if}}
+
+## ✅ Acceptance Criteria
+{{#each acceptanceCriteria}}
+  - [ ]
+  {{this}}
+{{/each}}
+
+## 🔗 Dependencies
+{{#if dependencies}}
+  {{#each dependencies}}
+    -
+    {{type}}:
+    {{description}}
+    {{#if status}}({{status}}){{/if}}
+  {{/each}}
+{{else}}
+  No dependencies identified.
+{{/if}}
+
+## 📊 Implementation Steps
+{{#each steps}}
+  ###
+  {{@index}}.
+  {{title}}
+  {{description}}
+  {{#if completed}}
+    ✅ **Completed**:
+    {{completedDate}}
+  {{else}}
+    ⏳ **Status**:
+    {{status}}
+  {{/if}}
+{{/each}}
+
+## 🧪 Testing Strategy
+{{testingStrategy}}
+
+## 📝 Notes
+{{notes}}
+
+## 🔄 Progress Log
+{{#each progressLog}}
+  ###
+  {{date}}
+  -
+  {{author}}
+  {{entry}}
+{{/each}}
+
+--- **Assignee**:
+{{assignee}}
+**Due Date**:
+{{dueDate}}
+**Last Updated**:
+{{lastUpdated}}
+
+*Task managed by Supernal Coding workflow system*

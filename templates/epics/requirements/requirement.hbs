@@ -1,0 +1,73 @@
+# Requirement:
+{{title}}
+
+**Requirement ID**: REQ-{{requirementId}}
+**Epic**: [{{epicName}}](../../epic-overview.md) **Created**:
+{{createdDate}}
+**Status**:
+{{status}}
+**Priority**:
+{{priority}}
+**Complexity**:
+{{complexity}}
+
+## 📋 Description
+{{description}}
+
+## 🎯 Acceptance Criteria
+{{#each acceptanceCriteria}}
+  - [ ]
+  {{this}}
+{{/each}}
+
+## 🥒 Gherkin Scenarios ```gherkin Feature:
+{{title}}
+{{description}}
+
+{{#each scenarios}}
+  Scenario:
+  {{title}}
+  {{#each steps}}
+    {{type}}
+    {{text}}
+  {{/each}}
+
+{{/each}}
+``` ## 🔗 Dependencies
+{{#if dependencies}}
+  {{#each dependencies}}
+    - [REQ-{{id}}](../req-{{id}}/requirement.md):
+    {{title}}
+  {{/each}}
+{{else}}
+  No requirement dependencies.
+{{/if}}
+
+## 🧪 Test Strategy
+{{testStrategy}}
+
+## 📊 Implementation Plan
+{{#each implementationSteps}}
+  ### Step
+  {{@index}}:
+  {{title}}
+  {{description}}
+  {{#if estimatedEffort}}**Estimated Effort**: {{estimatedEffort}}{{/if}}
+{{/each}}
+
+## 🚧 Current Progress
+{{progress}}
+
+## 📝 Notes
+{{notes}}
+
+## 🔄 History
+{{#each history}}
+  ###
+  {{date}}:
+  {{action}}
+  {{details}}
+{{/each}}
+
+--- *Requirement managed by Supernal Coding workflow system. Last updated:
+{{lastUpdated}}*

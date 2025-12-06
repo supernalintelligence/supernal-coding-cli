@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "supernal-coding": {
+      "command": "node",
+      "args": ["node_modules/supernal-code/lib/mcp-server/index.js"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "SUPERNAL_SYNC_API_KEY": "${env:SUPERNAL_SYNC_API_KEY}"
+      }
+    }
+  }
+}

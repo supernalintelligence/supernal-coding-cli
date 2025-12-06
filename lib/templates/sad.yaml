@@ -1,0 +1,88 @@
+name: Software Architecture Document
+type: architecture
+version: 1.0.0
+description: Comprehensive architecture documentation for software systems
+
+frontmatter:
+  required:
+    - title
+    - version
+    - status
+    - date
+    - author
+  optional:
+    - reviewers
+    - approvers
+
+sections:
+  - id: executive-summary
+    name: Executive Summary
+    required: true
+    order: 1
+    description: High-level overview for stakeholders
+
+  - id: system-overview
+    name: System Overview
+    required: true
+    order: 2
+    description: Purpose, scope, and context
+
+  - id: architecture-goals
+    name: Architecture Goals & Constraints
+    required: true
+    order: 3
+    description: Quality attributes and constraints
+
+  - id: system-architecture
+    name: System Architecture
+    required: true
+    order: 4
+    description: High-level architecture with diagrams
+
+  - id: component-design
+    name: Component Design
+    required: true
+    order: 5
+    description: Detailed component architecture
+
+  - id: data-architecture
+    name: Data Architecture
+    required: true
+    order: 6
+    description: Data models and flows
+
+  - id: deployment-architecture
+    name: Deployment Architecture
+    required: true
+    order: 7
+    description: Infrastructure and deployment
+
+  - id: security-architecture
+    name: Security Architecture
+    required: true
+    order: 8
+    description: Security design and controls
+
+  - id: quality-attributes
+    name: Quality Attributes
+    required: false
+    order: 9
+    description: Performance, scalability, reliability
+
+  - id: risks-technical-debt
+    name: Risks & Technical Debt
+    required: false
+    order: 10
+    description: Known issues and mitigation
+
+validationRules:
+  - architecture-diagram-required
+  - component-diagram-required
+  - deployment-diagram-required
+
+metadata:
+  category: architecture
+  requiredInPhases:
+    - architecture
+    - design
+  filePattern: '*-architecture.md'

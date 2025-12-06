@@ -1,0 +1,73 @@
+{ "name": "{{projectName}}", "version": "{{version}}", "description": "{{#if
+  description
+}}{{description}}{{else}}A development project{{/if}}", "main": "{{#if
+  main
+}}{{main}}{{else}}index.js{{/if}}", "type": "{{#if
+  moduleType
+}}{{moduleType}}{{else}}commonjs{{/if}}", "scripts": { "dev": "{{#if
+  devCommand
+}}{{devCommand}}{{else}}npm run start{{/if}}", "build": "{{#if
+  buildCommand
+}}{{buildCommand}}{{else}}npm run compile{{/if}}", "test": "{{#ifContains
+  tools 'jest'
+}}jest{{else ifContains tools 'vitest'}}vitest{{else}}npm test{{/ifContains}}",
+"lint": "{{#ifContains tools 'eslint'}}eslint . --ext .js,.ts,.tsx{{else}}echo
+  \"No linting configured\"{{/ifContains}}", "format": "{{#ifContains
+  tools 'prettier'
+}}prettier --write .{{else}}echo \"No formatting configured\"{{/ifContains}}",
+"start": "node
+{{#if main}}{{main}}{{else}}index.js{{/if}}", "clean": "rm -rf dist coverage
+node_modules/.cache"{{#ifContains tools 'docker'}}, "docker:build": "docker
+  build -t
+  {{kebabCase projectName}}
+  .", "docker:run": "docker run -p
+  {{#if port}}{{port}}{{else}}3000{{/if}}:{{#if
+    port
+  }}{{port}}{{else}}3000{{/if}}
+  {{kebabCase projectName}}"{{/ifContains}}{{#ifContains tools 'storybook'}},
+  "storybook": "storybook dev -p 6006", "build-storybook": "storybook build"{{/ifContains}}
+}, "keywords": [ "{{kebabCase projectName}}"{{#each keywords}}, "{{this}}"{{/each}}
+], "author": "{{#if author}}{{author}}{{else}}Development Team{{/if}}",
+"license": "{{#if license}}{{license}}{{else}}MIT{{/if}}", "engines": { "node":
+"{{#if nodeVersion}}{{nodeVersion}}{{else}}>=18.0.0{{/if}}", "npm": "{{#if
+  npmVersion
+}}{{npmVersion}}{{else}}>=8.0.0{{/if}}" }, "dependencies": {
+{{#if framework}}
+  {{#ifEquals framework 'react'}}
+    "react": "^18.2.0", "react-dom": "^18.2.0"{{#ifContains tools 'next'}},
+      "next": "^14.1.0"{{/ifContains}}{{#ifContains tools 'vite'}}, "vite":
+      "^5.1.0", "@vitejs/plugin-react": "^4.2.1"{{/ifContains}}
+  {{/ifEquals}}
+  {{#ifEquals framework 'vue'}}
+    "vue": "^3.4.0"{{#ifContains tools 'vite'}}, "vite": "^5.1.0",
+      "@vitejs/plugin-vue": "^5.0.0"{{/ifContains}}
+  {{/ifEquals}}
+  {{#ifEquals framework 'express'}}
+    "express": "^4.18.2", "cors": "^2.8.5", "helmet": "^7.1.0"
+  {{/ifEquals}}
+  {{#ifEquals framework 'cli'}}
+    "commander": "^11.1.0", "chalk": "^5.3.0", "fs-extra": "^11.2.0"
+  {{/ifEquals}}
+{{/if}}
+{{#ifContains tools 'typescript'}}"typescript": "^5.3.3"{{/ifContains}}{{#ifContains
+  tools 'prisma'
+}}, "prisma": "^5.9.1", "@prisma/client": "^5.9.1"{{/ifContains}}{{#ifContains
+  tools 'redis'
+}}, "redis": "^4.6.12"{{/ifContains}}{{#ifContains tools 'mongodb'}}, "mongodb":
+  "^6.3.0"{{/ifContains}}
+}, "devDependencies": {
+{{#ifContains tools 'eslint'}}
+  "eslint": "^8.57.0"{{#ifContains tools 'typescript'}},
+    "@typescript-eslint/eslint-plugin": "^7.1.1", "@typescript-eslint/parser":
+    "^7.1.1"{{/ifContains}}{{/ifContains}}{{#ifContains tools 'prettier'}},
+  "prettier": "^3.2.5"{{/ifContains}}{{#ifContains tools 'jest'}}, "jest":
+  "^29.7.0"{{#ifContains tools 'typescript'}}, "@types/jest": "^29.5.12"{{/ifContains}}{{/ifContains}}{{#ifContains
+  tools 'vitest'
+}}, "vitest": "^1.2.2"{{/ifContains}}{{#ifContains tools 'typescript'}},
+  "@types/node": "^20.11.19"{{/ifContains}}{{#ifContains tools 'docker'}},
+  "dockerfile": "^3.0.0"{{/ifContains}}{{#ifContains tools 'storybook'}},
+  "@storybook/react": "^7.6.17", "@storybook/react-vite": "^7.6.17"{{/ifContains}}
+}{{#if repository}}, "repository": { "type": "git", "url": "{{repository}}" }{{/if}}{{#if
+  bugs
+}}, "bugs": { "url": "{{bugs}}" }{{/if}}{{#if homepage}}, "homepage": "{{homepage}}"{{/if}}
+}

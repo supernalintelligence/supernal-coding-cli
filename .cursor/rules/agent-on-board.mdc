@@ -1,0 +1,48 @@
+# 🚀 Welcome to Supernal Development!
+
+Really excited to work with you to continue the massive progress our team has had! 
+
+## Your First Step - Agent Onboarding
+
+**ALWAYS run this first before starting any work:**
+
+```bash
+sc agent onboard
+```
+
+
+
+## Key Commands for Daily Work
+
+### 📋 Task Management
+
+
+### 🔍 Quality & Validation
+
+
+### 📈 Priority Management  
+
+
+### 💬 Feedback & Issues
+
+
+### 🆘 Getting Help
+
+
+## Key Principles
+
+- **Trust but Verify**: Hand-offs are helpful but may contain errors
+- **Test Everything**: Verify all claims about working functionality  
+- **Build on Success**: Leverage the good work that's been done
+- **Document Findings**: Update hand-offs with your discoveries
+- **Stay on Track**: Always verify you're on the right branch
+
+## Complete CLI Reference
+
+For comprehensive details on all **0 available commands**, see [Supernal CLI Commands](mdc:supernal-cli-commands.mdc).
+
+---
+
+**This is going to be fun and useful!** You're continuing important work - make it count! 🎯
+
+*Last updated: 8/13/2025, 10:39:53 PM*

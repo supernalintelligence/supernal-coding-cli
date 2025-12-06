@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+#
+# Git Pre-Commit Hook: Documentation Structure Enforcement
+# Per ADR-001: Prevents new .md files at root (except whitelist)
+#
+# Installation: Run `sc git-hooks install`
+#
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Get the project root
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+
+# Check if supernal.yaml exists
+if [ ! -f "$PROJECT_ROOT/supernal.yaml" ]; then
+  echo -e "${YELLOW}⚠️  No supernal.yaml found - skipping documentation checks${NC}"
+  exit 0
+fi
+
+# Get staged .md files in root directory
+STAGED_ROOT_MDS=$(git diff --cached --name-only --diff-filter=A | grep -E '^[^/]+\.md$' || true)
+
+if [ -z "$STAGED_ROOT_MDS" ]; then
+  # No new root .md files, all good
+  exit 0
+fi
+
+# Load whitelist from supernal.yaml
+# Extract root_whitelist from YAML (simple grep approach)
+WHITELIST=$(grep -A 10 'root_whitelist:' "$PROJECT_ROOT/supernal.yaml" | grep -E '^\s*-' | sed 's/^[[:space:]]*-[[:space:]]*//' | tr -d '"' | tr -d "'")
+
+# Check each staged root .md file
+VIOLATIONS=()
+for file in $STAGED_ROOT_MDS; do
+  filename=$(basename "$file")
+  
+  # Check if filename is in whitelist
+  if ! echo "$WHITELIST" | grep -q "^$filename$"; then
+    VIOLATIONS+=("$file")
+  fi
+done
+
+# If violations found, block commit
+if [ ${#VIOLATIONS[@]} -gt 0 ]; then
+  echo -e "${RED}❌ Cannot commit .md files to root directory${NC}"
+  echo -e ""
+  echo -e "${YELLOW}Blocked files:${NC}"
+  for file in "${VIOLATIONS[@]}"; do
+    echo -e "  ${YELLOW}$file${NC}"
+  done
+  echo -e ""
+  echo -e "${CYAN}💡 Use proper documentation structure (ADR-001):${NC}"
+  echo -e "   ${GREEN}docs/planning/{startup,demo,mvp,production}/${NC}  - Planning documents"
+  echo -e "   ${GREEN}docs/adr/${NC}                                      - Architecture decisions"
+  echo -e "   ${GREEN}docs/architecture/${NC}                             - System architecture"
+  echo -e "   ${GREEN}docs/sessions/${NC}                                 - Temporary session work"
+  echo -e ""
+  echo -e "${CYAN}📚 Run this to check:${NC}"
+  echo -e "   ${GREEN}sc cleanup --dry-run${NC}"
+  echo -e ""
+  echo -e "${CYAN}🔧 Or auto-fix:${NC}"
+  echo -e "   ${GREEN}sc cleanup --auto-fix${NC}"
+  echo -e ""
+  echo -e "${YELLOW}⚠️  Allowed root files:${NC}"
+  echo "$WHITELIST" | sed 's/^/   - /'
+  echo -e ""
+  
+  exit 1
+fi
+
+# All checks passed
+exit 0
+

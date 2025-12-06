@@ -1,0 +1,180 @@
+---
+description: Feature management workflow and validation requirements  
+globs: docs/features/**/*.md, supernal-code-package/lib/cli/commands/feature/**/*.js
+alwaysApply: false
+---
+
+# Feature Management
+
+## **Core Principle: Use `sc feature` Commands**
+
+- **Never manually create feature directories** - Use `sc feature create` or copy from templates
+- **Use git mv to move features** - Or use `sc feature move` between domains
+- **Always validate before committing** - Run `sc feature validate`
+- **Follow the structure guide** - See [STRUCTURE-PHILOSOPHY.md](mdc:docs/features/STRUCTURE-PHILOSOPHY.md)
+
+---
+
+## **Feature Lifecycle Commands**
+
+```bash
+# Create new feature in a domain
+sc feature create --id=my-feature --domain=ai-workflow-system --epic=epic-name
+
+# Validate feature structure and frontmatter
+sc feature validate --id=my-feature
+sc feature validate --all               # Check all features
+
+# Move between domains
+sc feature move my-feature new-domain
+
+# Auto-fix simple issues
+sc feature validate --id=my-feature --fix
+```
+
+---
+
+## **Domain-Based Structure**
+
+### Available Domains
+```
+docs/features/
+├── ai-workflow-system/       # AI automation & workflows
+├── developer-tooling/        # CLI, docs, dev tools
+├── compliance-framework/     # Compliance & regulatory
+├── dashboard-platform/       # Dashboard UI & integrations
+├── workflow-management/      # Workflow & state tracking
+├── content-management/       # Content & social media
+├── integrations/             # External service connections
+└── admin-operations/         # Admin features
+```
+
+### Feature Structure
+```
+{domain}/{feature-name}/
+├── README.md (with frontmatter)
+├── design/           # Architecture, ADRs
+├── planning/         # Implementation plans
+└── requirements/     # Gherkin specs (optional)
+```
+
+---
+
+## **Required Frontmatter**
+
+```yaml
+---
+feature_id: "my-feature"     # Must match folder name
+title: "My Feature"
+domain: "ai-workflow-system" # Domain folder
+epic: "epic-name"            # Optional
+priority: "high"             # high|medium|low
+status: "active"             # active|paused|blocked|complete|deprecated
+assignee: "username"         # GitHub username (optional)
+created: "2025-11-28"
+updated: "2025-11-28"
+branch: "main"
+---
+```
+
+---
+
+## **Validation Rules**
+
+### Structure Validation
+- ✅ README.md exists with valid frontmatter
+- ✅ `feature_id` matches folder name exactly
+- ✅ `domain` matches parent folder (if specified)
+- ✅ All required fields present
+- ✅ Date fields in YYYY-MM-DD format
+
+### Domain Validation
+- ✅ Domain is one of the valid domains
+- ✅ Feature path matches domain structure
+
+
+---
+
+## **Best Practices**
+
+### ✅ DO
+
+- Use `sc feature` commands for all feature operations
+- Validate before committing (`sc feature validate`)
+- Keep features organized by functional domain
+- Use git mv when moving manually to preserve history
+- Update frontmatter timestamps when making changes
+- Follow naming conventions (kebab-case)
+
+### ❌ DON'T
+
+- Manually create directories without templates
+- Create features in root or phase folders
+- Skip validation
+- Use absolute paths in links
+- Create features with duplicate IDs
+- Forget to update timestamps
+
+---
+
+## **Git Integration**
+
+### Feature Branches
+
+```bash
+# Create branch for feature work
+git checkout -b feature/my-feature-name
+
+# Update frontmatter to match
+# branch: feature/my-feature-name
+```
+
+### Commits
+
+```bash
+# Reference feature and domain in commits
+git commit -m "feat(ai-workflow-system): Add code generation feature
+
+- Implement template parser
+- Add validation
+- REQ-042: Template validation
+"
+```
+
+---
+
+## **Troubleshooting**
+
+### Validation Fails with "feature_id mismatch"
+
+**Fix:**
+```bash
+sc feature validate --id=my-feature --fix
+```
+
+### Feature in Wrong Domain
+
+**Fix:**
+```bash
+sc feature move my-feature correct-domain
+```
+
+### Missing Required Directories
+
+**Fix:**
+```bash
+cd docs/features/{domain}/{feature}
+mkdir -p design planning requirements
+```
+
+---
+
+## **Related Documentation**
+
+- **Complete Guide:** [FEATURE-SYSTEM-GUIDE.md](mdc:docs/features/FEATURE-SYSTEM-GUIDE.md)
+- **Structure Philosophy:** [STRUCTURE-PHILOSOPHY.md](mdc:docs/features/STRUCTURE-PHILOSOPHY.md)
+- **Naming Conventions:** [NAMING-CONVENTIONS.md](mdc:docs/features/NAMING-CONVENTIONS.md)
+
+---
+
+**When in doubt, check:** `sc feature --help` or read [FEATURE-SYSTEM-GUIDE.md](mdc:docs/features/FEATURE-SYSTEM-GUIDE.md)

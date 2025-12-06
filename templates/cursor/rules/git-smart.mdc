@@ -1,0 +1,25 @@
+---
+description: Safe Git workflow using sc git-smart commands
+globs: 
+alwaysApply: false
+---
+
+# Smart Git Rules
+
+## Core Safety Principles
+- **Never use destructive commands**: No `git push --force`, `git reset --hard`, or other destructive operations
+- **Commit intelligently**: Use specific file commits with clear, informative messages that others can understand
+- **Always use safe automation**: Leverage `sc git-smart` commands for validated operations
+
+## Use sc git-smart for:
+- **Merging**: `sc git-smart merge` for safe, automated merging with rebase and validation
+- **Deployment**: `sc git-smart deploy` for comprehensive, validated deployments
+- **Branch Management**: `sc git-smart cleanup-branches` and `sc git-smart list-branches`
+- **Validation**: `sc git-smart check-branch` and `sc git-smart check-context`
+
+## Never Do These Things
+- `git push --force` or `git push -f`
+- `git reset --hard` (use `git-smart` recovery options instead)
+- Deploy without running tests (unless emergency with explicit `--skip-tests`)
+- Work directly on main/master branch
+- Delete branches without pushing to remote first 

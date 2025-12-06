@@ -1,0 +1,185 @@
+name: agile-4
+description: Standard 4-phase agile workflow (requirements → design → implementation → validation)
+version: 1.0.0
+author: Supernal Team
+tags:
+  - agile
+  - standard
+  - general-purpose
+usageExample: |
+  # .supernal/project.yaml
+  workflow:
+    defaults: agile-4
+
+phases:
+  - id: research
+    name: Research
+    description: Discover problems and define user needs
+    order: 1
+    documents:
+      - type: user-story
+        template: gherkin
+        required: true
+        description: User stories in Gherkin format
+        file_patterns:
+          - '^story-'
+        directories:
+          - 'docs/requirements/stories'
+      - type: problem
+        template: problem
+        required: false
+        description: Problem statements to solve
+        file_patterns:
+          - '^prob-'
+        directories:
+          - 'docs/research/problems'
+      - type: evidence
+        required: false
+        description: Research artifacts and findings
+        directories:
+          - 'research/evidence'
+    transitions:
+      - to: requirements
+
+  - id: requirements
+    name: Requirements
+    description: Define what to build with specifications and acceptance criteria
+    order: 2
+    documents:
+      - type: functional-requirement
+        template: requirement
+        required: true
+        description: Functional requirement specifications
+        file_patterns:
+          - '^req-func-'
+          - '^req-'
+        directories:
+          - 'requirements/functional'
+          - 'requirements/core'
+      - type: technical-requirement
+        template: requirement
+        required: true
+        description: Technical and infrastructure requirements
+        file_patterns:
+          - '^req-tech-'
+          - '^req-infra-'
+          - '^req-infrastructure-'
+        directories:
+          - 'requirements/infrastructure'
+      - type: compliance
+        template: compliance
+        required: false
+        description: Regulatory compliance requirements
+        file_patterns:
+          - '^req-gdpr-'
+          - '^comp-iso-'
+          - '^req-soc-'
+          - '^req-comp-'
+        directories:
+          - 'compliance'
+          - 'requirements/compliance'
+      - type: acceptance-criteria
+        required: true
+        description: Acceptance criteria for features
+    validation:
+      - check: all-stories-have-acceptance-criteria
+        required: true
+    transitions:
+      - to: solutions
+
+  - id: solutions
+    name: Solutions
+    description: Plan how to build it with architecture, components, and implementation docs
+    order: 3
+    documents:
+      - type: architecture
+        template: sad
+        required: true
+        description: Software Architecture Document
+        file_patterns:
+          - '^arch-'
+          - '^req-frontend-'
+        directories:
+          - 'architecture'
+          - 'requirements/architecture'
+      - type: component
+        required: false
+        description: Component specifications
+        file_patterns:
+          - '^comp-'
+        directories:
+          - 'solutions/components'
+      - type: test-implementation
+        required: false
+        description: Test implementation docs
+        file_patterns:
+          - '^test-impl-'
+        directories:
+          - 'solutions/tests'
+      - type: implementation
+        required: false
+        description: Implementation documentation
+        file_patterns:
+          - '^impl-'
+        directories:
+          - 'solutions/implementations'
+      - type: kanban
+        required: false
+        description: Workflow and task management
+        file_patterns:
+          - '^req-workflow-'
+        directories:
+          - 'requirements/workflow'
+          - 'workflow'
+    validation:
+      - check: architecture-reviewed
+        required: true
+    transitions:
+      - to: evaluations
+
+  - id: evaluations
+    name: Evaluations
+    description: Verify it works with tests, validation, and quality metrics
+    order: 4
+    documents:
+      - type: test-result
+        required: true
+        description: Test results and reports
+        file_patterns:
+          - '^test-result-'
+        directories:
+          - 'evaluations/tests'
+      - type: validation
+        required: true
+        description: Validation reports
+        file_patterns:
+          - '^val-'
+        directories:
+          - 'evaluations/validation'
+      - type: test
+        required: true
+        description: Test documentation and strategies
+        file_patterns:
+          - '^test-'
+          - '^req-testing-'
+          - '^req-test-'
+        directories:
+          - 'tests'
+          - 'requirements/testing'
+      - type: quality-metrics
+        required: false
+        description: Quality and performance metrics
+        directories:
+          - 'evaluations/metrics'
+    validation:
+      - check: all-tests-passing
+        required: true
+    transitions: []
+
+metadata:
+  complexity: moderate
+  industry:
+    - software
+    - web
+    - mobile
+  estimatedDuration: 2-4 weeks per cycle
