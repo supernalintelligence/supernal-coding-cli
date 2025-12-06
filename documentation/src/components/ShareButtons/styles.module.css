@@ -1,0 +1,199 @@
+.shareButtons {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+}
+
+.shareTitle {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--ifm-font-color-base);
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.shareButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: white;
+}
+
+.shareButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  color: white;
+}
+
+.shareButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.copyLink {
+  background-color: #6b7280;
+}
+
+.copyLink:hover {
+  background-color: #4b5563;
+}
+
+.twitter {
+  background-color: #000000;
+}
+
+.twitter:hover {
+  background-color: #1a1a1a;
+}
+
+.facebook {
+  background-color: #4267b2;
+}
+
+.facebook:hover {
+  background-color: #365899;
+}
+
+.linkedin {
+  background-color: #0077b5;
+}
+
+.linkedin:hover {
+  background-color: #006097;
+}
+
+/* Floating Share Button */
+.floatingShare {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(100px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.floatingShare.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.floatingToggle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.floatingToggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+}
+
+.floatingToggle:active {
+  transform: scale(0.95);
+}
+
+.shareIcon {
+  transition: transform 0.3s ease;
+}
+
+.floatingShare.expanded .shareIcon {
+  transform: rotate(180deg);
+}
+
+.floatingButtons {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.floatingShare.expanded .floatingButtons {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.floatingButton {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: white;
+  text-decoration: none;
+}
+
+.floatingButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.floatingButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .buttonGroup {
+    flex-direction: column;
+  }
+
+  .shareButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .floatingShare {
+    bottom: 1rem;
+    right: 1rem;
+  }
+
+  .floatingToggle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .floatingButton {
+    width: 44px;
+    height: 44px;
+  }
+}

@@ -1,0 +1,97 @@
+/* HubSpot Integration Styles */
+
+/* Navbar button styles */
+.hubspot-navbar-button {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary) 0%,
+    var(--gold-primary-dark) 100%
+  );
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 12px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  clip-path: polygon(
+    6px 0,
+    calc(100% - 6px) 0,
+    100% 6px,
+    100% calc(100% - 6px),
+    calc(100% - 6px) 100%,
+    6px 100%,
+    0 calc(100% - 6px),
+    0 6px
+  );
+}
+
+.hubspot-navbar-button:hover {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary-light) 0%,
+    var(--gold-primary) 100%
+  );
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.hubspot-navbar-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .hubspot-navbar-button {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary) 0%,
+    var(--gold-primary-dark) 100%
+  );
+}
+
+[data-theme='dark'] .hubspot-navbar-button:hover {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary-light) 0%,
+    var(--gold-primary) 100%
+  );
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* Mobile responsive */
+@media (max-width: 996px) {
+  .hubspot-navbar-button {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    margin-right: 4px;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .hubspot-navbar-button {
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    margin-right: 0;
+  }
+}
+
+/* Animation for button appearance */
+@keyframes fadeInButton {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hubspot-navbar-button {
+  animation: fadeInButton 0.3s ease-out;
+}

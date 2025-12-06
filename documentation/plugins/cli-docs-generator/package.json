@@ -1,0 +1,17 @@
+{
+  "name": "cli-docs-generator",
+  "version": "1.0.0",
+  "description": "Docusaurus plugin to generate CLI documentation from command mapping and implementation files",
+  "main": "index.ts",
+  "keywords": [
+    "docusaurus",
+    "plugin",
+    "cli",
+    "documentation"
+  ],
+  "author": "Supernal Coding",
+  "license": "MIT",
+  "peerDependencies": {
+    "@docusaurus/core": "^3.0.0"
+  }
+}

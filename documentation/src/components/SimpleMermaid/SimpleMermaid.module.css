@@ -1,0 +1,397 @@
+/* Container and basic layout */
+.container {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  margin: 1rem 0;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-color-emphasis-100);
+}
+
+.title {
+  margin: 0;
+  color: var(--ifm-color-content);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Removed controlsToggle styles as we no longer use the gear icon */
+
+.description {
+  margin: 0;
+  font-style: italic;
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.9rem;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-color-emphasis-50);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  font-size: 0.9rem;
+}
+
+.zoomControls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.actionControls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.zoomControls span {
+  font-weight: 500;
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.85rem;
+  min-width: 80px;
+  text-align: center;
+}
+
+.controls button {
+  background: transparent;
+  color: var(--ifm-color-content);
+  border: none;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border-radius: 3px;
+}
+
+.controls button:hover {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-content);
+}
+
+.controls button:active {
+  background: var(--ifm-color-emphasis-300);
+}
+
+/* Special styling for zoom control buttons */
+.zoomControls button:not(:first-child) {
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Reset button styling */
+.zoomControls button:first-child {
+  padding: 0.25rem 0.5rem;
+}
+
+/* Special styling for fullscreen button */
+.fullscreenButton {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+}
+
+.fullscreenButton:hover {
+  background: var(--ifm-color-primary-lightest);
+  color: var(--ifm-color-primary-dark);
+}
+
+.fullscreenButton svg {
+  display: block;
+}
+
+/* Chart container */
+.chartContainer {
+  padding: 2rem;
+  background: var(--ifm-background-color);
+  overflow: auto;
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.1s ease;
+  touch-action: none; /* Prevent default touch behaviors */
+  user-select: none; /* Prevent text selection during gestures */
+}
+
+.chartContainer:active {
+  cursor: grabbing;
+}
+
+.chartContainer svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Fullscreen styles */
+.fullscreenOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.fullscreenContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+.fullscreenHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  flex-shrink: 0;
+}
+
+.fullscreenTitle {
+  margin: 0;
+  color: var(--ifm-color-content);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.fullscreenControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.fullscreenControls .controls {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  animation: none;
+}
+
+.closeButton {
+  background: transparent;
+  color: var(--ifm-color-danger);
+  border: none;
+  border-radius: 3px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.closeButton:hover {
+  background: var(--ifm-color-danger-lightest);
+  color: var(--ifm-color-danger-dark);
+}
+
+.fullscreenContent {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  overflow: auto;
+  background: var(--ifm-background-color);
+}
+
+.fullscreenContent .chartContainer {
+  padding: 2rem;
+  min-height: auto;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.fullscreenHint {
+  padding: 0.5rem 2rem;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-content-secondary);
+  text-align: center;
+  font-size: 0.9rem;
+  border-top: 1px solid var(--ifm-color-emphasis-300);
+  flex-shrink: 0;
+}
+
+/* Animations */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .zoomControls,
+  .actionControls {
+    justify-content: center;
+  }
+
+  .zoomControls {
+    order: 1;
+  }
+
+  .actionControls {
+    order: 2;
+  }
+
+  .header {
+    padding: 1rem;
+  }
+
+  .fullscreenHeader {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .fullscreenControls {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .fullscreenControls .controls {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .chartContainer {
+    padding: 1rem;
+  }
+
+  .fullscreenContent {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .controls button {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .zoomControls span {
+    min-width: 80px;
+    font-size: 0.8rem;
+  }
+
+  .fullscreenHint {
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .container {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .fullscreenOverlay {
+  background: rgba(0, 0, 0, 0.98);
+}
+
+[data-theme='dark'] .chartContainer {
+  background: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .fullscreenContent {
+  background: var(--ifm-color-emphasis-100);
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .container {
+    border-width: 2px;
+  }
+
+  .controls button {
+    border-width: 2px;
+  }
+
+  .controlsToggle {
+    border: 2px solid var(--ifm-color-primary-dark);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .controls,
+  .fullscreenOverlay,
+  .controlsToggle,
+  .controls button,
+  .chartContainer {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Focus styles for accessibility */
+.controlsToggle:focus,
+.controls button:focus,
+.closeButton:focus {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .controls,
+  .controlsToggle,
+  .fullscreenOverlay {
+    display: none;
+  }
+
+  .container {
+    border: 1px solid #000;
+    box-shadow: none;
+  }
+
+  .chartContainer {
+    padding: 1rem;
+  }
+}

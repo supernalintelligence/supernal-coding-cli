@@ -1,0 +1,148 @@
+/* HubSpot Trigger Button Styles */
+.hubspot-trigger {
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  line-height: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Size variants */
+.hubspot-trigger--small {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+}
+
+.hubspot-trigger--medium {
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.hubspot-trigger--large {
+  padding: 16px 32px;
+  font-size: 1.125rem;
+}
+
+/* Color variants */
+.hubspot-trigger--primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.hubspot-trigger--primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.hubspot-trigger--primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.hubspot-trigger--secondary {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+}
+
+.hubspot-trigger--secondary:hover {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  box-shadow: 0 6px 16px rgba(107, 114, 128, 0.4);
+  transform: translateY(-1px);
+}
+
+.hubspot-trigger--outline {
+  background: transparent;
+  color: #3b82f6;
+  border: 2px solid #3b82f6;
+  box-shadow: none;
+}
+
+.hubspot-trigger--outline:hover {
+  background: #3b82f6;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Focus states for accessibility */
+.hubspot-trigger:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+.hubspot-trigger:focus:not(:focus-visible) {
+  box-shadow: initial;
+}
+
+/* Dark mode support */
+[data-theme='dark'] .hubspot-trigger--secondary {
+  background: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%);
+  color: #1f2937;
+}
+
+[data-theme='dark'] .hubspot-trigger--secondary:hover {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+[data-theme='dark'] .hubspot-trigger--outline {
+  color: #60a5fa;
+  border-color: #60a5fa;
+}
+
+[data-theme='dark'] .hubspot-trigger--outline:hover {
+  background: #60a5fa;
+  color: #1f2937;
+}
+
+/* Loading state (optional) */
+.hubspot-trigger--loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.hubspot-trigger--loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .hubspot-trigger--large {
+    padding: 14px 28px;
+    font-size: 1rem;
+  }
+
+  .hubspot-trigger--medium {
+    padding: 10px 20px;
+    font-size: 0.875rem;
+  }
+}

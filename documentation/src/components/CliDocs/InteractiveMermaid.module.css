@@ -1,0 +1,185 @@
+.container {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  margin: 1rem 0;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-color-emphasis-100);
+}
+
+.title {
+  margin: 0;
+  color: var(--ifm-color-content);
+  font-size: 1.2rem;
+}
+
+.controlsToggle {
+  background: var(--ifm-color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s ease;
+}
+
+.controlsToggle:hover {
+  background: var(--ifm-color-primary-dark);
+}
+
+.description {
+  padding: 1rem;
+  margin: 0;
+  background: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  font-style: italic;
+  color: var(--ifm-color-content-secondary);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  align-items: center;
+}
+
+.zoomControls,
+.exportControls,
+.editControls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.zoomControls span {
+  font-weight: 600;
+  min-width: 100px;
+  text-align: center;
+  color: var(--ifm-color-content);
+}
+
+.controls button {
+  background: var(--ifm-button-background-color);
+  color: var(--ifm-button-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.controls button:hover {
+  background: var(--ifm-color-emphasis-200);
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+.editingActive {
+  background: var(--ifm-color-warning);
+  color: white;
+  border-color: var(--ifm-color-warning);
+}
+
+.applyButton {
+  background: var(--ifm-color-success);
+  color: white;
+  border-color: var(--ifm-color-success);
+}
+
+.chartContainer {
+  padding: 2rem;
+  background: var(--ifm-background-color);
+  overflow: auto;
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.chartContainer svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.editMode {
+  padding: 1rem;
+  background: var(--ifm-background-color);
+}
+
+.chartEditor {
+  width: 100%;
+  min-height: 200px;
+  padding: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-content);
+  resize: vertical;
+}
+
+.chartEditor:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px var(--ifm-color-primary-lightest);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .zoomControls,
+  .exportControls,
+  .editControls {
+    justify-content: center;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .container {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .chartEditor {
+  background: var(--ifm-color-emphasis-200);
+}
+
+/* Animation for control panel */
+.controls {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

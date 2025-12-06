@@ -1,0 +1,109 @@
+/* Signup CTA Component Styles */
+
+.signup-cta-inline {
+  margin: 3rem 0;
+  padding: 0;
+}
+
+/* Banner styles now handled in HubSpotSignup.css */
+.signup-banner {
+  /* Styles moved to HubSpotSignup component */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .banner-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 1.5rem;
+  }
+
+  .banner-signup {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .banner-text h4 {
+    font-size: 1.25rem;
+  }
+
+  .signup-banner {
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+  }
+}
+
+/* Dark theme support */
+[data-theme='dark'] .signup-banner {
+  background: linear-gradient(90deg, #4a5568 0%, #2d3748 100%);
+}
+
+[data-theme='dark'] .banner-signup .form-input {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .banner-signup .form-input::placeholder {
+  color: #a0aec0;
+}
+
+/* Animation for better engagement */
+.signup-banner {
+  animation: slideInUp 0.6s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Inline CTA specific styles */
+.signup-cta-inline .hubspot-signup {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 2.5rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.signup-cta-inline .hubspot-signup::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+}
+
+.signup-cta-inline .signup-content {
+  position: relative;
+  z-index: 1;
+}
+
+.signup-cta-inline .signup-content h3 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(45deg, #fff, #f0f8ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.signup-cta-inline .signup-form {
+  max-width: 400px;
+  margin: 0 auto;
+}

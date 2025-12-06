@@ -1,0 +1,475 @@
+/**
+ * CSS files with the .module.css suffix will be treated as CSS modules
+ * and scoped locally.
+ */
+
+.heroBanner {
+  padding: 5rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.heroBanner h1 {
+  color: white;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  font-size: 3rem;
+}
+
+.heroBanner .hero__subtitle {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 1.25rem;
+  margin-bottom: 2.5rem;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 3rem 2rem;
+  }
+
+  .heroBanner h1 {
+    font-size: 2.25rem;
+  }
+
+  .heroBanner .hero__subtitle {
+    font-size: 1.1rem;
+  }
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.buttons .button {
+  margin: 0.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  padding: 0.875rem 2rem;
+  font-size: 1.05rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Notched corners - top angled inward */
+.buttons .button--primary {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary) 0%,
+    var(--gold-primary-dark) 100%
+  );
+  color: white;
+  border: 2px solid var(--gold-primary);
+  box-shadow: 0 4px 12px
+    color-mix(in srgb, var(--gold-primary) 30%, transparent);
+  clip-path: polygon(
+    12px 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% 100%,
+    0 100%,
+    0 12px
+  );
+}
+
+.buttons .button--primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, var(--color-white-alpha-10) 1px, transparent 1px),
+    linear-gradient(var(--color-white-alpha-10) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.buttons .button--primary:hover::before {
+  opacity: 1;
+}
+
+.buttons .button--primary:hover {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary-light) 0%,
+    var(--gold-primary) 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px
+    color-mix(in srgb, var(--gold-primary) 40%, transparent);
+}
+
+/* Notched corners - bottom angled outward */
+.buttons .button--secondary {
+  background: transparent;
+  color: white;
+  border: 2px solid var(--color-white-alpha-30);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    12px 100%,
+    0 calc(100% - 12px)
+  );
+}
+
+.buttons .button--secondary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.buttons .button--secondary:hover::before {
+  opacity: 1;
+}
+
+.buttons .button--secondary:hover {
+  background: var(--color-white-alpha-10);
+  border-color: var(--color-white-alpha-50);
+  transform: translateY(-2px);
+}
+
+/* Notched corners - asymmetric */
+.buttons .button--outline {
+  background: transparent;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+
+.buttons .button--outline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.buttons .button--outline:hover::before {
+  opacity: 1;
+}
+
+.buttons .button--outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Problem Section */
+.problemSection {
+  padding: 4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--ifm-heading-color);
+  margin-bottom: 1.5rem;
+}
+
+.problemText {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ifm-color-danger);
+  margin: 1rem 0;
+  line-height: 1.5;
+}
+
+.problemSubtext {
+  font-size: 1.15rem;
+  color: var(--ifm-font-color-base);
+  margin-top: 2rem;
+  line-height: 1.7;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Solution Section */
+.solutionSection {
+  padding: 4rem 0;
+  background: var(--ifm-background-color);
+}
+
+.solutionSubtitle {
+  font-size: 1.3rem;
+  color: var(--ifm-font-color-base);
+  font-weight: 500;
+  margin-bottom: 3rem;
+  font-style: italic;
+}
+
+.solutionSubtitle strong {
+  color: var(--gold-primary-dark);
+  font-weight: 700;
+}
+
+/* Contact Section */
+.contactSection {
+  padding: 4rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.contactText {
+  font-size: 1.15rem;
+  color: var(--ifm-font-color-base);
+  margin: 1.5rem 0 2rem;
+  line-height: 1.7;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contactButtons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.contactButtons .button {
+  padding: 0.875rem 2rem;
+  font-size: 1.05rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.contactButtons .button--primary {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary) 0%,
+    var(--gold-primary-dark) 100%
+  );
+  color: white;
+  border: 2px solid var(--gold-primary);
+  box-shadow: 0 4px 12px
+    color-mix(in srgb, var(--gold-primary) 30%, transparent);
+  clip-path: polygon(
+    12px 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% 100%,
+    0 100%,
+    0 12px
+  );
+}
+
+.contactButtons .button--primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, var(--color-white-alpha-10) 1px, transparent 1px),
+    linear-gradient(var(--color-white-alpha-10) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.contactButtons .button--primary:hover::before {
+  opacity: 1;
+}
+
+.contactButtons .button--primary:hover {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary-light) 0%,
+    var(--gold-primary) 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px
+    color-mix(in srgb, var(--gold-primary) 40%, transparent);
+}
+
+.contactButtons .button--outline {
+  background: transparent;
+  color: var(--ifm-heading-color);
+  border: 2px solid var(--color-border-light);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    12px 100%,
+    0 calc(100% - 12px)
+  );
+}
+
+.contactButtons .button--outline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, var(--color-white-alpha-10) 1px, transparent 1px),
+    linear-gradient(var(--color-white-alpha-10) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.contactButtons .button--outline:hover::before {
+  opacity: 1;
+}
+
+.contactButtons .button--outline:hover {
+  background: var(--ifm-background-surface-color);
+  border-color: var(--color-text-light);
+  transform: translateY(-2px);
+}
+
+/* Footer Message */
+.footerMessage {
+  padding: 3rem 0;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  text-align: center;
+}
+
+.footerText {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+  .sectionTitle {
+    font-size: 2rem;
+  }
+
+  .problemText {
+    font-size: 1.25rem;
+  }
+
+  .problemSubtext {
+    font-size: 1rem;
+  }
+
+  .footerText {
+    font-size: 1.15rem;
+  }
+
+  .contactButtons .button,
+  .buttons .button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  /* Better spacing on mobile */
+  .problemSection,
+  .solutionSection,
+  .contactSection {
+    padding: 2.5rem 1rem;
+  }
+
+  .heroBanner {
+    padding: 2.5rem 1rem;
+  }
+
+  .buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .buttons .button {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .contactButtons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .contactButtons .button {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+/* Very small screens */
+@media screen and (max-width: 480px) {
+  .heroBanner h1 {
+    font-size: 1.75rem;
+  }
+
+  .heroBanner .hero__subtitle {
+    font-size: 1rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .problemText {
+    font-size: 1.1rem;
+  }
+
+  .problemSubtext {
+    font-size: 0.95rem;
+  }
+
+  .solutionSubtitle {
+    font-size: 1.1rem;
+  }
+
+  .contactText {
+    font-size: 1rem;
+  }
+
+  .footerText {
+    font-size: 1rem;
+  }
+
+  .buttons .button,
+  .contactButtons .button {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}

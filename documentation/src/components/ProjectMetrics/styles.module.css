@@ -1,0 +1,410 @@
+.metricsContainer {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin: 2rem 0;
+  overflow: hidden;
+}
+
+.metricsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary-lightest),
+    var(--ifm-color-primary-lighter)
+  );
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.metricsHeader h3 {
+  margin: 0;
+  color: var(--ifm-color-primary-darkest);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.lastUpdate {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+  font-style: italic;
+}
+
+.tabContainer {
+  display: flex;
+  background-color: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.tab {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.tab:hover {
+  background-color: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-primary);
+}
+
+.tab.active {
+  background-color: var(--ifm-background-color);
+  color: var(--ifm-color-primary);
+  border-bottom-color: var(--ifm-color-primary);
+}
+
+.metricsContent {
+  padding: 2rem;
+}
+
+/* Overview Grid */
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.metricCard {
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.metricValue {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--ifm-color-primary);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.metricLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+  margin-bottom: 0.75rem;
+}
+
+.metricSubtext {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-600);
+  line-height: 1.4;
+}
+
+.progressBar {
+  height: 8px;
+  background-color: var(--ifm-color-emphasis-200);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--ifm-color-primary),
+    var(--ifm-color-primary-light)
+  );
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Requirements Detail View */
+.detailView {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.chartContainer {
+  display: flex;
+  justify-content: center;
+}
+
+.donutChart {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--ifm-color-success) 0% 39%,
+    var(--ifm-color-warning) 39% 52%,
+    var(--ifm-color-emphasis-300) 52% 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.donutInner {
+  width: 120px;
+  height: 120px;
+  background: var(--ifm-background-color);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.donutValue {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--ifm-color-primary);
+  line-height: 1;
+}
+
+.donutLabel {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-top: 0.25rem;
+}
+
+.requirementsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.requirementItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.requirementStatus {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.requirementStatus.completed {
+  color: var(--ifm-color-success);
+}
+
+.requirementStatus.inProgress {
+  color: var(--ifm-color-warning);
+}
+
+.requirementStatus.pending {
+  color: var(--ifm-color-emphasis-400);
+}
+
+/* Development Metrics */
+.devMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.metricRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.metricRow span {
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+  min-width: 140px;
+}
+
+.metricBar {
+  flex: 1;
+  height: 24px;
+  background-color: var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.metricBarFill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--ifm-color-primary),
+    var(--ifm-color-primary-light)
+  );
+  border-radius: 12px;
+  transition: width 0.3s ease;
+}
+
+.metricBarFill.quality {
+  background: linear-gradient(
+    90deg,
+    var(--ifm-color-success),
+    var(--ifm-color-success-light)
+  );
+}
+
+.metricBarFill.automation {
+  background: linear-gradient(
+    90deg,
+    var(--ifm-color-info),
+    var(--ifm-color-info-light)
+  );
+}
+
+.metricBarValue {
+  position: absolute;
+  right: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+}
+
+/* Workflow Metrics */
+.workflowMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 2rem;
+}
+
+.workflowStat {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 8px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.workflowValue {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--ifm-color-primary);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.workflowLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .metricsContainer {
+    margin: 1rem 0;
+  }
+
+  .metricsHeader {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .tabContainer {
+    flex-direction: column;
+  }
+
+  .tab {
+    text-align: center;
+    border-bottom: 1px solid var(--ifm-color-emphasis-200);
+    border-right: none;
+  }
+
+  .tab.active {
+    border-bottom-color: var(--ifm-color-primary);
+  }
+
+  .metricsContent {
+    padding: 1rem;
+  }
+
+  .overviewGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .detailView {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .donutChart {
+    width: 150px;
+    height: 150px;
+  }
+
+  .donutInner {
+    width: 100px;
+    height: 100px;
+  }
+
+  .donutValue {
+    font-size: 1.5rem;
+  }
+
+  .metricRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .metricRow span {
+    min-width: auto;
+    text-align: center;
+  }
+
+  .workflowMetrics {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .metricsContainer {
+  border-color: var(--ifm-color-emphasis-300);
+  background-color: var(--ifm-background-surface-color);
+}
+
+[data-theme='dark'] .metricsHeader {
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-emphasis-200),
+    var(--ifm-color-emphasis-300)
+  );
+}
+
+[data-theme='dark'] .metricCard {
+  background-color: var(--ifm-background-surface-color);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .donutInner {
+  background-color: var(--ifm-background-surface-color);
+}
+
+[data-theme='dark'] .workflowStat {
+  background-color: var(--ifm-color-emphasis-200);
+  border-color: var(--ifm-color-emphasis-300);
+}

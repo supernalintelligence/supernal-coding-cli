@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "embedded": {
+    "enabled": true,
+    "description": "Embedded dashboard enabled for documentation integration"
+  },
+  "deployment": {
+    "githubPages": false,
+    "vercel": false
+  },
+  "server": {
+    "defaultPort": 3002,
+    "cors": true
+  },
+  "generated": {
+    "timestamp": "2025-11-06T22:44:00.929Z",
+    "by": "sc dashboard init"
+  }
+}

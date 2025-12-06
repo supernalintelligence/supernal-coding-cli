@@ -1,0 +1,75 @@
+{
+  "timestamp": "2025-10-26T20:49:05.332Z",
+  "files": {
+    "supernal-code-package/lib/cli/commands/rules/rule-submission-client.js": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-code-package/lib/cli/commands/rules/rule-submission-client.js",
+      "size": 10222,
+      "modified": "2025-10-26T01:47:49.830Z",
+      "hash": "93b89bb55108bc6a1e3f6a0ffea4f1bc067f290245f82107f087b5f34d15529a",
+      "type": "custom"
+    },
+    "supernal-code-package/lib/cli/commands/rules/rule-discovery.js": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-code-package/lib/cli/commands/rules/rule-discovery.js",
+      "size": 15637,
+      "modified": "2025-08-07T18:35:04.283Z",
+      "hash": "7e747f3a1a2ba21670431b3141395708589c826ffffdd797862c8f97c563b3d3",
+      "type": "custom"
+    },
+    "supernal-code-package/lib/cli/commands/rules/rule-change-detector.js": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-code-package/lib/cli/commands/rules/rule-change-detector.js",
+      "size": 8921,
+      "modified": "2025-10-26T01:47:49.819Z",
+      "hash": "38160178208c1a6a526b4b3c4d7cd6bb5ab5ec6b746803363ae5bb4444773818",
+      "type": "custom"
+    },
+    "supernal-code-package/lib/cli/commands/rules/consent-manager.js": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-code-package/lib/cli/commands/rules/consent-manager.js",
+      "size": 9454,
+      "modified": "2025-10-26T01:47:49.832Z",
+      "hash": "f635bce0247b05348062138d5ceb65289b62bb4b94c8483c0a3b3524c63bb07c",
+      "type": "custom"
+    },
+    "supernal-code-package/lib/cli/commands/rules/command-interceptor.js": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-code-package/lib/cli/commands/rules/command-interceptor.js",
+      "size": 6121,
+      "modified": "2025-10-26T01:47:49.830Z",
+      "hash": "a60fb1f34a161ee91fcabddef4bd9e1136283d1f8a9423e31dd4d5713bbf1f05",
+      "type": "custom"
+    },
+    "archive/2025-08-08/cli-commands/rules/rule-discovery.js": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/archive/2025-08-08/cli-commands/rules/rule-discovery.js",
+      "size": 15637,
+      "modified": "2025-08-09T23:30:21.738Z",
+      "hash": "7e747f3a1a2ba21670431b3141395708589c826ffffdd797862c8f97c563b3d3",
+      "type": "custom"
+    },
+    "supernal-coding/workflow-rules/test-completion-approval.md": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-coding/workflow-rules/test-completion-approval.md",
+      "size": 9325,
+      "modified": "2025-07-16T19:53:12.102Z",
+      "hash": "9cdefd6d177f87acd0e31c5cb6b3727ddd9d104f9c4fd6463a008e670e603f47",
+      "type": "workflow"
+    },
+    "supernal-coding/workflow-rules/single-handoff-management.md": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-coding/workflow-rules/single-handoff-management.md",
+      "size": 6142,
+      "modified": "2025-07-16T19:53:12.101Z",
+      "hash": "30a55eddbbcbda6013b6b75ac219802c151a1573a2626e4fda877f7f771dce24",
+      "type": "workflow"
+    },
+    "supernal-coding/workflow-rules/requirement-change-reprioritization.md": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-coding/workflow-rules/requirement-change-reprioritization.md",
+      "size": 5721,
+      "modified": "2025-07-31T21:53:23.044Z",
+      "hash": "4c5e1292ccfb08ab875e86a5fe81d52f33b005d34fd6e79db030d914be3f84df",
+      "type": "workflow"
+    },
+    "supernal-coding/workflow-rules/intelligent-triage.md": {
+      "path": "/Users/ianderrington/git/supernal-nova/families/supernal-coding/supernal-coding/workflow-rules/intelligent-triage.md",
+      "size": 4895,
+      "modified": "2025-07-16T19:53:12.101Z",
+      "hash": "74193bc052516aa21f296f7e9d2a6d7d78b60f53b528d560885d08484f152380",
+      "type": "workflow"
+    }
+  }
+}

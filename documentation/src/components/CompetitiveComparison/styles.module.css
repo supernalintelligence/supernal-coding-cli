@@ -1,0 +1,448 @@
+.comparison {
+  padding: 3rem 0;
+  background: linear-gradient(
+    180deg,
+    var(--ifm-background-color) 0%,
+    var(--ifm-background-surface-color) 100%
+  );
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-heading-color);
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--color-text-medium);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.categoryFilter {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  flex: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.categoryFilter::-webkit-scrollbar {
+  display: none;
+}
+
+.categoryButton {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  background: var(--ifm-background-surface-color);
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  clip-path: polygon(
+    5px 0,
+    calc(100% - 5px) 0,
+    100% 5px,
+    100% calc(100% - 5px),
+    calc(100% - 5px) 100%,
+    5px 100%,
+    0 calc(100% - 5px),
+    0 5px
+  );
+}
+
+.categoryButton:hover {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: var(--ifm-color-primary);
+}
+
+.categoryButton.active {
+  background: var(--ifm-color-primary);
+  color: white;
+  border-color: var(--ifm-color-primary);
+}
+
+.detailsToggle {
+  padding: 0.35rem 0.85rem;
+  background: var(--ifm-color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  clip-path: polygon(
+    6px 0,
+    calc(100% - 6px) 0,
+    100% 6px,
+    100% calc(100% - 6px),
+    calc(100% - 6px) 100%,
+    6px 100%,
+    0 calc(100% - 6px),
+    0 6px
+  );
+}
+
+.detailsToggle:hover {
+  background: var(--ifm-color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.comparisonTable {
+  background: var(--ifm-background-surface-color);
+  border: 1px solid rgba(14, 165, 233, 0.1);
+  overflow: hidden;
+  clip-path: polygon(
+    12px 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    12px 100%,
+    0 calc(100% - 12px),
+    0 12px
+  );
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 233, 0.1) 0%,
+    rgba(6, 182, 212, 0.1) 100%
+  );
+  border-bottom: 2px solid rgba(14, 165, 233, 0.2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(14, 165, 233, 0.1);
+  transition: all 0.2s ease;
+}
+
+.tableRow:hover {
+  background: rgba(14, 165, 233, 0.05);
+}
+
+.featureColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.featureName {
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+  font-size: 0.9rem;
+}
+
+.featureDescription {
+  font-size: 0.8rem;
+  color: var(--color-text-medium);
+  line-height: 1.4;
+}
+
+.productColumn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.iconFull {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--ifm-color-success);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: help;
+  transition: all 0.2s ease;
+  clip-path: polygon(
+    4px 0,
+    calc(100% - 4px) 0,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    0 calc(100% - 4px),
+    0 4px
+  );
+}
+
+.iconFull:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.iconPartial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--ifm-color-warning);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: help;
+  transition: all 0.2s ease;
+  clip-path: polygon(
+    4px 0,
+    calc(100% - 4px) 0,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    0 calc(100% - 4px),
+    0 4px
+  );
+}
+
+.iconPartial:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.iconNone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--color-text-light);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: help;
+  transition: all 0.2s ease;
+  clip-path: polygon(
+    4px 0,
+    calc(100% - 4px) 0,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    0 calc(100% - 4px),
+    0 4px
+  );
+}
+
+.iconNone:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.3);
+}
+
+.expandButtonContainer {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+  border-top: 1px solid rgba(14, 165, 233, 0.1);
+}
+
+.expandButton {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary) 0%,
+    var(--ifm-color-primary-dark) 100%
+  );
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  clip-path: polygon(
+    8px 0,
+    calc(100% - 8px) 0,
+    100% 8px,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    8px 100%,
+    0 calc(100% - 8px),
+    0 8px
+  );
+}
+
+.expandButton:hover {
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary-dark) 0%,
+    var(--ifm-color-primary-darker) 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.arrow {
+  display: inline-block;
+  transition: transform 0.3s ease;
+  font-size: 0.75rem;
+}
+
+.expandButton:hover .arrow {
+  transform: translateY(2px);
+}
+
+.callout {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 233, 0.05) 0%,
+    rgba(6, 182, 212, 0.05) 100%
+  );
+  border-left: 4px solid var(--ifm-color-primary);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.callout h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--ifm-heading-color);
+}
+
+.callout p {
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.callout a {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.callout a:hover {
+  text-decoration: underline;
+}
+
+.callout ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.callout li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(14, 165, 233, 0.1);
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.callout li:last-child {
+  border-bottom: none;
+}
+
+.callout strong {
+  color: var(--ifm-color-primary);
+}
+
+@media (max-width: 768px) {
+  .header h2 {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .categoryFilter {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tableHeader,
+  .tableRow {
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .featureName {
+    font-size: 0.85rem;
+  }
+
+  .tableHeader {
+    font-size: 0.75rem;
+  }
+
+  .iconFull,
+  .iconPartial,
+  .iconNone {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .categoryButton {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .detailsToggle {
+    width: 100%;
+    font-size: 0.8rem;
+  }
+
+  .callout {
+    padding: 1rem;
+  }
+
+  .callout h3 {
+    font-size: 1.1rem;
+  }
+
+  .callout p,
+  .callout li {
+    font-size: 0.85rem;
+  }
+}

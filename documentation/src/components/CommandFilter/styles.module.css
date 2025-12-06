@@ -1,0 +1,490 @@
+.commandFilter {
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 0;
+  margin: 2rem 0;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+}
+
+.filterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary-lightest),
+    var(--ifm-color-primary-lighter)
+  );
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.filterHeader h3 {
+  margin: 0;
+  color: var(--ifm-color-primary-darkest);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.viewToggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.viewButton {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-700);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.viewButton:hover {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+}
+
+.viewButton.active {
+  background: var(--ifm-color-primary);
+  color: white;
+  border-color: var(--ifm-color-primary);
+}
+
+.searchSection {
+  padding: 1.5rem 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.searchInput {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 3px var(--ifm-color-primary-lightest);
+}
+
+.searchInput::placeholder {
+  color: var(--ifm-color-emphasis-600);
+}
+
+.advancedToggle {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-700);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.advancedToggle:hover {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+}
+
+.advancedFilters {
+  padding: 1.5rem 2rem;
+  background: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+}
+
+.filterRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filterGroup label {
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+  font-size: 0.9rem;
+}
+
+.filterSelect {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+}
+
+.resultsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--ifm-color-emphasis-50);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.resultCount {
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.9rem;
+}
+
+.clearFilters {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-700);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.clearFilters:hover {
+  background: var(--ifm-color-danger-lightest);
+  border-color: var(--ifm-color-danger);
+  color: var(--ifm-color-danger);
+}
+
+.commandGrid {
+  padding: 2rem;
+}
+
+.gridView {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.listView {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.commandCard {
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.commandCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--ifm-color-primary-light);
+}
+
+.commandCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--ifm-color-primary),
+    var(--ifm-color-primary-light)
+  );
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
+}
+
+.commandCard:hover::before {
+  transform: scaleX(1);
+}
+
+.commandHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.commandName {
+  text-decoration: none;
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: color 0.2s ease;
+}
+
+.commandName:hover {
+  color: var(--ifm-color-primary-dark);
+  text-decoration: none;
+}
+
+.commandName code {
+  background: var(--ifm-color-primary-lightest);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 600;
+}
+
+.commandBadges {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.frequencyBadge {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.complexityBadge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.complexityBasic {
+  background: var(--ifm-color-success-lightest);
+  color: var(--ifm-color-success-dark);
+  border: 1px solid var(--ifm-color-success-light);
+}
+
+.complexityIntermediate {
+  background: var(--ifm-color-warning-lightest);
+  color: var(--ifm-color-warning-dark);
+  border: 1px solid var(--ifm-color-warning-light);
+}
+
+.complexityAdvanced {
+  background: var(--ifm-color-danger-lightest);
+  color: var(--ifm-color-danger-dark);
+  border: 1px solid var(--ifm-color-danger-light);
+}
+
+.commandDescription {
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.commandFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: auto;
+}
+
+.commandCategory {
+  padding: 0.25rem 0.75rem;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-700);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.commandTags {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 0.125rem 0.5rem;
+  background: var(--ifm-color-primary-lightest);
+  color: var(--ifm-color-primary-dark);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tagMore {
+  padding: 0.125rem 0.5rem;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-600);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.noResults {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.noResultsIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.noResults h4 {
+  margin: 1rem 0 0.5rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.noResults p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* List view adjustments */
+.listView .commandCard {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+}
+
+.listView .commandHeader {
+  margin-bottom: 0;
+  flex: 0 0 auto;
+}
+
+.listView .commandDescription {
+  margin-bottom: 0;
+  margin-left: 2rem;
+  flex: 1;
+}
+
+.listView .commandFooter {
+  margin-top: 0;
+  margin-left: 1rem;
+  flex: 0 0 auto;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .commandFilter {
+    margin: 1rem 0;
+  }
+
+  .filterHeader {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .searchSection {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .advancedFilters {
+    padding: 1rem;
+  }
+
+  .filterRow {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .resultsHeader {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .commandGrid {
+    padding: 1rem;
+  }
+
+  .gridView {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .listView .commandCard {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .listView .commandDescription {
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+
+  .listView .commandFooter {
+    margin-left: 0;
+    margin-top: 1rem;
+    justify-content: center;
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .commandFilter {
+  border-color: var(--ifm-color-emphasis-300);
+  background-color: var(--ifm-background-surface-color);
+}
+
+[data-theme='dark'] .filterHeader {
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-emphasis-200),
+    var(--ifm-color-emphasis-300)
+  );
+}
+
+[data-theme='dark'] .commandCard {
+  background-color: var(--ifm-background-surface-color);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .commandName code {
+  background-color: var(--ifm-color-emphasis-200);
+}

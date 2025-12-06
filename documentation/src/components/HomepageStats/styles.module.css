@@ -1,0 +1,159 @@
+.stats {
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  width: 100%;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.statsHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.statsHeader h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-primary);
+}
+
+.statsHeader p {
+  font-size: 1.2rem;
+  color: var(--ifm-color-content-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.statCard {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  height: 100%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.statCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: var(--ifm-color-primary-light);
+}
+
+.statIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.statValue {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.statTitle {
+  color: var(--ifm-color-content);
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.statDescription {
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Responsive design */
+@media (max-width: 996px) {
+  .stats {
+    padding: 3rem 0;
+  }
+
+  .statsHeader h2 {
+    font-size: 2rem;
+  }
+
+  .statsHeader p {
+    font-size: 1.1rem;
+  }
+
+  .statCard {
+    padding: 1.5rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .statValue {
+    font-size: 2.5rem;
+  }
+
+  .statIcon {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .statsHeader {
+    margin-bottom: 2rem;
+  }
+
+  .statsHeader h2 {
+    font-size: 1.8rem;
+  }
+
+  .statCard {
+    padding: 1.25rem 1rem;
+  }
+
+  .statValue {
+    font-size: 2rem;
+  }
+
+  .statIcon {
+    font-size: 2rem;
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .statCard {
+  background: var(--ifm-color-emphasis-200);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .statCard:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+/* Animation for cards */
+.statCard {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.statCard:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.statCard:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.statCard:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.statCard:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

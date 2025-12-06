@@ -1,0 +1,940 @@
+/* HubSpot Signup Component Styles */
+
+.hubspot-signup-container {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.signup-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.signup-header h3 {
+  color: white;
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.signup-header p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.hubspot-signup {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  color: white;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.hubspot-inline {
+  margin: 2rem 0;
+  max-width: 500px;
+}
+
+.hubspot-popup {
+  background: white;
+  color: #333;
+  max-width: 450px;
+  position: relative;
+  animation: slideIn 0.3s ease-out;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.close-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.signup-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.hubspot-popup .signup-content h3 {
+  color: #333;
+}
+
+.signup-content p {
+  margin: 0 0 1.5rem 0;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+.hubspot-popup .signup-content p {
+  color: #666;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-input {
+  padding: 0.75rem 1rem;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.hubspot-popup .form-input {
+  background: #f8f9fa;
+  color: #333;
+  border-color: #e9ecef;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4caf50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.form-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hubspot-popup .form-input::placeholder {
+  color: #999;
+}
+
+.submit-btn {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.privacy-note {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  text-align: center;
+  margin: 1rem 0 0 0;
+}
+
+.success-message {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.success-message h4 {
+  color: #4caf50;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.hubspot-popup .success-message h4 {
+  color: #4caf50;
+}
+
+.success-message p {
+  margin: 0 0 1.5rem 0;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hubspot-popup {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .hubspot-signup {
+    padding: 1.5rem;
+  }
+
+  .signup-content h3 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Integration with Docusaurus themes */
+[data-theme='dark'] .hubspot-popup {
+  background: #2a2a2a;
+  color: #e3e3e3;
+}
+
+[data-theme='dark'] .hubspot-popup .signup-content h3 {
+  color: #e3e3e3;
+}
+
+[data-theme='dark'] .hubspot-popup .signup-content p {
+  color: #b3b3b3;
+}
+
+[data-theme='dark'] .form-input {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #e3e3e3;
+}
+
+[data-theme='dark'] .form-input::placeholder {
+  color: #999;
+}
+
+[data-theme='dark'] .close-button {
+  color: #b3b3b3;
+}
+
+[data-theme='dark'] .close-button:hover {
+  background: #4a4a4a;
+  color: #e3e3e3;
+}
+
+/* HubSpot Modal Styles */
+.hubspot-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.hubspot-modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 0 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.modal-body {
+  padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.modal-body p {
+  margin: 0 0 1.5rem 0;
+  color: #666;
+  line-height: 1.5;
+}
+
+.hubspot-form-container {
+  min-height: 200px;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+/* Fake form styles - Enhanced for visual appeal */
+.hubspot-fake-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.hubspot-fake-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hubspot-fake-form label {
+  font-weight: 600;
+  color: white;
+  font-size: 0.95rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.hubspot-fake-form .form-input {
+  padding: 1rem 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  cursor: pointer;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.hubspot-fake-form .form-input:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.hubspot-fake-form .form-input::placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.hubspot-fake-form .submit-button {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 50%, #ffa8a8 100%);
+  color: white;
+  border: none;
+  padding: 1.125rem 2.5rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.hubspot-fake-form .submit-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.hubspot-fake-form .submit-button:hover::before {
+  left: 100%;
+}
+
+.hubspot-fake-form .submit-button:hover {
+  background: linear-gradient(135deg, #ff5252 0%, #ff6b6b 50%, #ff8787 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(255, 107, 107, 0.4);
+}
+
+.hubspot-fake-form .submit-button:active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 107, 107, 0.3);
+}
+
+/* Add a pulsing effect to draw attention */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+  }
+  50% {
+    box-shadow: 0 8px 20px rgba(255, 107, 107, 0.5);
+  }
+  100% {
+    box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+  }
+}
+
+.hubspot-fake-form .submit-button {
+  animation: pulse 2s infinite;
+}
+
+/* Banner styles */
+.hubspot-banner {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.banner-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.banner-text {
+  flex: 1;
+}
+
+.banner-text h3 {
+  color: white;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.banner-text p {
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.banner-button {
+  background: white;
+  color: #6366f1;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.banner-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+}
+
+/* Dark theme support */
+[data-theme='dark'] .hubspot-modal-content {
+  background: #2a2a2a;
+}
+
+[data-theme='dark'] .modal-header {
+  border-bottom-color: #444;
+}
+
+[data-theme='dark'] .modal-header h3 {
+  color: #e3e3e3;
+}
+
+[data-theme='dark'] .modal-body p {
+  color: #b3b3b3;
+}
+
+[data-theme='dark'] .modal-close {
+  color: #b3b3b3;
+}
+
+[data-theme='dark'] .modal-close:hover {
+  background: #4a4a4a;
+  color: #e3e3e3;
+}
+
+[data-theme='dark'] .hubspot-fake-form label {
+  color: #e3e3e3;
+}
+
+[data-theme='dark'] .hubspot-fake-form .form-input {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #e3e3e3;
+}
+
+[data-theme='dark'] .hubspot-fake-form .form-input:hover {
+  border-color: #6366f1;
+  background: #444;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* HubSpot Form Embed Styles */
+.hubspot-form-embed {
+  margin-top: 1.5rem;
+  min-height: 200px;
+}
+
+.hubspot-loading {
+  text-align: center;
+  padding: 2rem;
+  color: white;
+}
+
+.hubspot-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 4px solid #ffffff;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Banner Click-to-expand styles */
+.hubspot-banner {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  color: white;
+  padding: 2rem;
+  border-radius: 12px;
+  margin: 2rem 0;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.hubspot-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 233, 0.1) 0%,
+    rgba(6, 182, 212, 0.05) 100%
+  );
+  pointer-events: none;
+}
+
+.hubspot-banner:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(14, 165, 233, 0.2);
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
+.hubspot-banner-expanded {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  color: white;
+  padding: 2.5rem 2rem;
+  border-radius: 12px;
+  margin: 2rem 0;
+  animation: expandIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  min-height: 350px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hubspot-banner-expanded::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(14, 165, 233, 0.1) 0%,
+    rgba(6, 182, 212, 0.05) 100%
+  );
+  pointer-events: none;
+}
+
+.banner-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hubspot-banner-expanded .banner-content {
+  flex-direction: column;
+  text-align: center;
+  gap: 2rem;
+  max-width: 800px;
+}
+
+.banner-text h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.banner-text p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 1rem;
+}
+
+.hubspot-banner-expanded .banner-text h3 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.hubspot-banner-expanded .banner-text p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  opacity: 0.95;
+}
+
+.hubspot-form-container {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(14, 165, 233, 0.2);
+  position: relative;
+  z-index: 1;
+}
+
+/* Override HubSpot form styles for better visibility */
+.hubspot-form-container .hs-form fieldset {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hubspot-form-container .hs-form .hs-form-field {
+  margin-bottom: 1rem;
+}
+
+.hubspot-form-container .hs-form .hs-form-field > label {
+  color: #1f2937;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: block;
+  font-size: 0.9rem;
+}
+
+.hubspot-form-container .hs-form .hs-input {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 0.75rem;
+  width: 100%;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.hubspot-form-container .hs-form .hs-input:focus {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+  outline: none;
+  background: #ffffff;
+}
+
+.hubspot-form-container .hs-form .hs-input::placeholder {
+  color: rgba(75, 85, 99, 0.6);
+}
+
+.hubspot-form-container .hs-form .hs-button {
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.hubspot-form-container .hs-form .hs-button:hover {
+  background: linear-gradient(135deg, #0284c7 0%, #0891b2 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+/* Additional overrides to ensure text visibility */
+.hubspot-form-container .hs-form input[type='text'],
+.hubspot-form-container .hs-form input[type='email'],
+.hubspot-form-container .hs-form input[type='tel'],
+.hubspot-form-container .hs-form textarea,
+.hubspot-form-container .hs-form select {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  font-weight: 500;
+}
+
+.hubspot-form-container .hs-form input[type='text']:focus,
+.hubspot-form-container .hs-form input[type='email']:focus,
+.hubspot-form-container .hs-form input[type='tel']:focus,
+.hubspot-form-container .hs-form textarea:focus,
+.hubspot-form-container .hs-form select:focus {
+  background: #ffffff;
+  color: #1f2937;
+  border-color: #0ea5e9;
+}
+
+/* Ensure all form text is visible */
+.hubspot-form-container .hs-form * {
+  color: inherit;
+}
+
+.hubspot-form-container .hs-form .hs-form-field input,
+.hubspot-form-container .hs-form .hs-form-field textarea,
+.hubspot-form-container .hs-form .hs-form-field select {
+  color: #1f2937;
+}
+
+.banner-cta {
+  flex-shrink: 0;
+  margin-left: 2rem;
+}
+
+.banner-button {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary) 0%,
+    var(--gold-primary-dark) 100%
+  );
+  border: none;
+  color: white;
+  padding: 0.875rem 2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+  clip-path: polygon(
+    10px 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    10px 100%,
+    0 calc(100% - 10px),
+    0 10px
+  );
+}
+
+.banner-button:hover {
+  background: linear-gradient(
+    135deg,
+    var(--gold-primary-light) 0%,
+    var(--gold-primary) 100%
+  );
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(245, 158, 11, 0.4);
+}
+
+.hubspot-success {
+  text-align: center;
+  padding: 2rem;
+}
+
+.success-icon {
+  width: 48px;
+  height: 48px;
+  background: #10b981;
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-icon svg {
+  width: 24px;
+  height: 24px;
+  color: white;
+}
+
+.hubspot-success h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.hubspot-success p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes expandIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+    min-height: 100px;
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .banner-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .banner-cta {
+    margin-left: 0;
+    margin-top: 1rem;
+  }
+
+  .hubspot-banner-expanded {
+    padding: 2rem 1rem;
+    min-height: 300px;
+  }
+
+  .hubspot-banner-expanded .banner-content {
+    gap: 1.5rem;
+    max-width: 100%;
+  }
+
+  .hubspot-banner-expanded .banner-text h3 {
+    font-size: 1.5rem;
+  }
+
+  .hubspot-form-container {
+    padding: 1rem;
+    max-width: 100%;
+  }
+}

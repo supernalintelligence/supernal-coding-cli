@@ -1,0 +1,242 @@
+/* HubSpot Modal Styles */
+.hubspot-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(8px);
+}
+
+.hubspot-modal-content {
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  max-width: 480px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: modalSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.hubspot-modal-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 20px 24px 0px;
+}
+
+.hubspot-modal-close {
+  background: rgba(75, 85, 99, 0.2);
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #d1d5db;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hubspot-modal-close:hover {
+  background-color: rgba(75, 85, 99, 0.4);
+  color: #f9fafb;
+}
+
+.hubspot-modal-body {
+  padding: 24px;
+}
+
+.hubspot-modal-body .text-center {
+  text-align: center;
+}
+
+.hubspot-modal-body .mb-4 {
+  margin-bottom: 1rem;
+}
+
+.hubspot-modal-body .text-xl {
+  font-size: 1.25rem;
+}
+
+.hubspot-modal-body .font-semibold {
+  font-weight: 600;
+}
+
+.hubspot-modal-body .mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.hubspot-modal-body .text-gray-400 {
+  color: #9ca3af;
+}
+
+.hubspot-modal-body .text-sm {
+  font-size: 0.875rem;
+}
+
+.hubspot-modal-body .space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+.hubspot-modal-body .mt-4 {
+  margin-top: 1rem;
+}
+
+.hubspot-modal-body .text-xs {
+  font-size: 0.75rem;
+}
+
+.hubspot-modal-body .text-blue-500 {
+  color: #3b82f6;
+}
+
+.hubspot-modal-body .hover\:underline:hover {
+  text-decoration: underline;
+}
+
+.hubspot-modal-body .w-12 {
+  width: 3rem;
+}
+
+.hubspot-modal-body .h-12 {
+  height: 3rem;
+}
+
+.hubspot-modal-body .bg-green-500 {
+  background-color: #10b981;
+}
+
+.hubspot-modal-body .rounded-full {
+  border-radius: 9999px;
+}
+
+.hubspot-modal-body .mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hubspot-modal-body .flex {
+  display: flex;
+}
+
+.hubspot-modal-body .items-center {
+  align-items: center;
+}
+
+.hubspot-modal-body .justify-center {
+  justify-content: center;
+}
+
+.hubspot-modal-body .w-6 {
+  width: 1.5rem;
+}
+
+.hubspot-modal-body .h-6 {
+  height: 1.5rem;
+}
+
+.hubspot-modal-body .text-white {
+  color: #ffffff;
+}
+
+/* HubSpot form container */
+.hs-form-frame {
+  min-height: 200px;
+}
+
+/* Loading state */
+.hubspot-loading {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.hubspot-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.hubspot-loading p {
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Dark mode support */
+[data-theme='dark'] .hubspot-modal-content {
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+[data-theme='dark'] .hubspot-modal-header {
+  border-bottom-color: #374151;
+}
+
+[data-theme='dark'] .hubspot-modal-header h2 {
+  color: #f9fafb;
+}
+
+[data-theme='dark'] .hubspot-modal-close:hover {
+  background-color: #374151;
+  color: #d1d5db;
+}
+
+[data-theme='dark'] .hubspot-modal-body p {
+  color: #d1d5db;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .hubspot-modal-content {
+    width: 95%;
+    margin: 20px;
+  }
+
+  .hubspot-modal-header {
+    padding: 20px 20px 12px;
+  }
+
+  .hubspot-modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .hubspot-modal-body {
+    padding: 20px;
+  }
+}

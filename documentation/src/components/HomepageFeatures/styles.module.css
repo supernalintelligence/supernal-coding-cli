@@ -1,0 +1,212 @@
+.features {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+  width: 100%;
+  background: white;
+}
+
+.workflowContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 900px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.workflowStep {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+  background: white;
+  border-left: 4px solid #e2e8f0;
+  position: relative;
+  transition: all 0.3s ease;
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+
+.workflowStep:hover {
+  border-left-color: #f59e0b;
+  background: #f8fafc;
+}
+
+.stepNumber {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.stepContent {
+  flex: 1;
+}
+
+.stepTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.5rem 0;
+}
+
+.stepDescription {
+  font-size: 1rem;
+  color: #475569;
+  margin: 0 0 1rem 0;
+  line-height: 1.6;
+}
+
+.rolesContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.aiRole,
+.humanRole {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  background: #f1f5f9;
+  clip-path: polygon(
+    6px 0,
+    100% 0,
+    100% calc(100% - 6px),
+    calc(100% - 6px) 100%,
+    0 100%,
+    0 6px
+  );
+}
+
+.aiRole {
+  color: #1e40af;
+  border-left: 3px solid #3b82f6;
+}
+
+.aiRole svg {
+  color: #3b82f6;
+}
+
+.humanRole {
+  color: #15803d;
+  border-left: 3px solid #22c55e;
+}
+
+.humanRole svg {
+  color: #22c55e;
+}
+
+.stepArrow {
+  flex-shrink: 0;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(90deg);
+}
+
+.emphasisNote {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  text-align: center;
+  border: 2px solid #cbd5e1;
+  clip-path: polygon(
+    12px 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    12px 100%,
+    0 calc(100% - 12px),
+    0 12px
+  );
+}
+
+.emphasisNote p {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+  line-height: 1.6;
+}
+
+.emphasisNote strong {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .features {
+    padding: 2rem 0;
+  }
+
+  .workflowStep {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+
+  .stepNumber {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+  }
+
+  .stepTitle {
+    font-size: 1.25rem;
+  }
+
+  .stepDescription {
+    font-size: 0.9rem;
+  }
+
+  .stepArrow {
+    display: none;
+  }
+
+  .rolesContainer {
+    width: 100%;
+  }
+
+  .aiRole,
+  .humanRole {
+    font-size: 0.85rem;
+  }
+
+  .emphasisNote p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .workflowStep {
+    padding: 1rem;
+  }
+
+  .stepNumber {
+    width: 45px;
+    height: 45px;
+    font-size: 1.25rem;
+  }
+}
