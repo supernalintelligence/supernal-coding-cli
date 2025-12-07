@@ -1,8 +1,8 @@
 ---
-id: cli-overview
 title: CLI Commands Overview
 sidebar_label: Overview
 sidebar_position: 1
+slug: /cli-commands
 ---
 
 # Supernal Coding CLI Commands

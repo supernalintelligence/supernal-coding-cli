@@ -55,7 +55,7 @@ const config: Config = {
       'classic',
       {
         docs: {
-          path: '../docs', // Point to consolidated docs directory
+          path: 'docs', // Local documentation folder
           routeBasePath: 'docs',
           sidebarPath: './sidebars.ts',
           // Edit URLs disabled - documentation is auto-generated from CLI system
@@ -82,19 +82,7 @@ const config: Config = {
           ],
           rehypePlugins: []
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true
-          },
-          // Blog editing handled through standard development workflow
-          editUrl: undefined,
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn'
-        },
+        blog: false, // Blog disabled - using separate marketing site
         theme: {
           customCss: ['./src/css/custom.css', './src/css/mobile-navbar-fix.css']
         },
@@ -179,7 +167,6 @@ const config: Config = {
           label: 'Dashboard',
           position: 'left'
         },
-        { to: '/blog', label: 'Blog', position: 'left' },
         {
           href: 'https://github.com/supernalintelligence/supernal-coding',
           label: 'GitHub',
@@ -227,10 +214,6 @@ const config: Config = {
         {
           title: 'Resources',
           items: [
-            {
-              label: 'Blog',
-              to: '/blog'
-            },
             {
               label: 'Dashboard',
               to: '/dashboard-live'
