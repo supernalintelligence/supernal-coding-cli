@@ -327,6 +327,74 @@ if npm run --silent build > /dev/null 2>&1; then
     fi
 fi
 
+# Sub-repository sync check
+if [ -z "$SC_SKIP_SUBREPO_CHECK" ]; then
+    echo "${BLUE}🔄 Checking sub-repository sync status...${NC}"
+    
+    UNSYNCED_REPOS=""
+    SUBREPO_COUNT=0
+    
+    # Find all nested .git directories (sub-repos)
+    while IFS= read -r gitdir; do
+        if [ -n "$gitdir" ] && [ "$gitdir" != "./.git" ]; then
+            repo_dir=$(dirname "$gitdir")
+            SUBREPO_COUNT=$((SUBREPO_COUNT + 1))
+            
+            # Check if repo has commits ahead of remote
+            pushd "$repo_dir" > /dev/null 2>&1 || continue
+            
+            # Get current branch
+            subrepo_branch=$(git branch --show-current 2>/dev/null)
+            if [ -n "$subrepo_branch" ]; then
+                # Check commits ahead of upstream
+                ahead=$(git rev-list --count "@{u}..HEAD" 2>/dev/null || echo "unknown")
+                
+                if [ "$ahead" != "0" ] && [ "$ahead" != "unknown" ]; then
+                    UNSYNCED_REPOS="$UNSYNCED_REPOS\n   - $repo_dir ($ahead commits ahead on $subrepo_branch)"
+                fi
+                
+                # Also check for uncommitted changes
+                if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+                    UNSYNCED_REPOS="$UNSYNCED_REPOS\n   - $repo_dir (has uncommitted changes)"
+                fi
+            fi
+            
+            popd > /dev/null 2>&1
+        fi
+    done < <(find . -name ".git" -type d 2>/dev/null | grep -v "node_modules")
+    
+    if [ -n "$UNSYNCED_REPOS" ]; then
+        echo ""
+        echo "${RED}❌ SUB-REPOSITORIES NOT SYNCED - Push blocked!${NC}"
+        echo ""
+        echo "${YELLOW}🔄 Unsynced sub-repositories found:${NC}"
+        echo -e "$UNSYNCED_REPOS"
+        echo ""
+        echo "${YELLOW}🛠️  To fix:${NC}"
+        echo "   1. Push each sub-repository first:"
+        echo "      sc git-smart sync-push           # Auto-sync all sub-repos"
+        echo "   OR manually:"
+        echo "      cd <repo_dir> && git push"
+        echo "   2. Then retry pushing the parent repo"
+        echo ""
+        echo "${YELLOW}🔧 To check status:${NC}"
+        echo "   sc git-smart subrepo-status         # View all sub-repo status"
+        echo ""
+        echo "${YELLOW}⚠️  Emergency bypass (use with caution):${NC}"
+        echo "   git push --no-verify"
+        echo "   OR"
+        echo "   SC_SKIP_SUBREPO_CHECK=true git push"
+        echo ""
+        exit 1
+    else
+        if [ "$SUBREPO_COUNT" -gt 0 ]; then
+            echo "${GREEN}✅ All $SUBREPO_COUNT sub-repositories are synced${NC}"
+        else
+            echo "${GREEN}✅ No sub-repositories found${NC}"
+        fi
+    fi
+fi
+
 # Documentation organization validation
 if [ -z "$SC_SKIP_DOC_VALIDATION" ]; then
     echo "${BLUE}📁 Validating documentation organization...${NC}"
