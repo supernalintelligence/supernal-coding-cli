@@ -41,7 +41,7 @@ tags: [testing, e2e, playwright, automation, phase-6]
 
 ### Playwright Setup
 
-**Install** (already in dashboard-v2):
+**Install** (already in supernal-dashboard):
 
 ```json
 // package.json

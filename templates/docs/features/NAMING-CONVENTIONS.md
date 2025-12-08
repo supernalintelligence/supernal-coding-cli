@@ -79,7 +79,7 @@ Best for integrations and external services.
 
 ❌ **Technology in Name** (unless it's the key differentiator):
 
-- `react-dashboard` → Just `dashboard-v2`
+- `react-dashboard` → Just `supernal-dashboard`
 - `nodejs-api` → Just `api-server`
 
 ✅ **When Technology Matters**:

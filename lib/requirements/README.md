@@ -47,7 +47,7 @@ import {
   getRepoConfig,
 } from '../lib/utils/requirementParser';
 
-// Same API as dashboard-v2
+// Same API as supernal-dashboard
 const req = parseRequirement('/path/to/req-001-feature.md');
 ```
 
@@ -185,14 +185,14 @@ Both dashboards now use thin TypeScript wrappers that:
 
 **Before:**
 
-- dashboard-v2: 583 lines of TypeScript
+- supernal-dashboard: 583 lines of TypeScript
 - dashboard-runtime: 318 lines of TypeScript
 - **Total: 901 lines (duplicated logic)**
 
 **After:**
 
 - Shared parser: 600 lines of JavaScript (single source of truth)
-- dashboard-v2 wrapper: ~75 lines (type-safe re-exports)
+- supernal-dashboard wrapper: ~75 lines (type-safe re-exports)
 - dashboard-runtime wrapper: ~55 lines (type-safe re-exports)
 - **Total: 730 lines (30% reduction, 0% duplication)**
 
@@ -218,7 +218,7 @@ Test dashboards:
 
 ```bash
 # Dashboard-v2
-cd apps/dashboard-v2
+cd apps/supernal-dashboard
 npm test
 
 # Dashboard-runtime

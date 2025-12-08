@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Supernal Coding Dashboard</title>
     <script>
-      // Redirect to dashboard-v2 (local or production)
+      // Redirect to supernal-dashboard (local or production)
       const isLocal =
         window.location.hostname === 'localhost' ||
         window.location.hostname === '127.0.0.1';
       const dashboardUrl = isLocal
         ? 'http://localhost:3006/'
-        : 'https://dashboard-v2-supernal-coding.vercel.app/';
+        : 'https://supernal-dashboard-supernal-coding.vercel.app/';
       window.location.href = dashboardUrl;
     </script>
   </head>
@@ -22,7 +22,7 @@
       <h1>Redirecting to Dashboard v2...</h1>
       <p>
         If you're not redirected automatically,
-        <a href="https://dashboard-v2-supernal-coding.vercel.app/">click here</a
+        <a href="https://supernal-dashboard-supernal-coding.vercel.app/">click here</a
         >.
       </p>
       <p>Loading the modern Supernal Coding dashboard...</p>

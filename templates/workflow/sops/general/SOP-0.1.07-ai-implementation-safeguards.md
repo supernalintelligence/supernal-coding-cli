@@ -221,7 +221,7 @@ AI: [Extends existing code]
 **Configuration**:
 
 - Root: `.eslintrc.js` (project-wide rules)
-- Dashboard: `apps/dashboard-v2/.eslintrc.json` (app-specific)
+- Dashboard: `apps/supernal-dashboard/.eslintrc.json` (app-specific)
 
 **Run linting**:
 

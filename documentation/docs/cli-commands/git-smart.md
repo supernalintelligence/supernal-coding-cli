@@ -85,7 +85,7 @@ sc git-smart [action] [options]
 
 ## Sub-Repository Sync Feature
 
-When working with monorepos containing nested git repositories (like `supernal-code-package`, `dashboard-v2`), `sync-push` ensures all sub-repos are pushed before the parent.
+When working with monorepos containing nested git repositories (like `supernal-code-package`, `supernal-dashboard`), `sync-push` ensures all sub-repos are pushed before the parent.
 
 ### Pre-Push Hook Integration
 

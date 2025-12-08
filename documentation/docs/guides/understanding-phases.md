@@ -188,7 +188,7 @@ The dashboard's **Learn** view shows 11 learning blocks that cover:
 Requirements in the dashboard must use the 5-phase grouping:
 
 ```typescript
-// apps/dashboard-v2/src/lib/types.ts
+// apps/supernal-dashboard/src/lib/types.ts
 phase:
   | 'discovery'
   | 'foundation'
