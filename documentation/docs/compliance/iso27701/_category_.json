@@ -1,0 +1,10 @@
+{
+  "label": "ISO 27701",
+  "position": 8,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse iso 27701 documentation"
+  }
+}

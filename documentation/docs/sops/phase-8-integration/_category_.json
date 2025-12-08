@@ -1,0 +1,10 @@
+{
+  "label": "Phase 8 Integration",
+  "position": 13,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse phase 8 integration documentation"
+  }
+}

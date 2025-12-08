@@ -1,0 +1,10 @@
+{
+  "label": "Compliance Frameworks",
+  "position": 2,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse compliance frameworks documentation"
+  }
+}

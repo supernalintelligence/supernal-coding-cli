@@ -1,0 +1,10 @@
+{
+  "label": "Phase 2 Research",
+  "position": 7,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse phase 2 research documentation"
+  }
+}

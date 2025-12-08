@@ -1,0 +1,12 @@
+---
+title: "PRINCIPLES"
+sidebar_label: "PRINCIPLES"
+---
+
+- Planning is documentation
+- User's needs are primary
+- If it isn't tested, it isn't done
+- Document it appropriately
+- Keep needed information to build - CLOSE TO THE CODE
+- Feature and testing mapping to requirements.
+- Keep it Clean. No one likes to deal with trash or leftovers.

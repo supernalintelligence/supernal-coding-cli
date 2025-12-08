@@ -1,0 +1,10 @@
+{
+  "label": "Phase 3 Design",
+  "position": 8,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse phase 3 design documentation"
+  }
+}

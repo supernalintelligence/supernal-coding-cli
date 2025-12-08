@@ -1,0 +1,10 @@
+{
+  "label": "Dashboard",
+  "position": 2,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse dashboard documentation"
+  }
+}

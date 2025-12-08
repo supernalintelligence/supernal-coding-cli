@@ -1,0 +1,10 @@
+{
+  "label": "ISO 13485",
+  "position": 6,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse iso 13485 documentation"
+  }
+}

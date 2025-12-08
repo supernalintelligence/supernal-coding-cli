@@ -1,0 +1,10 @@
+{
+  "label": "Standard Operating Procedures",
+  "position": 3,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse standard operating procedures documentation"
+  }
+}

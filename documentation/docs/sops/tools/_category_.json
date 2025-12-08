@@ -1,0 +1,10 @@
+{
+  "label": "Tools",
+  "position": 16,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse tools documentation"
+  }
+}

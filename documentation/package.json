@@ -8,6 +8,8 @@
     "start:with-dashboard": "concurrently \"npm run start:dashboard\" \"npm run start\"",
     "start:dashboard": "node static/dashboard/server.js",
     "start:smart": "node scripts/start-smart.js",
+    "docs:sync": "node scripts/sync-docs.js",
+    "prebuild": "npm run docs:sync",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
@@ -52,7 +54,9 @@
     "@docusaurus/module-type-aliases": "3.8.1",
     "@docusaurus/tsconfig": "3.8.1",
     "@docusaurus/types": "3.8.1",
-    "@playwright/test": "^1.54.2"
+    "@playwright/test": "^1.54.2",
+    "fs-extra": "^11.3.2",
+    "glob": "^10.5.0"
   },
   "browserslist": {
     "production": [

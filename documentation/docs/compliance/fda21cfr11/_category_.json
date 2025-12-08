@@ -1,0 +1,10 @@
+{
+  "label": "FDA 21CFR 11",
+  "position": 3,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse fda 21cfr 11 documentation"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "label": "SOC 2",
+  "position": 9,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse soc 2 documentation"
+  }
+}

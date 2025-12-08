@@ -158,8 +158,13 @@ const config: Config = {
           label: 'Documentation'
         },
         {
-          to: '/docs/guides/cli-commands',
-          label: 'CLI Commands',
+          to: '/docs/category/guides',
+          label: 'Guides',
+          position: 'left'
+        },
+        {
+          to: '/docs/category/cli-commands',
+          label: 'CLI Reference',
           position: 'left'
         },
         {
@@ -182,15 +187,15 @@ const config: Config = {
           items: [
             {
               label: 'Getting Started',
-              to: '/docs/'
+              to: '/docs/guides/getting-started'
             },
             {
-              label: 'CLI Commands',
-              to: '/docs/guides/cli-commands'
+              label: 'Guides',
+              to: '/docs/category/guides'
             },
             {
-              label: 'Workflow Commands',
-              to: '/docs/cli-commands/workflow'
+              label: 'CLI Reference',
+              to: '/docs/category/cli-commands'
             }
           ]
         },

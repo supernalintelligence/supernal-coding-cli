@@ -1,0 +1,10 @@
+{
+  "label": "Phase 6 Tests",
+  "position": 11,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse phase 6 tests documentation"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "label": "EN 18031",
+  "position": 2,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "Browse en 18031 documentation"
+  }
+}
