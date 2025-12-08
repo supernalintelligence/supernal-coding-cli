@@ -43,9 +43,9 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@supernal/compliance-cards": "github:supernalintelligence/compliance-cards",
     "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.20.2",
+    "@supernal/compliance-cards": "github:supernalintelligence/compliance-cards",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "archiver": "^7.0.1",
@@ -55,10 +55,11 @@
     "extract-zip": "^2.0.1",
     "fs-extra": "^11.3.2",
     "glob": "^10.5.0",
-    "minimatch": "^9.0.5",
     "gray-matter": "^4.0.3",
     "inquirer": "^8.2.6",
     "js-yaml": "^4.1.0",
+    "minimatch": "^9.0.5",
+    "open": "^11.0.0",
     "ora": "^5.4.1",
     "semver": "^7.7.3",
     "tar": "^7.5.2",
