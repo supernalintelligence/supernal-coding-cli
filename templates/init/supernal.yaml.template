@@ -1,0 +1,167 @@
+# ============================================================================
+# Supernal Coding Configuration
+# ============================================================================
+# This file configures the Supernal Coding (sc) CLI and workflow automation.
+# Copy this to your project root as 'supernal.yaml' and customize.
+#
+# Documentation: https://supernal.dev/docs/configuration
+# ============================================================================
+
+# Project metadata
+project:
+  name: "{{PROJECT_NAME}}"
+  description: "{{PROJECT_DESCRIPTION}}"
+  version: "1.0.0"
+
+# ============================================================================
+# Documentation Paths
+# ============================================================================
+# All paths are relative to project root
+
+docs:
+  root: docs
+  features: docs/features
+  requirements: docs/requirements
+  architecture: docs/architecture
+  planning: docs/planning
+  guides: docs/guides
+  compliance: docs/compliance
+  handoffs: docs/handoffs
+
+# ============================================================================
+# Git Configuration
+# ============================================================================
+
+git:
+  # Agent commit signing - distinguish AI agent commits from human commits
+  # When enabled:
+  #   - Human commits: Use user's GPG key (if configured)
+  #   - SC commits: Explicitly unsigned + [SC] prefix in message
+  signing:
+    enabled: false  # Set true to enable SC signing behavior
+    agent_commits:
+      sign: false   # false = unsigned (recommended), true = use agent GPG key
+      key_source: registry  # 'registry' or 'environment' (SC_AGENT_GPG_KEY)
+    human_commits:
+      require_signature: false  # If true, SC tools warn on unsigned human commits
+    agent_registry: .supernal/config/agents.yaml
+
+# ============================================================================
+# Git Hooks Configuration
+# ============================================================================
+# Pre-commit and pre-push validation
+
+git_hooks:
+  pre_commit:
+    enabled: true
+    checks:
+      # WIP registry - track unfinished work
+      wip_registry_check:
+        enabled: true
+        block_on_untracked: true
+        threshold: 5  # Max untracked files before blocking
+        allow_bypass: true
+      
+      # Linting
+      lint:
+        enabled: true
+        allow_bypass: true
+      
+      # Type checking
+      type_check:
+        enabled: true
+        allow_bypass: true
+
+  pre_push:
+    enabled: true
+    checks:
+      # Requirement validation
+      requirement_validation:
+        enabled: true
+        allow_bypass: true
+
+  # Environment variables to bypass specific checks
+  bypass_variables:
+    wip_registry: SC_SKIP_WIP_CHECK
+    lint: SC_SKIP_LINT
+    type_check: SC_SKIP_TYPE_CHECK
+    all_hooks: SC_SKIP_HOOKS
+
+# ============================================================================
+# Requirements Configuration
+# ============================================================================
+
+requirements:
+  path: docs/requirements
+  format: gherkin  # 'gherkin' or 'markdown'
+  id_prefix: REQ
+  categories:
+    - core
+    - infrastructure
+    - workflow
+    - compliance
+
+# ============================================================================
+# Features Configuration
+# ============================================================================
+
+features:
+  path: docs/features
+  domains:
+    - ai-workflow-system
+    - compliance-framework
+    - content-management
+    - dashboard-platform
+    - developer-tooling
+    - integrations
+    - workflow-management
+
+# ============================================================================
+# Compliance Configuration
+# ============================================================================
+
+compliance:
+  enabled: false  # Set true if using compliance features
+  framework: null  # 'hipaa', 'soc2', 'iso27001', or custom
+  evidence_path: docs/compliance/evidence
+
+# ============================================================================
+# Monitor Configuration (Optional)
+# ============================================================================
+# Background daemon for repo/issue monitoring
+
+monitor:
+  enabled: false
+  repos:
+    - path: .
+  watch:
+    - type: push
+      action: run-tests
+    - type: ci-failure
+      action: create-issue
+  pollInterval: 60000
+  github:
+    issues:
+      labels: [agent-request]
+      state: open
+
+# ============================================================================
+# CLI Behavior
+# ============================================================================
+
+cli:
+  verbose: false
+  colors: true
+  confirmDestructive: true
+
+# ============================================================================
+# Testing Configuration
+# ============================================================================
+
+testing:
+  framework: jest  # 'jest', 'vitest', 'mocha'
+  coverageThreshold: 80
+  testPaths:
+    - tests
+    - __tests__
+
