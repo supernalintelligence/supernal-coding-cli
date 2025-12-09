@@ -79,12 +79,19 @@ git_hooks:
       requirement_validation:
         enabled: true
         allow_bypass: true
+      
+      # Cosmetic test audit - detects decorative test assertions
+      cosmetic_test_audit:
+        enabled: true
+        block_on_high_risk: false  # Set true to block push on emoji/color assertions
+        allow_bypass: true
 
   # Environment variables to bypass specific checks
   bypass_variables:
     wip_registry: SC_SKIP_WIP_CHECK
     lint: SC_SKIP_LINT
     type_check: SC_SKIP_TYPE_CHECK
+    cosmetic_audit: SC_SKIP_COSMETIC_AUDIT
     all_hooks: SC_SKIP_HOOKS
 
 # ============================================================================
