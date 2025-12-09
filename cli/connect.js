@@ -36,43 +36,48 @@ const program = new Command('connect')
   .option('--type <type>', 'Issue type')
   .option('--local', 'Prefer local changes in sync conflicts')
   .option('--jira', 'Prefer Jira changes in sync conflicts')
-  .action(async (pluginName, command, args, options) => {
-    try {
-      // Discover all plugins
-      pluginRegistry.discover();
-      
-      // No plugin specified - list available
-      if (!pluginName || pluginName === 'list') {
-        return listPlugins();
-      }
-      
-      // Status command - show all connection statuses
-      if (pluginName === 'status') {
-        return showAllStatuses();
-      }
-      
-      // Get specific plugin
-      const plugin = pluginRegistry.get(pluginName);
-      if (!plugin) {
-        console.error(chalk.red(`Unknown plugin: ${pluginName}`));
-        console.log(chalk.gray('Available plugins: ' + pluginRegistry.ids().join(', ')));
-        console.log(chalk.gray('\nRun: sc connect list'));
-        process.exitCode = 1;
-        return;
-      }
-      
-      // No command - show plugin help
-      if (!command) {
-        return printPluginHelp(plugin);
-      }
-      
-      // Route to plugin command
-      await routeToPlugin(plugin, command, args, options);
-    } catch (error) {
-      console.error(chalk.red(`Error: ${error.message}`));
-      process.exitCode = 1;
+  .action(handleConnect);
+
+/**
+ * Main handler for connect command (can be called directly from program.js)
+ */
+async function handleConnect(pluginName, command, args, options) {
+  try {
+    // Discover all plugins
+    pluginRegistry.discover();
+    
+    // No plugin specified - list available
+    if (!pluginName || pluginName === 'list') {
+      return listPlugins();
     }
-  });
+    
+    // Status command - show all connection statuses
+    if (pluginName === 'status') {
+      return showAllStatuses();
+    }
+    
+    // Get specific plugin
+    const plugin = pluginRegistry.get(pluginName);
+    if (!plugin) {
+      console.error(chalk.red(`Unknown plugin: ${pluginName}`));
+      console.log(chalk.gray('Available plugins: ' + pluginRegistry.ids().join(', ')));
+      console.log(chalk.gray('\nRun: sc connect list'));
+      process.exitCode = 1;
+      return;
+    }
+    
+    // No command - show plugin help
+    if (!command) {
+      return printPluginHelp(plugin);
+    }
+    
+    // Route to plugin command
+    await routeToPlugin(plugin, command, args, options);
+  } catch (error) {
+    console.error(chalk.red(`Error: ${error.message}`));
+    process.exitCode = 1;
+  }
+}
 
 /**
  * List all available plugins
@@ -269,5 +274,5 @@ ${chalk.cyan('Examples:')}
   sc connect google list /             Browse Drive root
 `);
 
-module.exports = { program };
+module.exports = { program, handleConnect };
 
