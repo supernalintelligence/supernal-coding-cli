@@ -164,7 +164,7 @@ program
         process.exit(1);
       }
 
-      // Build JQL query
+      // Build JQL query - new API requires bounded queries
       let jql = options.jql;
 
       if (!jql) {
@@ -176,22 +176,23 @@ program
             `assignee = ${options.assignee === 'me' ? 'currentUser()' : `"${options.assignee}"`}`
           );
         }
-        jql = parts.length
-          ? `${parts.join(' AND ')} ORDER BY updated DESC`
-          : 'ORDER BY updated DESC';
+        // If no filters, add default time-bound (updated in last 90 days)
+        if (parts.length === 0) {
+          parts.push('updated >= -90d');
+        }
+        jql = `${parts.join(' AND ')} ORDER BY updated DESC`;
       }
 
       console.log(chalk.gray(`Fetching issues: ${jql}\n`));
 
-      // Use apiRequest to search
-      const response = await credentials.jira.apiRequest('/search', {
-        method: 'POST',
-        body: JSON.stringify({
-          jql,
-          maxResults: parseInt(options.limit, 10),
-          fields: ['summary', 'status', 'priority', 'assignee', 'updated']
-        })
+      // Use apiRequest to search (new /search/jql endpoint)
+      const fields = ['summary', 'status', 'priority', 'assignee', 'updated'].join(',');
+      const params = new URLSearchParams({
+        jql,
+        fields,
+        maxResults: options.limit
       });
+      const response = await credentials.jira.apiRequest(`/search/jql?${params}`);
 
       if (response.issues.length === 0) {
         console.log(chalk.yellow('No issues found'));
