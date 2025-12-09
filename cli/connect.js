@@ -124,14 +124,14 @@ async function showAllStatuses() {
         if (status?.connected) {
           console.log(
             chalk.green('● ') +
-            chalk.white(pluginInfo.name.padEnd(15)) +
+            chalk.white(pluginInfo.name.padEnd(18)) +
             chalk.green('Connected') +
             (status.domain ? chalk.gray(` (${status.domain})`) : '')
           );
         } else {
           console.log(
             chalk.gray('○ ') +
-            chalk.white(pluginInfo.name.padEnd(15)) +
+            chalk.white(pluginInfo.name.padEnd(18)) +
             chalk.gray('Not connected')
           );
         }
@@ -145,7 +145,7 @@ async function showAllStatuses() {
     } else {
       console.log(
         chalk.gray('? ') +
-        chalk.white(pluginInfo.name.padEnd(15)) +
+        chalk.white(pluginInfo.name.padEnd(18)) +
         chalk.gray('No auth')
       );
     }
