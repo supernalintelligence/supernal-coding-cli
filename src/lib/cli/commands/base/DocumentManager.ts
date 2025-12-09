@@ -1,3 +1,14 @@
+'use strict';
+
+/**
+ * @fileoverview DocumentManager Base Class
+ * 
+ * Type definitions available at: lib/types/documents/index.ts
+ * When migrating to TypeScript, use:
+ * - SupernalConfig from '@supernal/types/config'
+ * - BaseFrontmatter, ParsedRequirement from '@supernal/types/documents'
+ */
+
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');

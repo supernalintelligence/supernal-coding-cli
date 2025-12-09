@@ -31,6 +31,7 @@
     "supernal-coding": "./bin/sc"
   },
   "main": "./lib/index.js",
+  "types": "./lib/types/index.d.ts",
   "files": [
     "bin/",
     "lib/",
@@ -66,10 +67,24 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^8.2.10",
+    "@types/jest": "^29.5.14",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.17.9",
+    "@types/semver": "^7.5.8",
     "eslint": "^8.56.0",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.2"
   },
   "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "build:clean": "rm -rf lib && tsc",
+    "typecheck": "tsc --noEmit",
+    "typecheck:watch": "tsc --noEmit --watch",
+    "pretest": "npm run build",
     "test": "jest",
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
@@ -77,9 +92,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:verbose": "jest --verbose",
-    "lint": "eslint lib/",
-    "lint:fix": "eslint lib/ --fix",
-    "prepublishOnly": "npm test",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "prepublishOnly": "npm run build && npm test",
     "postinstall": "node lib/postinstall.js"
   },
   "preferGlobal": true,

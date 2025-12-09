@@ -1,3 +1,14 @@
+'use strict';
+
+/**
+ * @fileoverview RequirementManager - CRUD operations for requirements
+ * 
+ * Type definitions available at: lib/types/documents/index.ts
+ * When migrating to TypeScript, use:
+ * - RequirementStatus, Priority, RequestType from '@supernal/types/config'
+ * - RequirementFrontmatter, ParsedRequirement from '@supernal/types/documents'
+ */
+
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -14,6 +25,7 @@ const _TemplateResolver = require('../../../utils/template-resolver');
 
 /**
  * Core requirement management operations (CRUD)
+ * @extends DocumentManager
  */
 class RequirementManager extends DocumentManager {
   constructor() {

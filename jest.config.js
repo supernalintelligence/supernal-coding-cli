@@ -2,25 +2,56 @@
  * Jest Configuration for Supernal Coding Package
  *
  * Configures Jest for unit, integration, and e2e testing
+ * Supports incremental TypeScript migration
  */
 
 module.exports = {
   // Test environment
   testEnvironment: 'node',
 
+  // Use ts-jest preset for TypeScript support
+  preset: 'ts-jest/presets/js-with-ts',
+
   // Test match patterns
   testMatch: [
     '**/tests/**/*.test.js',
+    '**/tests/**/*.test.ts',
     '**/__tests__/**/*.js',
-    '**/?(*.)+(spec|test).js'
+    '**/__tests__/**/*.ts',
+    '**/?(*.)+(spec|test).js',
+    '**/?(*.)+(spec|test).ts'
   ],
+
+  // File extensions to consider
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+
+  // ts-jest configuration
+  globals: {
+    'ts-jest': {
+      useESM: false,
+      isolatedModules: true,
+      tsconfig: {
+        module: 'commonjs',
+        moduleResolution: 'node',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+        strict: false,
+        skipLibCheck: true,
+        resolveJsonModule: true,
+        allowJs: true,
+      }
+    }
+  },
 
   // Coverage collection
   collectCoverageFrom: [
     'lib/**/*.js',
+    'lib/**/*.ts',
     '!lib/**/node_modules/**',
     '!lib/**/*.test.js',
-    '!lib/**/__tests__/**'
+    '!lib/**/*.test.ts',
+    '!lib/**/__tests__/**',
+    '!lib/types/**'
   ],
 
   // Coverage thresholds
@@ -44,11 +75,6 @@ module.exports = {
 
   // Module paths
   moduleDirectories: ['node_modules', 'lib'],
-
-  // Transform (if using babel)
-  // transform: {
-  //   '^.+\\.js$': 'babel-jest',
-  // },
 
   // Ignore patterns
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/', '/coverage/'],

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    // Target & Module
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+
+    // Output - compile src/ to lib/
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // Relaxed for migration (will tighten in Phase 4)
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "alwaysStrict": true,
+
+    // Error Checking
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+
+    // Interop - critical for CommonJS require()
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Resolution
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    
+    // Treat all files as modules (fixes "Cannot redeclare" errors)
+    "moduleDetection": "force",
+
+    // Build Performance
+    "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./.tsbuildinfo",
+
+    // Path Mapping
+    "baseUrl": "./src",
+    "paths": {
+      "@supernal/types/*": ["lib/types/*"],
+      "@supernal/config/*": ["lib/config/*"],
+      "@supernal/cli/*": ["lib/cli/*"],
+      "@supernal/utils/*": ["lib/utils/*"]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "dist",
+    "documentation",
+    "templates",
+    "tests",
+    "tmp"
+  ]
+}
