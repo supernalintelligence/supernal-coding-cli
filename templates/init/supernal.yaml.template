@@ -27,6 +27,47 @@ docs:
   guides: docs/guides
   compliance: docs/compliance
   handoffs: docs/handoffs
+  sessions: docs/sessions
+  adr: docs/adr
+
+# ============================================================================
+# Repository Cleanup Configuration
+# ============================================================================
+# Keeps repos organized by detecting files in wrong locations
+
+cleanup:
+  # Staging queue for files needing manual review
+  queue_dir: cleanup-queue
+  queue_subdirs:
+    to_process: cleanup-queue/to-process
+    auto_staged: cleanup-queue/auto-staged
+    manifest: cleanup-queue/manifest.json
+  
+  # Files allowed in repository root
+  root_whitelist:
+    - README.md
+    - CHANGELOG.md
+    - CONTRIBUTING.md
+    - SECURITY.md
+    - LICENSE
+    - package.json
+    - tsconfig.json
+    - .gitignore
+  
+  # Patterns that suggest misplaced files
+  problematic_patterns:
+    folders:
+      - pattern: "^temp_"
+        suggestion: cleanup-queue/to-process
+      - pattern: "^old_"
+        suggestion: archive
+      - pattern: "^backup_"
+        suggestion: cleanup-queue/to-process
+    files:
+      - pattern: "^TODO_.*\\.md$"
+        suggestion: docs/planning
+      - pattern: "^QUICK_.*\\.md$"
+        suggestion: archive/legacy-root-docs
 
 # ============================================================================
 # Git Configuration
@@ -62,6 +103,17 @@ git_hooks:
         threshold: 5  # Max untracked files before blocking
         allow_bypass: true
       
+      # Repository cleanup - detect files in wrong locations
+      repo_cleanup:
+        enabled: true
+        block_on_errors: false  # Warn only by default
+        allow_bypass: true
+        mode: docs  # Options: docs, folders, all
+        check_root_violations: true
+        check_naming_violations: false  # Can be slow on large repos
+        check_broken_links: false  # Covered by markdown_links if enabled
+        check_orphaned_files: false  # Can be slow on large repos
+      
       # Linting
       lint:
         enabled: true
@@ -89,6 +141,7 @@ git_hooks:
   # Environment variables to bypass specific checks
   bypass_variables:
     wip_registry: SC_SKIP_WIP_CHECK
+    repo_cleanup: SC_SKIP_CLEANUP_CHECK
     lint: SC_SKIP_LINT
     type_check: SC_SKIP_TYPE_CHECK
     cosmetic_audit: SC_SKIP_COSMETIC_AUDIT
