@@ -16,8 +16,7 @@ const templateCommands = require('./commands/template');
 const multiRepoCommands = require('./commands/multi-repo');
 const _referenceCommand = require('./reference');
 const complianceCommand = require('./compliance');
-const resourceCommand = require('./resource');
-const jiraCommand = require('./jira');
+const connectCommand = require('./connect');
 
 // Import utilities
 const { findProjectRoot } = require('./utils/project-finder');
@@ -45,11 +44,8 @@ program.command('template', 'Manage template synchronization');
 // Register compliance command
 program.addCommand(complianceCommand.program);
 
-// Register resource command (integrations)
-program.addCommand(resourceCommand.program);
-
-// Register Jira command
-program.addCommand(jiraCommand.program);
+// Register connect command (unified integrations: jira, google, etc.)
+program.addCommand(connectCommand.program);
 
 // Global error handler
 program.exitOverride();
