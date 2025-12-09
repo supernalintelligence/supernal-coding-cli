@@ -1,67 +1,77 @@
 #!/usr/bin/env node
 
-/**
- * Supernal Coding CLI Entry Point
- * Main command router for sc commands
- */
+const chalk = require('chalk');
+const { buildProgram } = require('./program');
+const UpgradeIntegration = require('./utils/upgrade-integration');
 
-const { Command } = require('commander');
-const _path = require('node:path');
-const _fs = require('node:fs').promises;
+async function initializeUpgradeIntegration() {
+  // Skip upgrade checks during testing
+  if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+    return;
+  }
 
-// Import command modules
-const workflowCommands = require('./commands/workflow');
-const configCommands = require('./commands/config');
-const templateCommands = require('./commands/template');
-const multiRepoCommands = require('./commands/multi-repo');
-const _referenceCommand = require('./reference');
-const complianceCommand = require('./compliance');
-const connectCommand = require('./connect');
-
-// Import utilities
-const { findProjectRoot } = require('./utils/project-finder');
-const { formatError } = require('./utils/formatters');
-
-const program = new Command();
-
-program
-  .name('sc')
-  .description('Supernal Coding - Composable workflow system')
-  .version('2.0.0');
-
-// Register command groups
-workflowCommands(program);
-configCommands(program);
-templateCommands(program);
-multiRepoCommands(program);
-
-// Register reference command
-program.command('reference', 'Validate version-aware references').alias('ref');
-
-// Register template sync command
-program.command('template', 'Manage template synchronization');
-
-// Register compliance command
-program.addCommand(complianceCommand.program);
-
-// Register connect command (unified integrations: jira, google, etc.)
-program.addCommand(connectCommand.program);
-
-// Global error handler
-program.exitOverride();
-
-async function main() {
   try {
-    await program.parseAsync(process.argv);
-  } catch (error) {
-    if (error.code === 'commander.helpDisplayed') {
-      process.exit(0);
+    const upgradeIntegration = new UpgradeIntegration();
+
+    // Check cache FIRST (fast path - no network)
+    const cachedCheck = upgradeIntegration.getCachedUpdateStatus();
+    if (cachedCheck?.needsUpdate) {
+      console.log(chalk.yellow('⚠️  UPDATE AVAILABLE'));
+      console.log(chalk.yellow(`   ${cachedCheck.message}`));
+      console.log(
+        chalk.blue('   To update: ') + chalk.cyan(cachedCheck.upgradeCommand)
+      );
+      console.log();
     }
-    console.error(formatError(error));
-    process.exit(1);
+
+    // Background check for next run (fire-and-forget, don't block exit)
+    // Uses unref() to allow Node to exit without waiting
+    const timer = setTimeout(async () => {
+      try {
+        await upgradeIntegration.initializeForCommand(
+          process.argv[2] || 'help'
+        );
+        await upgradeIntegration.checkCriticalUpdates();
+      } catch (_error) {
+        // Silent fail
+      }
+    }, 0);
+    timer.unref(); // Allow Node to exit without waiting for this timer
+  } catch (_error) {
+    // non-blocking
   }
 }
 
-main();
+(async () => {
+  try {
+    // Fire off upgrade check (non-blocking due to unref())
+    initializeUpgradeIntegration().catch(() => {});
 
-module.exports = program;
+    const program = buildProgram();
+    program.parse();
+  } catch (error) {
+    if (error.code === 'commander.unknownCommand') {
+      console.error(
+        chalk.red(
+          '❌ Unknown command. Use "sc help" to see available commands.'
+        )
+      );
+    } else if (error.code === 'commander.helpDisplayed') {
+      process.exit(0);
+    } else if (error.code === 'commander.version') {
+      process.exit(0);
+    } else {
+      console.error(chalk.red('❌ Error:'), error.message);
+    }
+    process.exit(1);
+  }
+})();
+
+if (!process.argv.slice(2).length) {
+  try {
+    const program = buildProgram();
+    program.outputHelp();
+  } catch (_error) {
+    console.log('Use "sc help" for available commands');
+  }
+}

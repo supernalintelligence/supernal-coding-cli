@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * SC CLI Program - Minimal, Fast Implementation
@@ -1452,6 +1453,47 @@ function buildProgram() {
       }
     });
 
+  // ============================================================================
+  // CLEANUP COMMAND - Repository structure and documentation cleanup
+  // ============================================================================
+  program
+    .command('cleanup [action]')
+    .description(
+      'Repository structure and documentation cleanup with staging queue'
+    )
+    .option('--auto-fix', 'Automatically fix issues')
+    .option(
+      '--auto-stage',
+      'Move problematic files to cleanup-queue for review'
+    )
+    .option('--interactive', 'Review each change interactively')
+    .option('--dry-run', 'Show what would be done without making changes')
+    .option('--skip-docs', 'Skip documentation structure checks')
+    .option('--skip-structure', 'Skip directory structure validation')
+    .option(
+      '--validate-naming',
+      'Enable file naming validation (REQ-VALIDATION-001)'
+    )
+    .option('--check-links', 'Check for broken markdown links')
+    .option('--find-orphans', 'Find orphaned files with no references')
+    .option('--all', 'Enable all checks')
+    .option('-v, --verbose', 'Verbose output')
+    .action(async (action, options) => {
+      try {
+        const cleanupHandler = require('./commands/maintenance/cleanup-unified');
+        await cleanupHandler(action, options);
+      } catch (error) {
+        console.error(chalk.red(`❌ ${error.message}`));
+        if (options.verbose) {
+          console.error(error.stack);
+        }
+        if (process.env.NODE_ENV !== 'test') {
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
   // Change command (REQ-104)
   program
     .command('change <action>')
@@ -2157,25 +2199,25 @@ function buildProgram() {
   // ============================================================================
   // DOC COMMAND (Document Management)
   // ============================================================================
-  const docCommand = require('../../cli/doc');
+  const docCommand = require('../cli-router/doc');
   program.addCommand(docCommand);
 
   // ============================================================================
   // GPG COMMAND (Signed Commits Setup)
   // ============================================================================
-  const gpgCommand = require('../../cli/gpg');
+  const gpgCommand = require('../cli-router/gpg');
   program.addCommand(gpgCommand);
 
   // ============================================================================
   // PEOPLE COMMAND (Team/Contributor Management)
   // ============================================================================
-  const peopleCommand = require('../../cli/people');
+  const peopleCommand = require('../cli-router/people');
   program.addCommand(peopleCommand);
 
   // ============================================================================
   // COMPLIANCE COMMAND (Security Configuration Checks)
   // ============================================================================
-  const complianceCommand = require('../../cli/compliance');
+  const complianceCommand = require('../cli-router/compliance');
   program.addCommand(complianceCommand.program);
 
   // ============================================================================
@@ -2195,7 +2237,7 @@ function buildProgram() {
     .option('-t, --token <token>', 'API token')
     .action(async (plugin, command, args, options) => {
       // Delegate to the connect module
-      const connectModule = require('../../cli/connect');
+      const connectModule = require('../cli-router/connect');
       await connectModule.handleConnect(plugin, command, args, options);
     });
 
