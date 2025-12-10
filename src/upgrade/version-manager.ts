@@ -2,33 +2,84 @@
  * Version Manager - Track SC template versions and manage upgrades
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const semver = require('semver');
+import fs from 'fs-extra';
+import path from 'node:path';
+import semver from 'semver';
+
+export interface ComponentVersions {
+  rules: string;
+  templates: string;
+  workflows: string;
+  'git-hooks': string;
+  [key: string]: string;
+}
+
+export interface VersionData {
+  scVersion: string;
+  templateVersion: string;
+  installedDate: string;
+  lastUpgrade: string | null;
+  components: ComponentVersions;
+}
+
+export interface LatestVersionInfo {
+  version: string;
+  releaseDate: string | null;
+  changelog: string | null;
+}
+
+export interface UpgradeCheckResult {
+  hasUpgrade: boolean;
+  current: string;
+  latest: string;
+  type: string | null;
+}
+
+export interface UpgradeHistoryEntry {
+  version: string;
+  timestamp: string;
+  type: 'upgrade' | 'rollback';
+}
+
+export interface VersionSummary {
+  current: {
+    version: string;
+    installedDate: string;
+    lastUpgrade: string | null;
+    components: ComponentVersions;
+  };
+  latest: {
+    version: string;
+    releaseDate: string | null;
+  };
+  upgrade: UpgradeCheckResult;
+}
 
 class VersionManager {
-  constructor(projectRoot) {
+  protected projectRoot: string;
+  protected scDir: string;
+  protected versionFile: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.scDir = path.join(projectRoot, '.supernal-coding');
     this.versionFile = path.join(this.scDir, 'version.json');
   }
 
-  /**
-   * Initialize version tracking
-   */
-  async initialize(scVersion) {
+  async initialize(scVersion?: string): Promise<VersionData> {
     await fs.ensureDir(this.scDir);
 
-    const versionData = {
-      scVersion: scVersion || (await this.getPackageVersion()),
-      templateVersion: scVersion || (await this.getPackageVersion()),
+    const version = scVersion || (await this.getPackageVersion());
+    const versionData: VersionData = {
+      scVersion: version,
+      templateVersion: version,
       installedDate: new Date().toISOString(),
       lastUpgrade: null,
       components: {
-        rules: scVersion || (await this.getPackageVersion()),
-        templates: scVersion || (await this.getPackageVersion()),
-        workflows: scVersion || (await this.getPackageVersion()),
-        'git-hooks': scVersion || (await this.getPackageVersion())
+        rules: version,
+        templates: version,
+        workflows: version,
+        'git-hooks': version
       }
     };
 
@@ -36,42 +87,29 @@ class VersionManager {
     return versionData;
   }
 
-  /**
-   * Get current version information
-   */
-  async getCurrentVersion() {
+  async getCurrentVersion(): Promise<VersionData> {
     if (!(await fs.pathExists(this.versionFile))) {
-      // Not tracked yet - try to infer from package
       return await this.initialize();
     }
 
     return await fs.readJson(this.versionFile);
   }
 
-  /**
-   * Get latest available version from package registry
-   */
-  async getLatestVersion() {
+  async getLatestVersion(): Promise<LatestVersionInfo> {
     try {
-      // Try to get from local package.json first
       const packageVersion = await this.getPackageVersion();
 
-      // TODO: Implement actual npm registry check
-      // For now, return local package version
       return {
         version: packageVersion,
         releaseDate: null,
         changelog: null
       };
     } catch (error) {
-      throw new Error(`Failed to get latest version: ${error.message}`);
+      throw new Error(`Failed to get latest version: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Get version from SC package.json
-   */
-  async getPackageVersion() {
+  async getPackageVersion(): Promise<string> {
     try {
       const packagePath = path.join(__dirname, '../../package.json');
       const pkg = await fs.readJson(packagePath);
@@ -81,16 +119,13 @@ class VersionManager {
     }
   }
 
-  /**
-   * Check if upgrade is available
-   */
-  async checkUpgrade() {
+  async checkUpgrade(): Promise<UpgradeCheckResult> {
     const current = await this.getCurrentVersion();
     const latest = await this.getLatestVersion();
 
     const hasUpgrade =
-      semver.valid(current.scVersion) &&
-      semver.valid(latest.version) &&
+      !!semver.valid(current.scVersion) &&
+      !!semver.valid(latest.version) &&
       semver.gt(latest.version, current.scVersion);
 
     return {
@@ -101,22 +136,16 @@ class VersionManager {
     };
   }
 
-  /**
-   * Determine upgrade type (major, minor, patch)
-   */
-  getUpgradeType(current, latest) {
+  getUpgradeType(current: string, latest: string): string | null {
     if (!semver.valid(current) || !semver.valid(latest)) {
       return 'unknown';
     }
 
     const diff = semver.diff(current, latest);
-    return diff; // 'major', 'minor', 'patch', etc.
+    return diff;
   }
 
-  /**
-   * Record successful upgrade
-   */
-  async recordUpgrade(newVersion, components = null) {
+  async recordUpgrade(newVersion: string, components: Partial<ComponentVersions> | null = null): Promise<VersionData> {
     const data = await this.getCurrentVersion();
 
     data.scVersion = newVersion;
@@ -124,10 +153,8 @@ class VersionManager {
     data.lastUpgrade = new Date().toISOString();
 
     if (components) {
-      // Update specific components
       Object.assign(data.components, components);
     } else {
-      // Update all components to new version
       Object.keys(data.components).forEach((key) => {
         data.components[key] = newVersion;
       });
@@ -139,12 +166,9 @@ class VersionManager {
     return data;
   }
 
-  /**
-   * Add upgrade to history
-   */
-  async addUpgradeToHistory(newVersion) {
+  async addUpgradeToHistory(newVersion: string): Promise<void> {
     const historyFile = path.join(this.scDir, 'upgrade-history.json');
-    let history = [];
+    let history: UpgradeHistoryEntry[] = [];
 
     if (await fs.pathExists(historyFile)) {
       history = await fs.readJson(historyFile);
@@ -156,7 +180,6 @@ class VersionManager {
       type: 'upgrade'
     });
 
-    // Keep last 50 entries
     if (history.length > 50) {
       history = history.slice(-50);
     }
@@ -164,10 +187,7 @@ class VersionManager {
     await fs.writeJson(historyFile, history, { spaces: 2 });
   }
 
-  /**
-   * Get upgrade history
-   */
-  async getUpgradeHistory() {
+  async getUpgradeHistory(): Promise<UpgradeHistoryEntry[]> {
     const historyFile = path.join(this.scDir, 'upgrade-history.json');
 
     if (!(await fs.pathExists(historyFile))) {
@@ -177,10 +197,7 @@ class VersionManager {
     return await fs.readJson(historyFile);
   }
 
-  /**
-   * Rollback version (used after restore)
-   */
-  async rollbackVersion(previousVersion) {
+  async rollbackVersion(previousVersion: string): Promise<void> {
     const data = await this.getCurrentVersion();
 
     data.scVersion = previousVersion;
@@ -189,7 +206,7 @@ class VersionManager {
     await fs.writeJson(this.versionFile, data, { spaces: 2 });
 
     const historyFile = path.join(this.scDir, 'upgrade-history.json');
-    let history = [];
+    let history: UpgradeHistoryEntry[] = [];
 
     if (await fs.pathExists(historyFile)) {
       history = await fs.readJson(historyFile);
@@ -204,10 +221,7 @@ class VersionManager {
     await fs.writeJson(historyFile, history, { spaces: 2 });
   }
 
-  /**
-   * Get version comparison summary
-   */
-  async getVersionSummary() {
+  async getVersionSummary(): Promise<VersionSummary> {
     const current = await this.getCurrentVersion();
     const latest = await this.getLatestVersion();
     const upgradeCheck = await this.checkUpgrade();
@@ -228,4 +242,5 @@ class VersionManager {
   }
 }
 
+export default VersionManager;
 module.exports = VersionManager;

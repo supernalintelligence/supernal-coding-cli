@@ -1,10 +1,45 @@
 /**
  * Configuration Validation for Monitor
- * 
+ *
  * Validates monitor configuration in supernal.yaml
  */
 
-const monitorConfigSchema = {
+export type WatchType = 'push' | 'issue-response' | 'ci-failure' | 'ci-status';
+export type WatchAction = 'run-tests' | 'validate' | 'notify' | 'create-issue';
+
+export interface RepoConfig {
+  path: string;
+  name?: string;
+}
+
+export interface WatchConfig {
+  type: WatchType;
+  action: WatchAction;
+  config?: Record<string, unknown>;
+}
+
+export interface GithubIssuesConfig {
+  labels?: string[];
+  state?: 'open' | 'closed' | 'all';
+}
+
+export interface GithubConfig {
+  issues?: GithubIssuesConfig;
+}
+
+export interface MonitorConfig {
+  repos: RepoConfig[];
+  watch?: WatchConfig[];
+  pollInterval?: number;
+  github?: GithubConfig;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export const monitorConfigSchema = {
   type: 'object',
   required: ['repos'],
   properties: {
@@ -47,8 +82,8 @@ const monitorConfigSchema = {
     },
     pollInterval: {
       type: 'number',
-      minimum: 10000, // 10 seconds minimum
-      default: 60000  // 1 minute default
+      minimum: 10000,
+      default: 60000
     },
     github: {
       type: 'object',
@@ -71,19 +106,13 @@ const monitorConfigSchema = {
   }
 };
 
-/**
- * Validate monitor configuration
- * @param {object} config - Monitor configuration object
- * @returns {object} { valid: boolean, errors: string[] }
- */
-function validateMonitorConfig(config) {
-  const errors = [];
+export function validateMonitorConfig(config: MonitorConfig | null | undefined): ValidationResult {
+  const errors: string[] = [];
 
   if (!config || typeof config !== 'object') {
     return { valid: false, errors: ['Monitor configuration must be an object'] };
   }
 
-  // Validate repos
   if (!config.repos || !Array.isArray(config.repos)) {
     errors.push('monitor.repos must be an array');
   } else if (config.repos.length === 0) {
@@ -99,7 +128,6 @@ function validateMonitorConfig(config) {
     });
   }
 
-  // Validate watch actions (optional)
   if (config.watch !== undefined) {
     if (!Array.isArray(config.watch)) {
       errors.push('monitor.watch must be an array');
@@ -112,16 +140,14 @@ function validateMonitorConfig(config) {
           errors.push(`monitor.watch[${index}] must have an action`);
         }
 
-        // Validate type enum
-        const validTypes = ['push', 'issue-response', 'ci-failure', 'ci-status'];
+        const validTypes: WatchType[] = ['push', 'issue-response', 'ci-failure', 'ci-status'];
         if (watch.type && !validTypes.includes(watch.type)) {
           errors.push(
             `monitor.watch[${index}].type must be one of: ${validTypes.join(', ')}`
           );
         }
 
-        // Validate action enum
-        const validActions = ['run-tests', 'validate', 'notify', 'create-issue'];
+        const validActions: WatchAction[] = ['run-tests', 'validate', 'notify', 'create-issue'];
         if (watch.action && !validActions.includes(watch.action)) {
           errors.push(
             `monitor.watch[${index}].action must be one of: ${validActions.join(', ')}`
@@ -131,7 +157,6 @@ function validateMonitorConfig(config) {
     }
   }
 
-  // Validate pollInterval (optional)
   if (config.pollInterval !== undefined) {
     if (typeof config.pollInterval !== 'number') {
       errors.push('monitor.pollInterval must be a number');
@@ -146,11 +171,7 @@ function validateMonitorConfig(config) {
   };
 }
 
-/**
- * Generate example configuration
- * @returns {object}
- */
-function generateExampleConfig() {
+export function generateExampleConfig(): { monitor: MonitorConfig } {
   return {
     monitor: {
       repos: [

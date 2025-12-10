@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Strict Template Validation
@@ -20,6 +21,8 @@ const chalk = require('chalk');
  * Templates must have SPECIFIC content, not just structure
  */
 class StrictTemplateValidator {
+  genericIndicators: any;
+  specificContentRequired: any;
   constructor() {
     // Generic phrases that indicate incomplete templates
     this.genericIndicators = [

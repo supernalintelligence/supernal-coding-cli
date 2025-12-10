@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs').promises;
 const path = require('node:path');
 const yaml = require('yaml');
@@ -6,6 +7,8 @@ const yaml = require('yaml');
  * TemplateLoader - Load and manage document templates
  */
 class TemplateLoader {
+  cache: any;
+  templatesDir: any;
   constructor() {
     this.templatesDir = path.join(__dirname, '..', 'templates');
     this.cache = new Map();

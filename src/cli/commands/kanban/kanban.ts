@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { execSync } = require('node:child_process');
 const path = require('node:path');
@@ -17,6 +18,9 @@ const colors = {
 };
 
 class KanbanWrapper {
+  priorityScript: any;
+  scriptsDir: any;
+  unifiedScript: any;
   constructor() {
     this.scriptsDir = path.join(__dirname, 'kanban-scripts');
     this.unifiedScript = path.join(this.scriptsDir, 'kanban-unified.sh');

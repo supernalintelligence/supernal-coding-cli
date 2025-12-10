@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Jira Sync Command - Bidirectional sync
  */
@@ -118,7 +119,7 @@ function parseRequirement(content) {
   const rawFrontmatter = frontmatterMatch[1];
   const frontmatter = {};
   
-  const jiraMatch = rawFrontmatter.match(/jira:\n((?:  [^\n]*\n)*)/);
+  const jiraMatch = rawFrontmatter.match(/jira:\n((?: {2}[^\n]*\n)*)/);
   if (jiraMatch) {
     frontmatter.jira = {};
     const keyMatch = jiraMatch[1].match(/key:\s*([^\n]+)/);

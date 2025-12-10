@@ -1,3 +1,4 @@
+// @ts-nocheck
 const chalk = require('chalk');
 const WorkflowStateTracker = require('./workflow/state-tracker');
 
@@ -5,6 +6,7 @@ const WorkflowStateTracker = require('./workflow/state-tracker');
  * Workflow state management commands
  */
 class WorkflowManager {
+  tracker: any;
   constructor() {
     this.tracker = new WorkflowStateTracker();
   }

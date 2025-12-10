@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PeopleManager - Manages team contributors and approval permissions
  *
@@ -14,6 +15,8 @@ const { minimatch } = require('minimatch');
 const PEOPLE_FILE = '.supernal/people.yaml';
 
 class PeopleManager {
+  peoplePath: any;
+  workspaceRoot: any;
   constructor(workspaceRoot = process.cwd()) {
     this.workspaceRoot = workspaceRoot;
     this.peoplePath = path.join(workspaceRoot, PEOPLE_FILE);

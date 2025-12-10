@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('fs-extra');
 const path = require('node:path');
@@ -14,6 +15,13 @@ const readline = require('node:readline');
  */
 
 class ConsentManager {
+  bypassFlag: any;
+  config: any;
+  consent: any;
+  consentFile: any;
+  forceInteractive: any;
+  interactive: any;
+  projectRoot: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.bypassFlag = options.bypassFlag || false;

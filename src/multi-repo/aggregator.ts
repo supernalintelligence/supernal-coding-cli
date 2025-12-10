@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs').promises;
 const path = require('node:path');
 
@@ -5,6 +6,7 @@ const path = require('node:path');
  * RepoAggregator - Aggregate data across multiple repos
  */
 class RepoAggregator {
+  repos: any;
   constructor() {
     this.repos = [];
   }

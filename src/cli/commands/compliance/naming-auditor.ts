@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Compliance Template Naming Audit
@@ -18,6 +19,7 @@ const path = require('node:path');
 const chalk = require('chalk');
 
 class TemplateNamingAuditor {
+  issues: any;
   constructor() {
     this.issues = [];
   }

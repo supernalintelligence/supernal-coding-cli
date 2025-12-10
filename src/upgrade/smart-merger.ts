@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Smart Merge Engine - Intelligent three-way merge for SC upgrades and syncs
  * Shared by both template upgrades (sc upgrade) and repository syncs (sc sync)
@@ -29,6 +30,9 @@ const ConflictType = {
 };
 
 class SmartMerger {
+  dryRun: any;
+  strategy: any;
+  verbose: any;
   constructor(options = {}) {
     this.strategy = options.strategy || MergeStrategy.AUTO;
     this.verbose = options.verbose || false;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Template generators for requirement management
  */

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('node:fs');
 const _path = require('node:path');
@@ -6,6 +7,8 @@ const { execSync } = require('node:child_process');
 const glob = require('glob');
 
 class RequirementsTrackingInitializer {
+  options: any;
+  stats: any;
   constructor(options = {}) {
     this.options = {
       dryRun: options.dryRun || false,

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * sc feature move - Move feature between domains
  */

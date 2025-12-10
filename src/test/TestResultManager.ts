@@ -1,9 +1,13 @@
+// @ts-nocheck
 const fs = require('node:fs');
 const path = require('node:path');
 const { execSync, _spawn } = require('node:child_process');
 const chalk = require('chalk');
 
 class TestResultManager {
+  config: any;
+  indexFile: any;
+  resultsDir: any;
   constructor(config = {}) {
     this.resultsDir = config.path || '.supernal/test-results';
     this.indexFile = path.join(this.resultsDir, 'index.json');

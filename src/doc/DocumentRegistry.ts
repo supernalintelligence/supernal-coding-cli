@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs');
 const path = require('node:path');
 const yaml = require('yaml');
@@ -5,6 +6,7 @@ const glob = require('glob');
 const chalk = require('chalk');
 
 class DocumentRegistry {
+  registryPath: any;
   constructor() {
     this.registryPath = '.supernal/document-registry.yaml';
   }

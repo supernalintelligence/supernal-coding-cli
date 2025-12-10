@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // repo-sync-check.js - Check if local repository is in sync with globally installed sc package
 // Part of REQ-053: Local Repository Sync Check
@@ -10,6 +11,9 @@ const { execSync } = require('node:child_process');
 const { LocalStateManager } = require('./local-state-manager');
 
 class RepoSyncChecker {
+  projectRoot: any;
+  stateManager: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

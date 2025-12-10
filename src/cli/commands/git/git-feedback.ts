@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { execSync } = require('node:child_process');
 const chalk = require('chalk');
@@ -8,6 +9,9 @@ const chalk = require('chalk');
  * Provides real-time feedback from multiple Git sources using GitHub API
  */
 class GitFeedback {
+  currentBranch: any;
+  repoName: any;
+  repoOwner: any;
   constructor() {
     this.repoOwner = null;
     this.repoName = null;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 const chalk = require('chalk');
 const path = require('node:path');
 const fs = require('fs-extra');

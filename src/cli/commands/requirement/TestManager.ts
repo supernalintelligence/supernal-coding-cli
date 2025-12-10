@@ -1,21 +1,25 @@
-const fs = require('fs-extra');
-const path = require('node:path');
-const chalk = require('chalk');
+import fs from 'fs-extra';
+import path from 'node:path';
+import chalk from 'chalk';
 const RequirementHelpers = require('./utils/helpers');
 const RequirementTemplates = require('./utils/templates');
+
+interface RequirementManager {
+  findRequirementById(reqId: string): Promise<string | null>;
+  projectRoot: string;
+}
 
 /**
  * Handles test generation and coverage for requirements
  */
 class TestManager {
-  constructor(requirementManager) {
+  protected requirementManager: RequirementManager;
+
+  constructor(requirementManager: RequirementManager) {
     this.requirementManager = requirementManager;
   }
 
-  /**
-   * Generate test files from requirement Gherkin scenarios
-   */
-  async generateTests(reqId) {
+  async generateTests(reqId: string): Promise<void> {
     try {
       const reqFile = await this.requirementManager.findRequirementById(reqId);
       if (!reqFile) {
@@ -31,10 +35,8 @@ class TestManager {
         `req-${normalizedIdForTestDir}`
       );
 
-      // Create test directory
       await fs.ensureDir(testDir);
 
-      // Create test files
       const normalizedId = RequirementHelpers.normalizeReqId(reqId);
       const featureFile = path.join(testDir, `req-${normalizedId}.feature`);
       const stepsFile = path.join(testDir, `req-${normalizedId}.steps.js`);
@@ -44,7 +46,6 @@ class TestManager {
       );
       const e2eTestFile = path.join(testDir, `req-${normalizedId}.e2e.test.js`);
 
-      // Extract and create feature file from Gherkin scenarios
       const gherkinMatches = content.match(/```gherkin\n([\s\S]*?)\n```/g);
       if (gherkinMatches && gherkinMatches.length > 0) {
         const gherkinContent = gherkinMatches
@@ -56,7 +57,6 @@ class TestManager {
         await fs.writeFile(featureFile, gherkinContent);
       }
 
-      // Create test templates
       await fs.writeFile(
         stepsFile,
         RequirementTemplates.createStepsTemplate(normalizedId)
@@ -80,15 +80,12 @@ class TestManager {
       console.log(chalk.blue(`   - req-${normalizedId}.unit.test.js`));
       console.log(chalk.blue(`   - req-${normalizedId}.e2e.test.js`));
     } catch (error) {
-      console.error(chalk.red(`❌ Error generating tests: ${error.message}`));
+      console.error(chalk.red(`❌ Error generating tests: ${(error as Error).message}`));
       throw error;
     }
   }
 
-  /**
-   * Validate test coverage for a specific requirement
-   */
-  async validateCoverage(reqId) {
+  async validateCoverage(reqId: string): Promise<void> {
     const TestCoverageManager = require('./test-coverage');
     const manager = new TestCoverageManager();
 
@@ -96,15 +93,12 @@ class TestManager {
       const coverage = await manager.analyzeCoverage(reqId);
       manager.displayCoverageResults(coverage);
     } catch (error) {
-      console.error(chalk.red('❌ Coverage validation failed:', error.message));
+      console.error(chalk.red('❌ Coverage validation failed:', (error as Error).message));
       process.exit(1);
     }
   }
 
-  /**
-   * Generate comprehensive coverage report for all requirements
-   */
-  async generateCoverageReport() {
+  async generateCoverageReport(): Promise<void> {
     const TestCoverageManager = require('./test-coverage');
     const manager = new TestCoverageManager();
 
@@ -113,11 +107,12 @@ class TestManager {
       manager.displayCoverageReport(report);
     } catch (error) {
       console.error(
-        chalk.red('❌ Coverage report generation failed:', error.message)
+        chalk.red('❌ Coverage report generation failed:', (error as Error).message)
       );
       process.exit(1);
     }
   }
 }
 
+export default TestManager;
 module.exports = TestManager;

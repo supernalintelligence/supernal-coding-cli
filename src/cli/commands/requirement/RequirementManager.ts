@@ -2,18 +2,19 @@
 
 /**
  * @fileoverview RequirementManager - CRUD operations for requirements
- * 
- * Type definitions available at: lib/types/documents/index.ts
- * When migrating to TypeScript, use:
- * - RequirementStatus, Priority, RequestType from '@supernal/types/config'
- * - RequirementFrontmatter, ParsedRequirement from '@supernal/types/documents'
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const chalk = require('chalk');
-const { loadProjectConfig, getDocPaths } = require('../../utils/config-loader');
-const DocumentManager = require('../base/DocumentManager');
+import fs from 'fs-extra';
+import path from 'node:path';
+import chalk from 'chalk';
+import { loadProjectConfig, getDocPaths } from '../../utils/config-loader';
+import DocumentManager, { 
+  TemplateData,
+  DocumentCreateData 
+} from '../base/DocumentManager';
+import type { RawSupernalConfig, DocPaths, RequirementStatus, Priority, RequestType } from '../../../types/config';
+
+// These modules are still JS, use require
 const RequirementHelpers = require('./utils/helpers');
 const {
   extractFrontmatter,
@@ -21,13 +22,71 @@ const {
   reconstructContent
 } = require('./utils/parsers');
 const RequirementTemplates = require('./utils/templates');
-const _TemplateResolver = require('../../../utils/template-resolver');
+
+/** Options for creating a requirement */
+export interface CreateRequirementOptions {
+  epic?: string;
+  category?: string;
+  priority?: Priority;
+  requestType?: RequestType;
+  featurePath?: string;
+  feature?: string;
+  templateName?: string;
+  tags?: string[];
+  created_from_template?: string;
+  version?: string;
+  created?: string;
+  [key: string]: unknown;
+}
+
+/** Options for listing requirements */
+export interface ListRequirementOptions {
+  epic?: string;
+  status?: RequirementStatus;
+  category?: string;
+  priority?: Priority;
+  format?: 'table' | 'json' | 'yaml';
+  limit?: number;
+}
+
+/** Options for updating a requirement */
+export interface UpdateRequirementOptions {
+  status?: RequirementStatus;
+  priority?: Priority;
+  assignee?: string;
+  phase?: string;
+  [key: string]: unknown;
+}
+
+/** Result of creating a requirement */
+export interface CreateRequirementResult {
+  id: string;
+  file?: string;
+  path?: string;
+  filePath?: string;
+  category?: string;
+}
+
+/** Parsed requirement data */
+export interface RequirementData {
+  id: string;
+  title: string;
+  status: string;
+  priority?: string;
+  epic?: string;
+  category?: string;
+  file: string;
+  path: string;
+  [key: string]: unknown;
+}
 
 /**
  * Core requirement management operations (CRUD)
  * @extends DocumentManager
  */
 class RequirementManager extends DocumentManager {
+  protected requirementsPath: string;
+
   constructor() {
     super({
       documentType: 'requirement',
@@ -43,7 +102,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Get next available requirement ID
    */
-  async getNextRequirementId() {
+  async getNextRequirementId(): Promise<number> {
     // Use base class method to get all document files
     const reqFiles = await this.getAllDocumentFiles();
     let highestId = 0;
@@ -64,7 +123,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Load template file
    */
-  async loadTemplate(templateName) {
+  async loadTemplate(templateName: string): Promise<TemplateData> {
     try {
       // Use parent's TemplateResolver (checks project overrides, then package)
       const templatePath = this.templateResolver.resolve(templateName);
@@ -96,7 +155,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Extract version from template frontmatter
    */
-  extractTemplateVersion(content) {
+  extractTemplateVersion(content: string): string | null {
     const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
     if (!match) return null;
 
@@ -107,7 +166,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Inject template provenance into frontmatter
    */
-  injectProvenance(content, provenance) {
+  injectProvenance(content: string, provenance: { created_from_template: string; version: string; created: string }): string {
     const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
     if (!match) return content; // No frontmatter, return as-is
 
@@ -129,7 +188,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Create a new requirement
    */
-  async createRequirement(title, options = {}) {
+  async createRequirement(title: string, options: CreateRequirementOptions = {}): Promise<CreateRequirementResult> {
     try {
       // Validate title parameter
       if (typeof title !== 'string' || title.trim() === '') {
@@ -354,7 +413,7 @@ class RequirementManager extends DocumentManager {
   /**
    * List requirements with filtering
    */
-  async listRequirements(options = {}) {
+  async listRequirements(options: ListRequirementOptions = {}): Promise<RequirementData[]> {
     try {
       const files = await this.getAllDocumentFiles();
       const requirements = [];
@@ -414,7 +473,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Update requirement
    */
-  async updateRequirement(reqId, updates) {
+  async updateRequirement(reqId: string | number, updates: UpdateRequirementOptions): Promise<{ id: string | number; path: string }> {
     try {
       const reqFile = await this.findRequirementById(reqId);
       if (!reqFile) {
@@ -436,9 +495,11 @@ class RequirementManager extends DocumentManager {
       await fs.writeFile(reqFile, newContent);
 
       console.log(chalk.green(`✅ Requirement ${reqId} updated successfully!`));
+      return { id: reqId, path: reqFile };
     } catch (error) {
+      const err = error as Error;
       console.error(
-        chalk.red(`❌ Error updating requirement: ${error.message}`)
+        chalk.red(`❌ Error updating requirement: ${err.message}`)
       );
       throw error;
     }
@@ -447,7 +508,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Delete or archive requirement
    */
-  async deleteRequirement(reqId, options = {}) {
+  async deleteRequirement(reqId: string | number, options: { force?: boolean; archive?: boolean } = {}): Promise<{ id: string | number; deleted: boolean; archived: boolean; path?: string }> {
     try {
       const reqFile = await this.findRequirementById(reqId);
       if (!reqFile) {
@@ -469,13 +530,16 @@ class RequirementManager extends DocumentManager {
         console.log(
           chalk.yellow(`📦 Requirement ${reqId} archived to: ${archiveFile}`)
         );
+        return { id: reqId, deleted: false, archived: true, path: archiveFile };
       } else {
         await fs.remove(reqFile);
         console.log(chalk.red(`🗑️  Requirement ${reqId} permanently deleted!`));
+        return { id: reqId, deleted: true, archived: false, path: reqFile };
       }
     } catch (error) {
+      const err = error as Error;
       console.error(
-        chalk.red(`❌ Error deleting requirement: ${error.message}`)
+        chalk.red(`❌ Error deleting requirement: ${err.message}`)
       );
       throw error;
     }
@@ -484,7 +548,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Find requirement by ID
    */
-  async findRequirementById(reqId) {
+  async findRequirementById(reqId: string | number): Promise<string | null> {
     const normalizedId = RequirementHelpers.normalizeReqId(reqId);
     if (!normalizedId) {
       return null;
@@ -503,7 +567,7 @@ class RequirementManager extends DocumentManager {
   /**
    * Find requirement file path
    */
-  async findRequirementFile(fileName) {
+  async findRequirementFile(fileName: string): Promise<string | null> {
     // Search in all subdirectories
     async function searchDir(dir) {
       if (!(await fs.pathExists(dir))) return null;
@@ -527,12 +591,12 @@ class RequirementManager extends DocumentManager {
   /**
    * Check for duplicate requirement numbers
    */
-  async checkDuplicates() {
+  async checkDuplicates(): Promise<boolean> {
     console.log(chalk.cyan('🔍 Checking for duplicate requirement numbers...'));
 
     const reqFiles = await this.getAllDocumentFiles();
-    const reqNumbers = {};
-    const duplicates = [];
+    const reqNumbers: Record<string, string[]> = {};
+    const duplicates: Array<{ reqNum: string; files: string[] }> = [];
 
     // Scan all requirement files for numbers
     for (const file of reqFiles) {
@@ -711,4 +775,5 @@ class RequirementManager extends DocumentManager {
   }
 }
 
+export default RequirementManager;
 module.exports = RequirementManager;

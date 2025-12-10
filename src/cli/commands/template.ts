@@ -1,13 +1,16 @@
-const chalk = require('chalk');
-const _fs = require('fs-extra');
-const _path = require('node:path');
-const TemplateResolver = require('../../utils/template-resolver');
+import chalk from 'chalk';
+import TemplateResolver from '../../utils/template-resolver';
 
-/**
- * Template command handler
- * Manages project templates
- */
-async function handleTemplateCommand(action, options) {
+interface TemplateOptions {
+  [key: string]: unknown;
+}
+
+interface TemplateInfo {
+  path: string;
+  source: 'package' | 'project';
+}
+
+async function handleTemplateCommand(action: string, options: TemplateOptions): Promise<void> {
   switch (action) {
     case 'list':
       await listTemplates(options);
@@ -28,11 +31,11 @@ async function handleTemplateCommand(action, options) {
   }
 }
 
-async function listTemplates(_options) {
+async function listTemplates(_options: TemplateOptions): Promise<void> {
   console.log(chalk.blue('📋 Available Templates:'));
 
   const resolver = new TemplateResolver();
-  const templates = resolver.list();
+  const templates: TemplateInfo[] = resolver.list();
 
   if (templates.length > 0) {
     templates.forEach((template) => {
@@ -45,7 +48,7 @@ async function listTemplates(_options) {
   }
 }
 
-async function showRegistry(_options) {
+async function showRegistry(_options: TemplateOptions): Promise<void> {
   console.log(chalk.blue('📚 Template Registry:'));
   console.log(chalk.cyan('\n  Type: Core Templates (ME.sh Convention)'));
   console.log(chalk.white('    - BUILDME.sh - Build automation script'));
@@ -62,4 +65,5 @@ async function showRegistry(_options) {
   console.log(chalk.white('    - decision.md - Architecture decision record'));
 }
 
+export { handleTemplateCommand };
 module.exports = { handleTemplateCommand };

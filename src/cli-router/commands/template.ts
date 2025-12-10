@@ -3,22 +3,57 @@
  * Commands for template management
  */
 
-const {
-  TemplateLoader,
-  DocumentValidator,
-  DocumentRegistry
-} = require('../../lib/templates');
-const { findProjectRoot } = require('../utils/project-finder');
-const {
+import { Command } from 'commander';
+import path from 'node:path';
+import { findProjectRoot } from '../utils/project-finder';
+import {
   formatSuccess,
   formatError,
   formatTable,
   formatYAML
-} = require('../utils/formatters');
-const _fs = require('node:fs').promises;
-const path = require('node:path');
+} from '../utils/formatters';
 
-function registerTemplateCommands(program) {
+const {
+  TemplateLoader,
+  DocumentValidator,
+  DocumentRegistry
+} = require('../../templates');
+
+/** Template info */
+interface TemplateInfo {
+  name: string;
+  category?: string;
+  phases?: string[];
+  [key: string]: unknown;
+}
+
+/** Validation result */
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+/** Document type info */
+interface DocumentTypeInfo {
+  name: string;
+  category: string;
+  template?: string;
+  templates?: string[];
+}
+
+/** Validate options */
+interface ValidateOptions {
+  document: string;
+  template: string;
+}
+
+/** Inspect options */
+interface InspectOptions {
+  name: string;
+}
+
+function registerTemplateCommands(program: Command): void {
   const template = program
     .command('template')
     .alias('tmpl')
@@ -32,7 +67,7 @@ function registerTemplateCommands(program) {
     .action(async () => {
       try {
         const loader = new TemplateLoader();
-        const templates = await loader.listTemplates();
+        const templates: TemplateInfo[] = await loader.listTemplates();
 
         if (templates.length === 0) {
           console.log('No templates found');
@@ -46,11 +81,11 @@ function registerTemplateCommands(program) {
         ]);
 
         console.log(
-          `\n${formatTable(rows, ['Template', 'Category', 'Phases'])}`
+          `\n${formatTable(rows as unknown[][], ['Template', 'Category', 'Phases'])}`
         );
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -61,13 +96,13 @@ function registerTemplateCommands(program) {
     .description('Validate document against template')
     .requiredOption('--document <path>', 'Path to document to validate')
     .requiredOption('--template <name>', 'Template name')
-    .action(async (options) => {
+    .action(async (options: ValidateOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const docPath = path.resolve(projectRoot, options.document);
 
         const validator = new DocumentValidator();
-        const result = await validator.validate(docPath, options.template);
+        const result: ValidationResult = await validator.validate(docPath, options.template);
 
         if (result.valid) {
           console.log(formatSuccess('Document is valid'));
@@ -83,7 +118,7 @@ function registerTemplateCommands(program) {
           process.exit(1);
         }
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -93,7 +128,7 @@ function registerTemplateCommands(program) {
     .command('inspect')
     .description('Show template details')
     .requiredOption('--name <name>', 'Template name')
-    .action(async (options) => {
+    .action(async (options: InspectOptions) => {
       try {
         const loader = new TemplateLoader();
         const tmpl = await loader.loadTemplate(options.name);
@@ -101,7 +136,7 @@ function registerTemplateCommands(program) {
         console.log(`\n${formatYAML(tmpl)}`);
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -113,7 +148,7 @@ function registerTemplateCommands(program) {
     .action(async () => {
       try {
         const registry = new DocumentRegistry();
-        const types = registry.getAllTypes();
+        const types: DocumentTypeInfo[] = registry.getAllTypes();
 
         if (types.length === 0) {
           console.log('No document types registered');
@@ -129,14 +164,15 @@ function registerTemplateCommands(program) {
         ]);
 
         console.log(
-          `\n${formatTable(rows, ['Type', 'Category', 'Templates'])}`
+          `\n${formatTable(rows as unknown[][], ['Type', 'Category', 'Templates'])}`
         );
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
 }
 
+export default registerTemplateCommands;
 module.exports = registerTemplateCommands;

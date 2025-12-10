@@ -28,14 +28,80 @@ const ValidationManager = require('./tools/validation');
 const GitManager = require('./tools/git');
 const AgentManager = require('./tools/agent');
 const RulesManager = require('./tools/rules');
-const SyncManager = require('./sync/manager');
+import SyncManager from './sync/manager';
+import type { SyncStatus } from './sync/manager';
+
+/** MCP Server options */
+export interface MCPServerOptions {
+  projectRoot?: string;
+}
+
+/** MCP tool response content */
+interface ToolContent {
+  type: 'text';
+  text: string;
+}
+
+/** MCP tool response */
+interface ToolResponse {
+  content: ToolContent[];
+  isError?: boolean;
+}
+
+/** MCP resource content */
+interface ResourceContent {
+  uri: string;
+  mimeType: string;
+  text: string;
+}
+
+/** MCP resource response */
+interface ResourceResponse {
+  contents: ResourceContent[];
+}
+
+/** Tool call request */
+interface ToolCallRequest {
+  params: {
+    name: string;
+    arguments: Record<string, unknown>;
+  };
+}
+
+/** Resource read request */
+interface ResourceReadRequest {
+  params: {
+    uri: string;
+  };
+}
+
+/** Server configuration */
+interface ServerConfig {
+  sync?: {
+    enabled: boolean;
+    [key: string]: unknown;
+  };
+  load?: () => void;
+  [key: string]: unknown;
+}
 
 /**
  * Supernal Coding MCP Server
  * Exposes tools and resources for Claude Code integration
  */
 class SupernalCodingServer {
-  constructor(options = {}) {
+  protected agent: InstanceType<typeof AgentManager>;
+  protected config: ServerConfig | null;
+  protected git: InstanceType<typeof GitManager>;
+  protected kanban: InstanceType<typeof KanbanManager>;
+  protected projectRoot: string;
+  protected requirements: InstanceType<typeof RequirementsManager>;
+  protected rules: InstanceType<typeof RulesManager>;
+  protected server: InstanceType<typeof Server>;
+  protected syncManager: SyncManager | null;
+  protected validation: InstanceType<typeof ValidationManager>;
+
+  constructor(options: MCPServerOptions = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.config = null;
     this.syncManager = null;
@@ -68,19 +134,19 @@ class SupernalCodingServer {
   /**
    * Load project configuration
    */
-  async loadConfig() {
+  async loadConfig(): Promise<void> {
     try {
       const { getConfig } = require('../scripts/config-loader');
       this.config = getConfig(this.projectRoot);
-      this.config.load();
+      this.config?.load?.();
 
       // Initialize sync manager if configured
-      if (this.config.sync?.enabled) {
+      if (this.config?.sync?.enabled) {
         this.syncManager = new SyncManager(this.config.sync);
         await this.syncManager.initialize();
       }
     } catch (error) {
-      console.error('Warning: Could not load configuration:', error.message);
+      console.error('Warning: Could not load configuration:', (error as Error).message);
       this.config = { sync: { enabled: false } };
     }
   }
@@ -88,7 +154,7 @@ class SupernalCodingServer {
   /**
    * Setup MCP request handlers
    */
-  setupHandlers() {
+  setupHandlers(): void {
     // List available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
@@ -291,11 +357,11 @@ class SupernalCodingServer {
     }));
 
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler(CallToolRequestSchema, async (request: ToolCallRequest): Promise<ToolResponse> => {
       const { name, arguments: args } = request.params;
 
       try {
-        let result;
+        let result: unknown;
 
         switch (name) {
           // Requirements
@@ -351,10 +417,10 @@ class SupernalCodingServer {
             result = await this.getSyncStatus();
             break;
           case 'sc_sync_push':
-            result = await this.syncPush(args.force);
+            result = await this.syncPush(args.force as boolean);
             break;
           case 'sc_sync_pull':
-            result = await this.syncPull(args.force);
+            result = await this.syncPull(args.force as boolean);
             break;
 
           default:
@@ -374,7 +440,7 @@ class SupernalCodingServer {
           content: [
             {
               type: 'text',
-              text: `Error: ${error.message}`
+              text: `Error: ${(error as Error).message}`
             }
           ],
           isError: true
@@ -421,11 +487,11 @@ class SupernalCodingServer {
     // Read resources
     this.server.setRequestHandler(
       ReadResourceRequestSchema,
-      async (request) => {
+      async (request: ResourceReadRequest): Promise<ResourceResponse> => {
         const { uri } = request.params;
 
         try {
-          let content;
+          let content: unknown;
 
           if (uri === 'requirements://list') {
             content = await this.requirements.list();
@@ -451,7 +517,7 @@ class SupernalCodingServer {
             ]
           };
         } catch (error) {
-          throw new Error(`Failed to read resource ${uri}: ${error.message}`);
+          throw new Error(`Failed to read resource ${uri}: ${(error as Error).message}`);
         }
       }
     );
@@ -460,7 +526,7 @@ class SupernalCodingServer {
   /**
    * Get synchronization status
    */
-  async getSyncStatus() {
+  async getSyncStatus(): Promise<SyncStatus | { enabled: boolean; message: string }> {
     if (!this.syncManager) {
       return {
         enabled: false,
@@ -474,7 +540,7 @@ class SupernalCodingServer {
   /**
    * Push changes to higher-level system
    */
-  async syncPush(force = false) {
+  async syncPush(force = false): Promise<unknown> {
     if (!this.syncManager) {
       throw new Error('Synchronization is not configured');
     }
@@ -485,7 +551,7 @@ class SupernalCodingServer {
   /**
    * Pull updates from higher-level system
    */
-  async syncPull(force = false) {
+  async syncPull(force = false): Promise<unknown> {
     if (!this.syncManager) {
       throw new Error('Synchronization is not configured');
     }
@@ -496,7 +562,7 @@ class SupernalCodingServer {
   /**
    * Start the MCP server
    */
-  async start() {
+  async start(): Promise<void> {
     await this.loadConfig();
 
     const transport = new StdioServerTransport();
@@ -509,10 +575,11 @@ class SupernalCodingServer {
 // Start server if run directly
 if (require.main === module) {
   const server = new SupernalCodingServer();
-  server.start().catch((error) => {
+  server.start().catch((error: Error) => {
     console.error('Fatal error starting server:', error);
     process.exit(1);
   });
 }
 
+export default SupernalCodingServer;
 module.exports = SupernalCodingServer;

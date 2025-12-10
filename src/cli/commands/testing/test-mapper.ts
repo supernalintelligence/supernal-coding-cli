@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Test Mapper Command - Comprehensive test discovery and mapping system
@@ -12,6 +13,8 @@ const path = require('node:path');
 const { execSync } = require('node:child_process');
 
 class TestMapperCommand {
+  projectRoot: any;
+  testMap: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.testMap = {

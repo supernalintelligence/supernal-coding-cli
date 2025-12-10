@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -6,6 +7,9 @@ const { execSync } = require('node:child_process');
 const chalk = require('chalk');
 
 class UpdateChecker {
+  currentVersion: any;
+  isLocalDev: any;
+  packageJsonPath: any;
   constructor() {
     this.packageJsonPath = this.findPackageJson();
     this.currentVersion = this.getCurrentVersion();

@@ -9,6 +9,14 @@ const PatternLister = require('./pattern-lister');
 const ConfigPrinter = require('./printer');
 const FormatHelper = require('./format-helper');
 
+export {
+  ConfigDisplayer,
+  ConfigTracer,
+  PatternLister,
+  ConfigPrinter,
+  FormatHelper
+};
+
 module.exports = {
   ConfigDisplayer,
   ConfigTracer,

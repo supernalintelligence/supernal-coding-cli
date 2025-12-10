@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { execSync } = require('node:child_process');
 const path = require('node:path');
@@ -17,6 +18,12 @@ const colors = {
 };
 
 class InstallManager {
+  devScriptsDir: any;
+  docsScriptsDir: any;
+  gitHooksScriptsDir: any;
+  kanbanScriptsDir: any;
+  sourceRoot: any;
+  templatesDir: any;
   constructor() {
     this.sourceRoot = path.join(__dirname, '..', '..');
     this.kanbanScriptsDir = path.join(__dirname, 'kanban-scripts');

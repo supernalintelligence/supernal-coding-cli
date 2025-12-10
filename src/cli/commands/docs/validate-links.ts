@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Markdown Link Validator and Fixer
@@ -23,6 +24,12 @@ const path = require('node:path');
 const { execSync } = require('node:child_process');
 
 class LinkChecker {
+  brokenLinks: any;
+  fileCache: any;
+  fixedLinks: any;
+  linkPattern: any;
+  options: any;
+  projectRoot: any;
   constructor(options = {}) {
     this.options = options;
     this.projectRoot = process.cwd();

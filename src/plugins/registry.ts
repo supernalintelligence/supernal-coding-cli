@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Plugin Registry
  * 
@@ -10,6 +11,9 @@ const path = require('path');
 const { validatePlugin } = require('./base');
 
 class PluginRegistry {
+  initialized: any;
+  plugins: any;
+  pluginsDir: any;
   constructor() {
     this.plugins = new Map();
     this.pluginsDir = __dirname;

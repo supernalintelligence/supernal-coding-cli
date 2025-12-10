@@ -1,29 +1,41 @@
 /**
  * Jira Auth Login Command
- * 
+ *
  * Usage: sc connect jira auth login
  */
 
-const chalk = require('chalk');
-const readline = require('node:readline');
+import chalk from 'chalk';
+import readline from 'node:readline';
 const api = require('../api');
 
-/**
- * @param {string[]} args - Command arguments
- * @param {Object} options - Command options
- */
-async function handler(args, options = {}) {
+interface LoginOptions {
+  domain?: string;
+  email?: string;
+  token?: string;
+}
+
+interface JiraUser {
+  displayName: string;
+  email?: string;
+}
+
+interface LoginResult {
+  success: boolean;
+  user?: JiraUser;
+  error?: string;
+}
+
+async function handler(_args: string[], options: LoginOptions = {}): Promise<LoginResult> {
   try {
     let { domain, email, token } = options;
 
-    // Interactive prompts if not provided
     if (!domain || !email || !token) {
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
       });
 
-      const question = (prompt) =>
+      const question = (prompt: string): Promise<string> =>
         new Promise((resolve) => {
           rl.question(prompt, resolve);
         });
@@ -60,19 +72,12 @@ async function handler(args, options = {}) {
     if (result.user.email) {
       console.log(chalk.white(`  Email: ${chalk.cyan(result.user.email)}`));
     }
-    
+
     return { success: true, user: result.user };
   } catch (error) {
-    console.error(chalk.red(`\n✗ Login failed: ${error.message}`));
-    return { success: false, error: error.message };
+    console.error(chalk.red(`\n✗ Login failed: ${(error as Error).message}`));
+    return { success: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'Connect to Jira with API token';
-module.exports.options = [
-  ['-d, --domain <domain>', 'Jira domain (e.g., company.atlassian.net)'],
-  ['-e, --email <email>', 'Your email address'],
-  ['-t, --token <token>', 'API token']
-];
-
+export = handler;

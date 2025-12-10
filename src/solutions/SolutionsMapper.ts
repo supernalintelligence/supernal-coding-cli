@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -8,6 +9,10 @@ const matter = require('gray-matter');
  * Automatically maps code components to requirements/sub-requirements for compliance tracing
  */
 class SolutionsMapper {
+  codeDir: any;
+  projectRoot: any;
+  requirementsDir: any;
+  solutionsDir: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.requirementsDir = path.join(projectRoot, 'docs', 'requirements');

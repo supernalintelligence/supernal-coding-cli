@@ -1,6 +1,21 @@
-const path = require('node:path');
-const fs = require('fs-extra');
-const { execSync } = require('node:child_process');
+import path from 'node:path';
+import fs from 'fs-extra';
+import { execSync } from 'node:child_process';
+
+/** Template info returned from list() */
+export interface TemplateInfo {
+  path: string;
+  source: 'project' | 'package';
+}
+
+/** Debug info about template resolution */
+export interface TemplateDebugInfo {
+  projectRoot: string;
+  packageTemplatesDir: string;
+  projectTemplatesDir: string;
+  projectTemplatesExists: boolean;
+  packageTemplatesExists: boolean;
+}
 
 /**
  * Resolve template locations with fallback chain
@@ -10,7 +25,10 @@ const { execSync } = require('node:child_process');
  * Handles all installation methods: npm install, global, npm link, development
  */
 class TemplateResolver {
-  constructor(projectRoot = null) {
+  protected packageTemplatesDir: string;
+  protected projectRoot: string;
+
+  constructor(projectRoot: string | null = null) {
     this.projectRoot = projectRoot || this.findProjectRoot();
     this.packageTemplatesDir = this.findPackageTemplates();
   }
@@ -19,7 +37,7 @@ class TemplateResolver {
    * Find the project root (git repository root)
    * This is where the user's project lives, NOT where SC is installed
    */
-  findProjectRoot() {
+  findProjectRoot(): string {
     try {
       // Find git root (most reliable for repos)
       const gitRoot = execSync('git rev-parse --show-toplevel', {
@@ -42,7 +60,7 @@ class TemplateResolver {
    * Find the SC package's canonical templates directory
    * Works regardless of how SC is installed (local, global, npm link, development)
    */
-  findPackageTemplates() {
+  findPackageTemplates(): string {
     // Try multiple resolution strategies
 
     // Strategy 1: Development mode (running from source)
@@ -120,10 +138,10 @@ class TemplateResolver {
 
   /**
    * Resolve a template path with override support
-   * @param {string} templatePath - Relative path like 'workflow/sops/'
-   * @returns {string} Absolute path to template
+   * @param templatePath - Relative path like 'workflow/sops/'
+   * @returns Absolute path to template
    */
-  resolve(templatePath) {
+  resolve(templatePath: string): string {
     // 1. Check project /templates/ first (override)
     const projectTemplate = path.join(
       this.projectRoot,
@@ -147,10 +165,10 @@ class TemplateResolver {
 
   /**
    * Check if a template exists (without throwing)
-   * @param {string} templatePath - Relative path like 'workflow/sops/'
-   * @returns {boolean} True if template exists
+   * @param templatePath - Relative path like 'workflow/sops/'
+   * @returns True if template exists
    */
-  exists(templatePath) {
+  exists(templatePath: string): boolean {
     try {
       this.resolve(templatePath);
       return true;
@@ -161,10 +179,10 @@ class TemplateResolver {
 
   /**
    * Get the source of a template (project or package)
-   * @param {string} templatePath - Relative path
-   * @returns {string} 'project' or 'package'
+   * @param templatePath - Relative path
+   * @returns 'project' or 'package'
    */
-  getSource(templatePath) {
+  getSource(templatePath: string): 'project' | 'package' {
     const projectTemplate = path.join(
       this.projectRoot,
       'templates',
@@ -180,10 +198,10 @@ class TemplateResolver {
 
   /**
    * List all available templates
-   * @returns {Array<{path: string, source: string}>}
+   * @returns Array of template info objects
    */
-  list() {
-    const templates = new Map();
+  list(): TemplateInfo[] {
+    const templates = new Map<string, TemplateInfo>();
 
     // Add package templates
     if (fs.existsSync(this.packageTemplatesDir)) {
@@ -209,8 +227,8 @@ class TemplateResolver {
    * Recursively list directories in a path
    * @private
    */
-  _listDir(dir, prefix) {
-    const templates = [];
+  _listDir(dir: string, prefix: string): string[] {
+    const templates: string[] = [];
 
     if (!fs.existsSync(dir)) {
       return templates;
@@ -235,9 +253,9 @@ class TemplateResolver {
 
   /**
    * Get debug info about template resolution
-   * @returns {Object} Debug information
+   * @returns Debug information
    */
-  getDebugInfo() {
+  getDebugInfo(): TemplateDebugInfo {
     return {
       projectRoot: this.projectRoot,
       packageTemplatesDir: this.packageTemplatesDir,
@@ -250,4 +268,5 @@ class TemplateResolver {
   }
 }
 
+export default TemplateResolver;
 module.exports = TemplateResolver;

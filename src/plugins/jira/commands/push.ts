@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Jira Push Command - Push requirement to Jira
  */
@@ -152,7 +153,7 @@ function parseRequirement(content) {
     frontmatter.tags = tagsMatch[1].split(',').map(t => t.trim().replace(/["']/g, '')).filter(Boolean);
   }
   
-  const jiraMatch = rawFrontmatter.match(/jira:\n((?:  [^\n]*\n)*)/);
+  const jiraMatch = rawFrontmatter.match(/jira:\n((?: {2}[^\n]*\n)*)/);
   if (jiraMatch) {
     frontmatter.jira = {};
     const keyMatch = jiraMatch[1].match(/key:\s*([^\n]+)/);
@@ -191,7 +192,7 @@ async function updateJiraMetadata(reqFile, content, metadata) {
     metadata.local_hash ? `  local_hash: ${metadata.local_hash}` : null
   ].filter(Boolean).join('\n');
   
-  frontmatter = frontmatter.replace(/jira:\n(?:  [^\n]*\n)*/g, '').trim();
+  frontmatter = frontmatter.replace(/jira:\n(?: {2}[^\n]*\n)*/g, '').trim();
   frontmatter += '\n' + jiraSection;
   
   const newContent = '---\n' + frontmatter + '\n---' + body;

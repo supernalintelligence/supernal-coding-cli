@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // local-state-manager.js - Manage local .sc folder and state tracking
 // Part of REQ-053: Enhanced Local Repository Sync Check with State Management
@@ -9,6 +10,12 @@ const chalk = require('chalk');
 const { execSync } = require('node:child_process');
 
 class LocalStateManager {
+  configManager: any;
+  projectRoot: any;
+  scFolderPath: any;
+  stateFilePath: any;
+  verbose: any;
+  versionFilePath: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

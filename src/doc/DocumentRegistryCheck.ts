@@ -1,17 +1,41 @@
-const fs = require('node:fs');
-const _path = require('node:path');
-const yaml = require('yaml');
-const { execSync } = require('node:child_process');
-const chalk = require('chalk');
-const { minimatch } = require('minimatch');
+import fs from 'node:fs';
+import yaml from 'yaml';
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
+import { minimatch } from 'minimatch';
+
+interface Registry {
+  controlled?: {
+    required?: string[];
+    tracked?: string[];
+  };
+  settings?: {
+    chg_threshold?: number;
+  };
+}
+
+interface CheckOptions {
+  quiet?: boolean;
+}
+
+interface CheckResults {
+  controlled: string[];
+  tracked: string[];
+  uncontrolled: string[];
+  success?: boolean;
+  controlledFiles?: string[];
+}
 
 class DocumentRegistryCheck {
+  protected registryPath: string;
+  protected registry: Registry | null;
+
   constructor() {
     this.registryPath = '.supernal/document-registry.yaml';
     this.registry = null;
   }
 
-  loadRegistry() {
+  loadRegistry(): Registry | null {
     if (!fs.existsSync(this.registryPath)) {
       return null;
     }
@@ -19,7 +43,7 @@ class DocumentRegistryCheck {
     return yaml.parse(content);
   }
 
-  getStagedFiles() {
+  getStagedFiles(): string[] {
     try {
       const result = execSync('git diff --cached --name-only', {
         encoding: 'utf8'
@@ -30,25 +54,26 @@ class DocumentRegistryCheck {
     }
   }
 
-  matchesPatterns(file, patterns) {
+  matchesPatterns(file: string, patterns: string[]): boolean {
     return patterns.some((pattern) => minimatch(file, pattern));
   }
 
-  async check(options = {}) {
+  async check(options: CheckOptions = {}): Promise<CheckResults> {
     this.registry = this.loadRegistry();
 
     if (!this.registry) {
       if (!options.quiet) {
         console.log(chalk.yellow('No document registry found'));
       }
-      return { controlled: [], tracked: [], uncontrolled: [] };
+      return { controlled: [], tracked: [], uncontrolled: [], success: true };
     }
 
     const stagedFiles = this.getStagedFiles();
-    const results = {
+    const results: CheckResults = {
       controlled: [],
       tracked: [],
-      uncontrolled: []
+      uncontrolled: [],
+      success: true
     };
 
     const requiredPatterns = this.registry.controlled?.required || [];
@@ -64,16 +89,18 @@ class DocumentRegistryCheck {
       }
     }
 
+    results.controlledFiles = results.controlled;
+
     if (!options.quiet) {
-      this.displayResults(results, options);
+      this.displayResults(results);
     }
 
     return results;
   }
 
-  displayResults(results, _options) {
+  displayResults(results: CheckResults): void {
     const { controlled, tracked } = results;
-    const threshold = this.registry.settings?.chg_threshold || 10;
+    const threshold = this.registry?.settings?.chg_threshold || 10;
 
     if (controlled.length === 0 && tracked.length === 0) {
       console.log(chalk.green('✓ No controlled documents in staging'));
@@ -120,4 +147,5 @@ class DocumentRegistryCheck {
   }
 }
 
+export default DocumentRegistryCheck;
 module.exports = DocumentRegistryCheck;

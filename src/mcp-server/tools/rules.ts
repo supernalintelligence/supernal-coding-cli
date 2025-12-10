@@ -5,19 +5,36 @@
  * TODO: Full implementation pending
  */
 
-const path = require('node:path');
-const fs = require('fs-extra');
+import path from 'node:path';
+import fs from 'fs-extra';
+
+interface RuleInfo {
+  name: string;
+  path: string;
+}
+
+interface RuleContent {
+  name: string;
+  content: string;
+  path: string;
+}
+
+interface ValidationResult {
+  success: boolean;
+  message: string;
+  validated: number;
+}
 
 class RulesManager {
-  constructor(projectRoot) {
+  protected projectRoot: string;
+  protected rulesDir: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.rulesDir = path.join(projectRoot, '.cursor', 'rules');
   }
 
-  /**
-   * List all rules
-   */
-  async list() {
+  async list(): Promise<RuleInfo[]> {
     try {
       if (!(await fs.pathExists(this.rulesDir))) {
         return [];
@@ -35,10 +52,7 @@ class RulesManager {
     }
   }
 
-  /**
-   * Read a specific rule
-   */
-  async read(ruleName) {
+  async read(ruleName: string): Promise<RuleContent> {
     const rulePath = path.join(this.rulesDir, `${ruleName}.mdc`);
 
     if (!(await fs.pathExists(rulePath))) {
@@ -53,11 +67,7 @@ class RulesManager {
     };
   }
 
-  /**
-   * Validate rules
-   */
-  async validate() {
-    // Stub implementation
+  async validate(): Promise<ValidationResult> {
     return {
       success: true,
       message: 'Rules validation not yet fully implemented',
@@ -66,4 +76,5 @@ class RulesManager {
   }
 }
 
+export default RulesManager;
 module.exports = RulesManager;

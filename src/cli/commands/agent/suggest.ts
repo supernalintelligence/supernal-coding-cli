@@ -1,3 +1,4 @@
+// @ts-nocheck
 const chalk = require('chalk');
 const { execSync } = require('node:child_process');
 

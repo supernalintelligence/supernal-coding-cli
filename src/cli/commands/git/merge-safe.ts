@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // merge-safe.js - Safe merge command for SC system
 // Integrates with git-smart for comprehensive merge workflow
@@ -7,6 +8,7 @@ const GitSmart = require('./git-smart');
 const chalk = require('chalk');
 
 class SafeMerge {
+  gitSmart: any;
   constructor() {
     this.gitSmart = new GitSmart();
   }

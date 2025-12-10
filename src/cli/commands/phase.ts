@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('fs-extra');
 const path = require('node:path');
@@ -6,6 +7,9 @@ const chalk = require('chalk');
 const yaml = require('js-yaml');
 
 class PhaseManager {
+  projectRoot: any;
+  requirementsPath: any;
+  templatesPath: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.requirementsPath = path.join(

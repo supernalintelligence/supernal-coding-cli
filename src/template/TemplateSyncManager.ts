@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const matter = require('gray-matter');
@@ -15,6 +16,10 @@ const semver = require('semver');
  * - Increments document version on sync
  */
 class TemplateSyncManager {
+  docsDir: any;
+  preservedFields: any;
+  projectRoot: any;
+  templatesDir: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.templatesDir = path.join(projectRoot, 'templates');

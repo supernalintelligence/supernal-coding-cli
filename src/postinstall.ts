@@ -1,17 +1,14 @@
-#!/usr/bin/env node
-
 /**
  * Post-installation setup for supernal-code package
  *
  * This script runs after npm install to set up the supernal-code environment
  */
 
-const chalk = require('chalk');
-const boxen = require('boxen');
-const _path = require('node:path');
-const _fs = require('node:fs');
+import chalk from 'chalk';
+import boxen from 'boxen';
 
-function displayWelcomeMessage() {
+function displayWelcomeMessage(): void {
+  const packageJson = require('../package.json');
   const message = `
 ${chalk.bold.blue('🚀 Supernal Code')} has been installed successfully!
 
@@ -29,7 +26,7 @@ ${chalk.bold('Local Installation:')}
 ${chalk.bold('Documentation:')}
   Visit ${chalk.blue('https://github.com/supernal/supernal-code')} for complete documentation.
 
-${chalk.gray('Version:')} ${require('../package.json').version}
+${chalk.gray('Version:')} ${packageJson.version}
 `;
 
   console.log(
@@ -42,8 +39,7 @@ ${chalk.gray('Version:')} ${require('../package.json').version}
   );
 }
 
-function checkGlobalInstallation() {
-  // Check if this is a global installation
+function checkGlobalInstallation(): void {
   const isGlobal =
     __dirname.includes('/npm/') ||
     __dirname.includes('\\npm\\') ||
@@ -62,7 +58,7 @@ function checkGlobalInstallation() {
   }
 }
 
-function main() {
+function main(): void {
   try {
     displayWelcomeMessage();
     checkGlobalInstallation();
@@ -75,14 +71,12 @@ function main() {
   } catch (error) {
     console.error(
       chalk.red('Error during post-installation setup:'),
-      error.message
+      (error as Error).message
     );
-    // Don't fail the installation if post-install has issues
     process.exit(0);
   }
 }
 
-// Only run if called directly (not when required as a module)
 if (require.main === module) {
   main();
 }

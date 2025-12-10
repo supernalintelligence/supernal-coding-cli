@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SC Telemetry System - Privacy-first learning and improvement
  * Opt-in telemetry for understanding real-world SC usage patterns
@@ -8,6 +9,13 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 class TelemetryService {
+  _config: any;
+  _initialized: any;
+  cacheFile: any;
+  configFile: any;
+  projectRoot: any;
+  scDir: any;
+  telemetryDir: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.scDir = path.join(this.projectRoot, '.supernal-coding');

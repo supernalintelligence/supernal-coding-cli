@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Kanban Manager for MCP Server
  *
@@ -8,6 +9,9 @@ const fs = require('fs-extra');
 const path = require('node:path');
 
 class KanbanManager {
+  boards: any;
+  kanbanDir: any;
+  projectRoot: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.kanbanDir = path.join(projectRoot, 'supernal-coding', 'kanban');

@@ -3,21 +3,21 @@
  * Part of REQ-REN-004: Config Display & Debug Commands
  */
 
-const yaml = require('yaml');
+import yaml from 'yaml';
+
+interface PrinterOptions {
+  color?: boolean;
+}
 
 class ConfigPrinter {
-  constructor(options = {}) {
+  protected color: boolean;
+
+  constructor(options: PrinterOptions = {}) {
     this.color = options.color !== false;
   }
 
-  /**
-   * Print config in specified format
-   * @param {Object} config - Config object
-   * @param {string} format - 'yaml' or 'json'
-   * @returns {string} Formatted output
-   */
-  print(config, format = 'yaml') {
-    let output;
+  print(config: Record<string, unknown>, format: 'yaml' | 'json' = 'yaml'): string {
+    let output: string;
 
     if (format === 'json') {
       output = JSON.stringify(config, null, 2);
@@ -36,15 +36,10 @@ class ConfigPrinter {
     return output;
   }
 
-  /**
-   * Colorize YAML output for terminal
-   * @private
-   */
-  _colorizeYAML(yamlString) {
-    // Simple colorization without external deps
-    // For now, return as-is. In real implementation, use chalk or similar
+  private _colorizeYAML(yamlString: string): string {
     return yamlString;
   }
 }
 
+export default ConfigPrinter;
 module.exports = ConfigPrinter;

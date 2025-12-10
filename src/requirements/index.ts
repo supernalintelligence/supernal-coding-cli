@@ -4,10 +4,6 @@
  * @module requirements
  */
 
-module.exports = {
-  ...require('./parser')
-  // Future: additional requirement utilities can be added here
-  // - validators
-  // - transformers
-  // - analyzers
-};
+const parser = require('./parser');
+
+export = parser;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SC Repository Sync - Sync from canonical upstream repository (REQ-088)
  * For fork/clone contributors to pull latest from supernal-nova/families/supernal-coding

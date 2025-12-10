@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ComplianceValidator - Validates security/compliance configurations
  *
@@ -59,6 +60,10 @@ const COMPLIANCE_RULES = {
 };
 
 class ComplianceValidator extends FileChangeDetector {
+  passed: any;
+  rules: any;
+  violations: any;
+  warnings: any;
   constructor(options = {}) {
     super({
       ...options,

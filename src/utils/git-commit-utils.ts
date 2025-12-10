@@ -1,3 +1,4 @@
+// @ts-nocheck
 const { execSync } = require('node:child_process');
 const chalk = require('chalk');
 const { SigningManager } = require('../signing');

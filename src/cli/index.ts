@@ -1,11 +1,20 @@
 #!/usr/bin/env node
 
-const chalk = require('chalk');
+import chalk from 'chalk';
 const { buildProgram } = require('./program');
 const UpgradeIntegration = require('./utils/upgrade-integration');
 
-async function initializeUpgradeIntegration() {
-  // Skip upgrade checks during testing
+interface CachedUpdateStatus {
+  needsUpdate: boolean;
+  message?: string;
+  upgradeCommand?: string;
+}
+
+interface CommanderError extends Error {
+  code?: string;
+}
+
+async function initializeUpgradeIntegration(): Promise<void> {
   if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
     return;
   }
@@ -13,8 +22,7 @@ async function initializeUpgradeIntegration() {
   try {
     const upgradeIntegration = new UpgradeIntegration();
 
-    // Check cache FIRST (fast path - no network)
-    const cachedCheck = upgradeIntegration.getCachedUpdateStatus();
+    const cachedCheck: CachedUpdateStatus | null = upgradeIntegration.getCachedUpdateStatus();
     if (cachedCheck?.needsUpdate) {
       console.log(chalk.yellow('⚠️  UPDATE AVAILABLE'));
       console.log(chalk.yellow(`   ${cachedCheck.message}`));
@@ -24,8 +32,6 @@ async function initializeUpgradeIntegration() {
       console.log();
     }
 
-    // Background check for next run (fire-and-forget, don't block exit)
-    // Uses unref() to allow Node to exit without waiting
     const timer = setTimeout(async () => {
       try {
         await upgradeIntegration.initializeForCommand(
@@ -36,7 +42,7 @@ async function initializeUpgradeIntegration() {
         // Silent fail
       }
     }, 0);
-    timer.unref(); // Allow Node to exit without waiting for this timer
+    timer.unref();
   } catch (_error) {
     // non-blocking
   }
@@ -44,24 +50,24 @@ async function initializeUpgradeIntegration() {
 
 (async () => {
   try {
-    // Fire off upgrade check (non-blocking due to unref())
     initializeUpgradeIntegration().catch(() => {});
 
     const program = buildProgram();
     program.parse();
   } catch (error) {
-    if (error.code === 'commander.unknownCommand') {
+    const err = error as CommanderError;
+    if (err.code === 'commander.unknownCommand') {
       console.error(
         chalk.red(
           '❌ Unknown command. Use "sc help" to see available commands.'
         )
       );
-    } else if (error.code === 'commander.helpDisplayed') {
+    } else if (err.code === 'commander.helpDisplayed') {
       process.exit(0);
-    } else if (error.code === 'commander.version') {
+    } else if (err.code === 'commander.version') {
       process.exit(0);
     } else {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), err.message);
     }
     process.exit(1);
   }

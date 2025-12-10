@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('fs-extra');
 const path = require('node:path');
@@ -15,6 +16,9 @@ const { getConfig } = require('../../../scripts/config-loader');
  */
 
 class RuleSubmissionClient {
+  config: any;
+  projectRoot: any;
+  submissionQueue: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.config = null;

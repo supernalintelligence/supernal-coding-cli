@@ -5,16 +5,26 @@
  * TODO: Full implementation pending
  */
 
+interface HandoffResult {
+  success: boolean;
+  message: string;
+  target: string;
+}
+
+interface OnboardResult {
+  success: boolean;
+  message: string;
+  agent: string;
+}
+
 class AgentManager {
-  constructor(projectRoot) {
+  protected projectRoot: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
   }
 
-  /**
-   * Handle agent handoff
-   */
-  async handoff(targetAgent, _context) {
-    // Stub implementation
+  async handoff(targetAgent: string, _context: unknown): Promise<HandoffResult> {
     return {
       success: true,
       message: 'Agent handoff not yet implemented',
@@ -22,11 +32,7 @@ class AgentManager {
     };
   }
 
-  /**
-   * Onboard new agent
-   */
-  async onboard(agentName) {
-    // Stub implementation
+  async onboard(agentName: string): Promise<OnboardResult> {
     return {
       success: true,
       message: 'Agent onboarding not yet implemented',
@@ -35,4 +41,5 @@ class AgentManager {
   }
 }
 
+export default AgentManager;
 module.exports = AgentManager;

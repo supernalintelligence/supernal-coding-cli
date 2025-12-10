@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Upgrade Detection and Recommendation System
@@ -12,6 +13,11 @@ const chalk = require('chalk');
 const semver = require('semver');
 
 class UpgradeChecker {
+  _currentVersion: any;
+  _installationMethod: any;
+  checkIntervalHours: any;
+  lastCheckFile: any;
+  packageName: any;
   constructor() {
     this.packageName = 'supernal-coding';
     this._currentVersion = null; // Lazy load

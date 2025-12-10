@@ -1,10 +1,26 @@
-const { execSync } = require('node:child_process');
-const chalk = require('chalk');
-const fs = require('node:fs');
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
+import fs from 'node:fs';
+
+interface HistoryOptions {
+  since?: string;
+  author?: string;
+  limit?: number;
+  json?: boolean;
+  signedOnly?: boolean;
+}
+
+interface Commit {
+  hash: string;
+  date: string;
+  author: string;
+  email: string;
+  subject: string;
+  signed: boolean;
+}
 
 class DocumentHistory {
-  async show(file, options) {
-    // Validate file exists
+  async show(file: string, options: HistoryOptions): Promise<void> {
     if (!fs.existsSync(file)) {
       console.error(chalk.red(`File not found: ${file}`));
       process.exit(1);
@@ -24,7 +40,7 @@ class DocumentHistory {
     }
   }
 
-  getCommits(file, options) {
+  getCommits(file: string, options: HistoryOptions): Commit[] {
     let cmd = `git log --follow --format="%H|%ai|%an|%ae|%s|%G?"`;
 
     if (options.since) cmd += ` --since="${options.since}"`;
@@ -37,7 +53,7 @@ class DocumentHistory {
       const result = execSync(cmd, { encoding: 'utf8' });
       const lines = result.trim().split('\n').filter(Boolean);
 
-      let commits = lines.map((line) => {
+      let commits: Commit[] = lines.map((line) => {
         const [hash, date, author, email, subject, sigStatus] = line.split('|');
         return {
           hash,
@@ -59,7 +75,7 @@ class DocumentHistory {
     }
   }
 
-  displayTable(commits, file) {
+  displayTable(commits: Commit[], file: string): void {
     console.log(chalk.bold(`\nCHANGE HISTORY: ${file}\n`));
     console.log('─'.repeat(80));
     console.log(
@@ -84,4 +100,5 @@ class DocumentHistory {
   }
 }
 
+export default DocumentHistory;
 module.exports = DocumentHistory;

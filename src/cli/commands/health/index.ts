@@ -1,16 +1,35 @@
-const chalk = require('chalk');
+import chalk from 'chalk';
+
 const FeatureHealthCheck = require('./FeatureHealthCheck');
+
+/** Health check options */
+interface HealthCheckOptions {
+  quiet?: boolean;
+  exitCode?: boolean;
+  verbose?: boolean;
+}
+
+/** Health check results */
+interface HealthCheckResults {
+  errors: unknown[];
+  summary: string;
+  [key: string]: unknown;
+}
 
 /**
  * Health command handler
  * Provides system health checks for various components
  */
-async function handleHealthCommand(category, _args, options) {
+async function handleHealthCommand(
+  category: string | undefined,
+  _args: unknown,
+  options: HealthCheckOptions
+): Promise<void> {
   try {
     switch (category) {
       case 'features': {
         const checker = new FeatureHealthCheck();
-        const results = await checker.check(options);
+        const results: HealthCheckResults = await checker.check(options);
         checker.display(results, options);
 
         // Exit with status code if there are errors (for CI/CD)
@@ -26,7 +45,7 @@ async function handleHealthCommand(category, _args, options) {
         // Run all health checks
         console.log(chalk.yellow('📦 Features:'));
         const featureChecker = new FeatureHealthCheck();
-        const featureResults = await featureChecker.check({ quiet: false });
+        const featureResults: HealthCheckResults = await featureChecker.check({ quiet: false });
         console.log(chalk.gray(`   ${featureResults.summary}\n`));
 
         // Add other health checks here as they're implemented
@@ -59,12 +78,13 @@ async function handleHealthCommand(category, _args, options) {
       }
     }
   } catch (error) {
-    console.error(chalk.red(`❌ Health check failed: ${error.message}`));
+    console.error(chalk.red(`❌ Health check failed: ${(error as Error).message}`));
     if (options.verbose) {
-      console.error(error.stack);
+      console.error((error as Error).stack);
     }
     throw error;
   }
 }
 
+export { handleHealthCommand };
 module.exports = { handleHealthCommand };

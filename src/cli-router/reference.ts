@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const program = require('commander');
-const LinkChecker = require('../lib/cli/commands/docs/validate-links');
+const LinkChecker = require('../cli/commands/docs/validate-links');
 const glob = require('glob');
 const fs = require('fs-extra');
 const path = require('node:path');

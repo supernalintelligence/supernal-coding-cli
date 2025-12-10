@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * SC Dev Fix Declarations Command
@@ -12,6 +13,8 @@ const path = require('node:path');
 const chalk = require('chalk');
 
 class CaseDeclarationFixer {
+  dryRun: any;
+  verbose: any;
   constructor(options = {}) {
     this.verbose = options.verbose || false;
     this.dryRun = options.dryRun || false;

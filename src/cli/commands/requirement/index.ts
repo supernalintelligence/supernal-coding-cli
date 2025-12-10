@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
-const chalk = require('chalk');
-const RequirementManager = require('./RequirementManager');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import RequirementManager from './RequirementManager';
+
 const SubRequirementManager = require('./SubRequirementManager');
 const ValidationManager = require('./ValidationManager');
 const SearchManager = require('./SearchManager');
@@ -9,11 +11,32 @@ const TestManager = require('./TestManager');
 const GitManager = require('./GitManager');
 const RequirementHelpers = require('./utils/helpers');
 
+/** Parsed command options */
+interface CommandOptions {
+  content?: boolean;
+  naming?: boolean;
+  all?: boolean;
+  [key: string]: unknown;
+}
+
+/** Validation results */
+interface ValidationResults {
+  content?: unknown;
+  naming?: unknown;
+}
+
 /**
  * Main CLI handler for requirement commands
  * Orchestrates all the specialized managers
  */
 class RequirementCommandHandler {
+  protected gitManager: InstanceType<typeof GitManager>;
+  protected requirementManager: RequirementManager;
+  protected searchManager: InstanceType<typeof SearchManager>;
+  protected subRequirementManager: InstanceType<typeof SubRequirementManager>;
+  protected testManager: InstanceType<typeof TestManager>;
+  protected validationManager: InstanceType<typeof ValidationManager>;
+
   constructor() {
     this.requirementManager = new RequirementManager();
     this.subRequirementManager = new SubRequirementManager(
@@ -28,7 +51,7 @@ class RequirementCommandHandler {
   /**
    * Handle requirement command with action and arguments
    */
-  async handleCommand(action, ...args) {
+  async handleCommand(action: string | undefined, ...args: string[]): Promise<void> {
     try {
       // DEBUG: See what we're receiving
       console.log('DEBUG handleCommand:', { action, args });
@@ -83,7 +106,7 @@ class RequirementCommandHandler {
           const reqFile =
             await this.requirementManager.findRequirementById(reqId);
           if (reqFile) {
-            const content = await require('fs-extra').readFile(reqFile, 'utf8');
+            const content = await fs.readFile(reqFile, 'utf8');
             console.log(content);
           } else {
             const error = new Error(`❌ Requirement ${reqId} not found`);
@@ -136,7 +159,7 @@ class RequirementCommandHandler {
             process.exit(1);
           }
           const validateId = args[0];
-          const validateOptions = RequirementHelpers.parseOptions(
+          const validateOptions: CommandOptions = RequirementHelpers.parseOptions(
             args.slice(1) || []
           );
 
@@ -146,7 +169,7 @@ class RequirementCommandHandler {
             (!validateOptions.naming && !validateOptions.all);
           const validateNaming = validateOptions.naming || validateOptions.all;
 
-          const results = {};
+          const results: ValidationResults = {};
 
           // Content validation
           if (validateContent) {
@@ -190,7 +213,7 @@ class RequirementCommandHandler {
         }
 
         case 'fix-naming': {
-          const fixOptions = RequirementHelpers.parseOptions(args || []);
+          const fixOptions: CommandOptions = RequirementHelpers.parseOptions(args || []);
 
           if (fixOptions.all) {
             await this.validationManager.fixAllNaming(fixOptions);
@@ -360,14 +383,14 @@ class RequirementCommandHandler {
           break;
       }
     } catch (error) {
-      console.error(chalk.red(`❌ Command failed: ${error.message}`));
+      console.error(chalk.red(`❌ Command failed: ${(error as Error).message}`));
       throw error; // Throw instead of exit for testability
     }
   }
 }
 
 // CLI Interface
-async function handleRequirementCommand(action, ...args) {
+async function handleRequirementCommand(action: string | undefined, ...args: string[]): Promise<void> {
   const handler = new RequirementCommandHandler();
   try {
     await handler.handleCommand(action, ...args);
@@ -379,6 +402,17 @@ async function handleRequirementCommand(action, ...args) {
     throw error;
   }
 }
+
+export {
+  RequirementManager,
+  SubRequirementManager,
+  ValidationManager,
+  SearchManager,
+  TestManager,
+  GitManager,
+  RequirementCommandHandler,
+  handleRequirementCommand
+};
 
 module.exports = {
   RequirementManager,

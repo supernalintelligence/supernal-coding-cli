@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs');
 const path = require('node:path');
 const glob = require('glob');
@@ -5,6 +6,7 @@ const chalk = require('chalk');
 const yaml = require('yaml');
 
 class PendingApprovalScanner {
+  searchPaths: any;
   constructor() {
     this.searchPaths = [
       'docs/**/*.md',

@@ -6,12 +6,43 @@
  * @module sync/backends/rest
  */
 
-const https = require('node:https');
-const http = require('node:http');
-const { URL } = require('node:url');
+import https from 'node:https';
+import http from 'node:http';
+import { URL } from 'node:url';
+
+interface RestBackendConfig {
+  endpoint: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
+}
+
+interface SyncChange {
+  [key: string]: unknown;
+}
+
+interface PushResponse {
+  success: boolean;
+  [key: string]: unknown;
+}
+
+interface PullResponse {
+  changes?: SyncChange[];
+  [key: string]: unknown;
+}
+
+interface StatusResponse {
+  connected: boolean;
+  [key: string]: unknown;
+}
 
 class RestBackend {
-  constructor(config) {
+  protected config: RestBackendConfig;
+  protected endpoint: URL;
+  protected apiKey: string | undefined;
+  protected headers: Record<string, string>;
+  protected lastPull: Date | null;
+
+  constructor(config: RestBackendConfig) {
     this.config = config;
     this.endpoint = new URL(config.endpoint);
     this.apiKey = config.apiKey;
@@ -21,48 +52,49 @@ class RestBackend {
       ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
       ...config.headers
     };
+    this.lastPull = null;
   }
 
-  async initialize() {
-    // Test connection
+  async initialize(): Promise<void> {
     try {
       await this.request('GET', '/health');
     } catch (error) {
-      throw new Error(`Failed to connect to REST endpoint: ${error.message}`);
+      throw new Error(`Failed to connect to REST endpoint: ${(error as Error).message}`);
     }
   }
 
-  async push(changes, force = false) {
+  async push(changes: SyncChange[], force: boolean = false): Promise<PushResponse> {
     const response = await this.request('POST', '/sync/push', {
       changes,
       force,
       timestamp: new Date().toISOString()
     });
 
-    return response;
+    return response as PushResponse;
   }
 
-  async pull() {
+  async pull(): Promise<SyncChange[]> {
     const response = await this.request('GET', '/sync/pull', null, {
       since: this.lastPull?.toISOString()
-    });
+    }) as PullResponse;
 
     return response.changes || [];
   }
 
-  async getStatus() {
+  async getStatus(): Promise<StatusResponse> {
     const response = await this.request('GET', '/sync/status');
-    return response;
+    return response as StatusResponse;
   }
 
-  /**
-   * Make HTTP request
-   */
-  request(method, path, body = null, query = {}) {
+  request(
+    method: string,
+    path: string,
+    body: unknown = null,
+    query: Record<string, string | undefined> = {}
+  ): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const url = new URL(path, this.endpoint);
 
-      // Add query parameters
       Object.entries(query).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           url.searchParams.append(key, value);
@@ -83,7 +115,7 @@ class RestBackend {
         });
 
         res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             try {
               resolve(JSON.parse(data));
             } catch (_error) {
@@ -105,9 +137,10 @@ class RestBackend {
     });
   }
 
-  async cleanup() {
+  async cleanup(): Promise<void> {
     // Nothing to cleanup for REST
   }
 }
 
+export default RestBackend;
 module.exports = RestBackend;

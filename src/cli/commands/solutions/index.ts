@@ -1,14 +1,32 @@
 #!/usr/bin/env node
 
-const chalk = require('chalk');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'node:path';
+import matter from 'gray-matter';
+import { loadProjectConfig } from '../../utils/config-loader';
+import type { RawSupernalConfig } from '../../../types/config';
+
 const SolutionsMapper = require('../../solutions/SolutionsMapper');
-const { loadProjectConfig } = require('../../utils/config-loader');
+
+/** Solutions command options */
+interface SolutionsOptions {
+  searchDirs?: string[];
+  updateRequirement?: boolean;
+  generateTrace?: boolean;
+  quiet?: boolean;
+  [key: string]: unknown;
+}
 
 /**
  * Solutions Command Handler
  * CLI interface for solutions mapping and compliance tracing
  */
 class SolutionsCommandHandler {
+  protected config: RawSupernalConfig | null;
+  protected mapper: InstanceType<typeof SolutionsMapper>;
+  protected projectRoot: string;
+
   constructor() {
     this.projectRoot = this.findProjectRoot();
     this.config = loadProjectConfig(this.projectRoot);
@@ -18,9 +36,7 @@ class SolutionsCommandHandler {
   /**
    * Find the project root
    */
-  findProjectRoot() {
-    const fs = require('fs-extra');
-    const path = require('node:path');
+  findProjectRoot(): string {
     let currentDir = process.cwd();
 
     while (currentDir !== path.dirname(currentDir)) {
@@ -37,7 +53,7 @@ class SolutionsCommandHandler {
   /**
    * Handle solutions command
    */
-  async handleCommand(action, ...args) {
+  async handleCommand(action: string | undefined, ...args: string[]): Promise<void> {
     try {
       if (!action) {
         this.showHelp();
@@ -79,7 +95,7 @@ class SolutionsCommandHandler {
           break;
       }
     } catch (error) {
-      console.error(chalk.red(`❌ Command failed: ${error.message}`));
+      console.error(chalk.red(`❌ Command failed: ${(error as Error).message}`));
       process.exit(1);
     }
   }
@@ -87,20 +103,16 @@ class SolutionsCommandHandler {
   /**
    * Map all requirements
    */
-  async mapAllRequirements(options) {
+  async mapAllRequirements(options: SolutionsOptions): Promise<void> {
     console.log(
       chalk.blue('🔍 Mapping all requirements to code components...')
     );
 
-    const fs = require('fs-extra');
-    const path = require('node:path');
-    const matter = require('gray-matter');
-
     const reqDir = path.join(this.projectRoot, 'docs', 'requirements');
-    const reqFiles = [];
+    const reqFiles: string[] = [];
 
     // Collect all requirement files
-    async function collectFiles(dir) {
+    const collectFiles = async (dir: string): Promise<void> => {
       if (!(await fs.pathExists(dir))) return;
 
       const items = await fs.readdir(dir, { withFileTypes: true });
@@ -112,7 +124,7 @@ class SolutionsCommandHandler {
           reqFiles.push(fullPath);
         }
       }
-    }
+    };
 
     await collectFiles(reqDir);
 
@@ -134,7 +146,7 @@ class SolutionsCommandHandler {
         }
       } catch (error) {
         console.log(
-          chalk.yellow(`   ⚠️  Failed to map ${reqFile}: ${error.message}`)
+          chalk.yellow(`   ⚠️  Failed to map ${reqFile}: ${(error as Error).message}`)
         );
       }
     }
@@ -150,8 +162,8 @@ class SolutionsCommandHandler {
   /**
    * Parse command options
    */
-  parseOptions(args) {
-    const options = {};
+  parseOptions(args: string[]): SolutionsOptions {
+    const options: SolutionsOptions = {};
     for (const arg of args) {
       if (arg.startsWith('--')) {
         const [key, value] = arg.slice(2).split('=');
@@ -170,7 +182,7 @@ class SolutionsCommandHandler {
   /**
    * Show help
    */
-  showHelp() {
+  showHelp(): void {
     console.log(chalk.bold('\n🔗 Solutions Mapping & Compliance Tracing\n'));
 
     console.log(chalk.cyan('Commands:'));
@@ -234,10 +246,15 @@ class SolutionsCommandHandler {
 }
 
 // CLI Interface
-async function handleSolutionsCommand(action, ...args) {
+async function handleSolutionsCommand(action: string | undefined, ...args: string[]): Promise<void> {
   const handler = new SolutionsCommandHandler();
   await handler.handleCommand(action, ...args);
 }
+
+export {
+  SolutionsCommandHandler,
+  handleSolutionsCommand
+};
 
 module.exports = {
   SolutionsCommandHandler,

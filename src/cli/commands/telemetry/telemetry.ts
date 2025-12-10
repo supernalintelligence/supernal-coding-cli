@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SC Telemetry Command - CLI interface for telemetry management
  * Privacy-first learning and improvement system

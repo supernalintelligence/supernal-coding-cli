@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FileChangeDetector - Unified base class for hash-based change detection
  *
@@ -20,6 +21,15 @@ const { glob } = require('glob');
 const HASH_ALGORITHM = 'sha256';
 
 class FileChangeDetector {
+  changes: any;
+  currentState: any;
+  ignorePatterns: any;
+  name: any;
+  normalizeLineEndings: any;
+  previousState: any;
+  projectRoot: any;
+  stateFile: any;
+  watchPatterns: any;
   /**
    * @param {Object} options
    * @param {string} options.projectRoot - Project root directory

@@ -5,19 +5,20 @@
  * Combines development monitoring and GitHub issue awaiting
  */
 
-const chalk = require('chalk');
+import chalk from 'chalk';
 
-async function main(passedArgs) {
+async function main(passedArgs?: string[]): Promise<number> {
   // Handle both direct invocation and programmatic calls
   const args = passedArgs || process.argv.slice(2);
   const subcommand = args[0];
 
   // Route to appropriate subcommand
   switch (subcommand) {
-    case 'await':
+    case 'await': {
       // GitHub issue response awaiting
       const awaitModule = require('./await');
       return await awaitModule.main();
+    }
 
     case 'status':
     case 'watch':
@@ -31,10 +32,11 @@ async function main(passedArgs) {
     case 'ci':
     case 'workflows':
     case 'pipelines':
-    case undefined:
+    case undefined: {
       // Development monitoring (original monitor.js functionality)
       const devMonitor = require('../development/monitor');
       return await devMonitor(args);
+    }
 
     case '--help':
     case '-h':
@@ -68,6 +70,7 @@ async function main(passedArgs) {
 }
 
 // Export for use in other modules
+export default main;
 module.exports = main;
 
 // Run if called directly
@@ -76,7 +79,7 @@ if (require.main === module) {
     if (typeof exitCode === 'number') {
       process.exit(exitCode);
     }
-  }).catch(error => {
+  }).catch((error: Error) => {
     console.error(chalk.red('❌ Monitor error:'), error.message);
     process.exit(1);
   });

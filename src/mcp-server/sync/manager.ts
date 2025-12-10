@@ -7,28 +7,138 @@
  * @module sync/manager
  */
 
-const _fs = require('fs-extra');
-const _path = require('node:path');
-const crypto = require('node:crypto');
-const EventEmitter = require('node:events');
+import crypto from 'node:crypto';
+import { EventEmitter } from 'node:events';
+
+/** Sync backend type */
+export type SyncBackendType = 'rest' | 'graphql' | 'websocket' | 'custom';
+
+/** Conflict resolution strategy */
+export type ConflictResolution = 'manual' | 'local' | 'remote' | 'latest';
+
+/** Sync configuration */
+export interface SyncConfig {
+  enabled?: boolean;
+  backend?: SyncBackendType;
+  endpoint?: string | null;
+  apiKey?: string | null;
+  syncInterval?: number;
+  autoSync?: boolean;
+  conflictResolution?: ConflictResolution;
+  customBackend?: SyncBackend | null;
+}
+
+/** Internal resolved config */
+interface ResolvedSyncConfig {
+  enabled: boolean;
+  backend: SyncBackendType;
+  endpoint: string | null;
+  apiKey: string | null;
+  syncInterval: number;
+  autoSync: boolean;
+  conflictResolution: ConflictResolution;
+  customBackend: SyncBackend | null;
+}
+
+/** A change to be synced */
+export interface SyncChange {
+  id: string;
+  type: string;
+  hash?: string;
+  timestamp?: Date | string;
+  data?: unknown;
+  [key: string]: unknown;
+}
+
+/** A detected conflict */
+export interface SyncConflict {
+  id: string;
+  local: SyncChange;
+  remote: SyncChange;
+  type: 'modification' | 'deletion' | 'creation';
+}
+
+/** Sync state */
+export interface SyncState {
+  inProgress: boolean;
+  lastPush: Date | null;
+  lastPull: Date | null;
+  conflicts: SyncConflict[];
+  pendingChanges: SyncChange[];
+}
+
+/** Push result */
+export interface PushResult {
+  success: boolean;
+  pushed: number | string[];
+  message?: string;
+  [key: string]: unknown;
+}
+
+/** Pull result */
+export interface PullResult {
+  success: boolean;
+  pulled: number;
+  message?: string;
+  applied?: number;
+  failed?: number;
+  details?: {
+    applied: SyncChange[];
+    failed: Array<{ change: SyncChange; reason?: string; error?: string }>;
+  };
+}
+
+/** Sync result */
+export interface SyncResult {
+  success: boolean;
+  pull: PullResult;
+  push: PushResult;
+  timestamp: Date;
+}
+
+/** Sync status */
+export interface SyncStatus {
+  enabled: boolean;
+  backend: SyncBackendType;
+  endpoint: string | null;
+  autoSync: boolean;
+  lastSync: Date | null;
+  state: SyncState & {
+    backendStatus: unknown;
+  };
+}
+
+/** Backend interface */
+export interface SyncBackend {
+  initialize(): Promise<void>;
+  push(changes: SyncChange[], force?: boolean): Promise<PushResult>;
+  pull(): Promise<SyncChange[]>;
+  getStatus(): Promise<unknown>;
+  cleanup?(): Promise<void>;
+}
 
 /**
  * Sync Manager for higher-level system integration
  */
 class SyncManager extends EventEmitter {
-  constructor(config = {}) {
+  protected backend: SyncBackend | null;
+  protected config: ResolvedSyncConfig;
+  protected lastSync: Date | null;
+  protected syncState: SyncState;
+  protected syncTimer: NodeJS.Timeout | null;
+
+  constructor(config: SyncConfig = {}) {
     super();
 
     this.config = {
-      enabled: config.enabled || false,
-      backend: config.backend || 'rest', // 'rest', 'graphql', 'websocket', 'custom'
-      endpoint: config.endpoint || null,
-      apiKey: config.apiKey || null,
-      syncInterval: config.syncInterval || 60000, // 1 minute
-      autoSync: config.autoSync || false,
-      conflictResolution: config.conflictResolution || 'manual', // 'manual', 'local', 'remote', 'latest'
-      customBackend: config.customBackend || null,
-      ...config
+      enabled: config.enabled ?? false,
+      backend: config.backend ?? 'rest',
+      endpoint: config.endpoint ?? null,
+      apiKey: config.apiKey ?? null,
+      syncInterval: config.syncInterval ?? 60000,
+      autoSync: config.autoSync ?? false,
+      conflictResolution: config.conflictResolution ?? 'manual',
+      customBackend: config.customBackend ?? null,
     };
 
     this.backend = null;
@@ -46,7 +156,7 @@ class SyncManager extends EventEmitter {
   /**
    * Initialize sync manager and backend
    */
-  async initialize() {
+  async initialize(): Promise<void> {
     if (!this.config.enabled) {
       return;
     }
@@ -83,7 +193,7 @@ class SyncManager extends EventEmitter {
         throw new Error(`Unknown sync backend: ${this.config.backend}`);
     }
 
-    await this.backend.initialize();
+    await this.backend!.initialize();
 
     // Set up auto-sync if enabled
     if (this.config.autoSync) {
@@ -96,7 +206,7 @@ class SyncManager extends EventEmitter {
   /**
    * Start automatic synchronization
    */
-  startAutoSync() {
+  startAutoSync(): void {
     if (this.syncTimer) {
       return;
     }
@@ -115,7 +225,7 @@ class SyncManager extends EventEmitter {
   /**
    * Stop automatic synchronization
    */
-  stopAutoSync() {
+  stopAutoSync(): void {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
@@ -126,7 +236,7 @@ class SyncManager extends EventEmitter {
   /**
    * Perform bidirectional sync
    */
-  async sync() {
+  async sync(): Promise<SyncResult> {
     if (this.syncState.inProgress) {
       throw new Error('Sync already in progress');
     }
@@ -161,7 +271,7 @@ class SyncManager extends EventEmitter {
   /**
    * Push local changes to remote
    */
-  async push(force = false) {
+  async push(force = false): Promise<PushResult> {
     this.emit('pushStarted');
 
     try {
@@ -177,12 +287,13 @@ class SyncManager extends EventEmitter {
       }
 
       // Push to backend
-      const result = await this.backend.push(changes, force);
+      const result = await this.backend!.push(changes, force);
 
       // Update sync state
       this.syncState.lastPush = new Date();
+      const pushedIds = Array.isArray(result.pushed) ? result.pushed : [];
       this.syncState.pendingChanges = this.syncState.pendingChanges.filter(
-        (change) => !result.pushed.includes(change.id)
+        (change) => !pushedIds.includes(change.id)
       );
 
       this.emit('pushCompleted', result);
@@ -196,12 +307,12 @@ class SyncManager extends EventEmitter {
   /**
    * Pull remote changes to local
    */
-  async pull(force = false) {
+  async pull(force = false): Promise<PullResult> {
     this.emit('pullStarted');
 
     try {
       // Get remote changes
-      const remoteChanges = await this.backend.pull();
+      const remoteChanges = await this.backend!.pull();
 
       if (remoteChanges.length === 0) {
         return {
@@ -239,7 +350,7 @@ class SyncManager extends EventEmitter {
   /**
    * Get pending local changes
    */
-  async getPendingChanges() {
+  async getPendingChanges(): Promise<SyncChange[]> {
     // This would typically check git status, file modifications, etc.
     // For now, return cached pending changes
     return this.syncState.pendingChanges;
@@ -248,8 +359,8 @@ class SyncManager extends EventEmitter {
   /**
    * Detect conflicts between local and remote changes
    */
-  async detectConflicts(remoteChanges) {
-    const conflicts = [];
+  async detectConflicts(remoteChanges: SyncChange[]): Promise<SyncConflict[]> {
+    const conflicts: SyncConflict[] = [];
 
     for (const remoteChange of remoteChanges) {
       const localChange = this.syncState.pendingChanges.find(
@@ -272,9 +383,9 @@ class SyncManager extends EventEmitter {
   /**
    * Apply remote changes to local
    */
-  async applyChanges(remoteChanges, force = false) {
-    const applied = [];
-    const failed = [];
+  async applyChanges(remoteChanges: SyncChange[], force = false): Promise<PullResult> {
+    const applied: SyncChange[] = [];
+    const failed: Array<{ change: SyncChange; reason?: string; error?: string }> = [];
 
     for (const change of remoteChanges) {
       try {
@@ -291,12 +402,13 @@ class SyncManager extends EventEmitter {
         await this.applyChange(change);
         applied.push(change);
       } catch (error) {
-        failed.push({ change, error: error.message });
+        failed.push({ change, error: (error as Error).message });
       }
     }
 
     return {
       success: failed.length === 0,
+      pulled: applied.length,
       applied: applied.length,
       failed: failed.length,
       details: { applied, failed }
@@ -306,7 +418,7 @@ class SyncManager extends EventEmitter {
   /**
    * Resolve a conflict based on strategy
    */
-  async resolveConflict(remoteChange, force = false) {
+  async resolveConflict(remoteChange: SyncChange, force = false): Promise<boolean> {
     if (force) {
       return true; // Force always wins
     }
@@ -323,15 +435,18 @@ class SyncManager extends EventEmitter {
         const conflict = this.syncState.conflicts.find(
           (c) => c.id === remoteChange.id
         );
-        return remoteChange.timestamp > conflict.local.timestamp;
+        if (!conflict) return true;
+        const remoteTime = new Date(remoteChange.timestamp || 0).getTime();
+        const localTime = new Date(conflict.local.timestamp || 0).getTime();
+        return remoteTime > localTime;
       }
+
       default:
         // Require manual resolution
         this.emit('conflictDetected', {
           id: remoteChange.id,
           remote: remoteChange,
-          local: this.syncState.conflicts.find((c) => c.id === remoteChange.id)
-            .local
+          local: this.syncState.conflicts.find((c) => c.id === remoteChange.id)?.local
         });
         return false;
     }
@@ -340,7 +455,7 @@ class SyncManager extends EventEmitter {
   /**
    * Apply a single change to local system
    */
-  async applyChange(change) {
+  async applyChange(change: SyncChange): Promise<void> {
     // This would implement the actual application of the change
     // based on the change type (requirement, kanban, etc.)
     this.emit('changeApplied', change);
@@ -349,7 +464,7 @@ class SyncManager extends EventEmitter {
   /**
    * Get sync status
    */
-  async getStatus() {
+  async getStatus(): Promise<SyncStatus> {
     return {
       enabled: this.config.enabled,
       backend: this.config.backend,
@@ -366,7 +481,7 @@ class SyncManager extends EventEmitter {
   /**
    * Add a change to pending sync
    */
-  addPendingChange(change) {
+  addPendingChange(change: SyncChange): void {
     // Add hash if not present
     if (!change.hash) {
       change.hash = crypto
@@ -382,7 +497,7 @@ class SyncManager extends EventEmitter {
   /**
    * Cleanup and shutdown
    */
-  async cleanup() {
+  async cleanup(): Promise<void> {
     this.stopAutoSync();
 
     if (this.backend?.cleanup) {
@@ -393,4 +508,5 @@ class SyncManager extends EventEmitter {
   }
 }
 
+export default SyncManager;
 module.exports = SyncManager;

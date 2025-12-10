@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const yaml = require('js-yaml');
@@ -11,6 +12,9 @@ const yaml = require('js-yaml');
  * Registry: .supernal/wip-registry.yaml
  */
 class WipManager {
+  categories: any;
+  projectRoot: any;
+  registryPath: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.registryPath = path.join(

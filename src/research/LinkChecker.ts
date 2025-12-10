@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Research Link Checker
  * 
@@ -45,6 +46,11 @@ const PROBLEMATIC_DOMAINS = [
 ];
 
 class LinkChecker {
+  cache: any;
+  currentFileDir: any;
+  options: any;
+  projectRoot: any;
+  results: any;
   constructor(options = {}) {
     this.options = {
       timeout: options.timeout || 10000,

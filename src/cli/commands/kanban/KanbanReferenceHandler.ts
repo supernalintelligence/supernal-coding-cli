@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const chalk = require('chalk');
 const ReferenceManager = require('../../../kanban/ReferenceManager');
@@ -9,6 +10,8 @@ const { getConfig } = require('../../../scripts/config-loader');
  * Modern reference-based Kanban system
  */
 class KanbanCommandHandler {
+  projectRoot: any;
+  referenceManager: any;
   constructor() {
     this.projectRoot = this.findProjectRoot();
     const config = getConfig(this.projectRoot);

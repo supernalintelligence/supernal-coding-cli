@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs').promises;
 const path = require('node:path');
 const { ConfigLoader } = require('../config');
@@ -6,6 +7,8 @@ const { ConfigLoader } = require('../config');
  * RepoDiscovery - Discover and manage multi-repo structures
  */
 class RepoDiscovery {
+  configLoader: any;
+  discovered: any;
   constructor() {
     this.configLoader = new ConfigLoader();
     this.discovered = new Map();

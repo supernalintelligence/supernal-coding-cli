@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Handoff Management System
@@ -12,6 +13,7 @@ const path = require('node:path');
 const { loadProjectConfig, getDocPaths } = require('../utils/config-loader');
 
 class HandoffManager {
+  handoffDir: any;
   constructor() {
     const config = loadProjectConfig();
     const paths = getDocPaths(config);

@@ -5,16 +5,26 @@
  * TODO: Full implementation pending
  */
 
+interface StatusResult {
+  success: boolean;
+  message: string;
+  status: string;
+}
+
+interface CommitResult {
+  success: boolean;
+  message: string;
+  committed: number;
+}
+
 class GitManager {
-  constructor(projectRoot) {
+  protected projectRoot: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
   }
 
-  /**
-   * Get git status
-   */
-  async getStatus() {
-    // Stub implementation
+  async getStatus(): Promise<StatusResult> {
     return {
       success: true,
       message: 'Git integration not yet implemented',
@@ -22,11 +32,7 @@ class GitManager {
     };
   }
 
-  /**
-   * Commit requirements
-   */
-  async commitRequirements(_message) {
-    // Stub implementation
+  async commitRequirements(_message: string): Promise<CommitResult> {
     return {
       success: true,
       message: 'Git integration not yet implemented',
@@ -35,4 +41,5 @@ class GitManager {
   }
 }
 
+export default GitManager;
 module.exports = GitManager;

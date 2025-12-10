@@ -1,4 +1,11 @@
-const { Command } = require('commander');
+import { Command } from 'commander';
+
+/** Change creation options */
+interface ChangeOptions {
+  type: string;
+  impact: string;
+  edit?: boolean;
+}
 
 const change = new Command('change').description('Manage change documents');
 
@@ -12,8 +19,8 @@ change
   )
   .option('--impact <level>', 'Impact level: low, medium, high', 'medium')
   .option('--edit', 'Open in editor after creation')
-  .action((title, options) => {
-    const ChangeManager = require('../lib/doc/ChangeManager');
+  .action((title: string, options: ChangeOptions) => {
+    const ChangeManager = require('../doc/ChangeManager');
     new ChangeManager().create(title, options);
   });
 
@@ -21,16 +28,17 @@ change
   .command('list')
   .description('List all change documents')
   .action(() => {
-    const ChangeManager = require('../lib/doc/ChangeManager');
+    const ChangeManager = require('../doc/ChangeManager');
     new ChangeManager().list();
   });
 
 change
   .command('show <number>')
   .description('Show change document details')
-  .action((num) => {
-    const ChangeManager = require('../lib/doc/ChangeManager');
+  .action((num: string) => {
+    const ChangeManager = require('../doc/ChangeManager');
     new ChangeManager().show(num);
   });
 
+export default change;
 module.exports = change;

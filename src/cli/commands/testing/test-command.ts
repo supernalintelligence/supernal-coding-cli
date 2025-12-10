@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Main test command module for SC CLI
  * Integrates test guidance, mapping, and execution functionality
@@ -13,6 +14,8 @@ const { execSync } = require('node:child_process');
 const { generateHelpText } = require('../../command-metadata');
 
 class TestCommand {
+  guidance: any;
+  mapper: any;
   constructor() {
     this.guidance = new TestGuidanceSystem();
     this.mapper = new TestMapperCommand();

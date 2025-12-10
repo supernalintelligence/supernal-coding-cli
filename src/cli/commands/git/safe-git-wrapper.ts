@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // safe-git-wrapper.js - Git command wrapper with workflow protection
 // Part of enhanced workflow guard system
@@ -8,6 +9,8 @@ const _path = require('node:path');
 const chalk = require('chalk');
 
 class SafeGitWrapper {
+  projectRoot: any;
+  verbose: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.verbose =

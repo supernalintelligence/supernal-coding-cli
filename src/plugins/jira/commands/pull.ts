@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Jira Pull Command - Pull Jira issue updates to requirement
  */
@@ -101,7 +102,7 @@ async function handler(args) {
       `  local_hash: ${contentHash}`
     ].join('\n');
     
-    newFrontmatter = newFrontmatter.replace(/jira:\n(?:  [^\n]*\n)*/g, '').trim();
+    newFrontmatter = newFrontmatter.replace(/jira:\n(?: {2}[^\n]*\n)*/g, '').trim();
     newFrontmatter += '\n' + jiraSection;
     
     // Write updated file
@@ -160,7 +161,7 @@ function parseRequirement(content) {
     frontmatter.tags = tagsMatch[1].split(',').map(t => t.trim().replace(/["']/g, '')).filter(Boolean);
   }
   
-  const jiraMatch = rawFrontmatter.match(/jira:\n((?:  [^\n]*\n)*)/);
+  const jiraMatch = rawFrontmatter.match(/jira:\n((?: {2}[^\n]*\n)*)/);
   if (jiraMatch) {
     frontmatter.jira = {};
     const keyMatch = jiraMatch[1].match(/key:\s*([^\n]+)/);

@@ -6,7 +6,7 @@
  * These types are shared between CLI and dashboard applications.
  */
 
-import type { SupernalConfig, FilePath } from '../config/index.js';
+import type { SupernalConfig } from '../config/index.js';
 import type { ParsedRequirement, ParsedEpic, ParsedFeature } from '../documents/index.js';
 
 // =============================================================================

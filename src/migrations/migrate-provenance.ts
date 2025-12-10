@@ -7,13 +7,49 @@
  * that were created before Phase 2 implementation.
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const matter = require('gray-matter');
-const chalk = require('chalk');
-const { glob } = require('glob');
+import fs from 'fs-extra';
+import path from 'node:path';
+import matter from 'gray-matter';
+import chalk from 'chalk';
+import { glob } from 'glob';
+
+interface TemplateMapping {
+  pattern: RegExp;
+  template: string;
+  version: string;
+  templateType: string;
+}
+
+interface TemplateInfo {
+  template: string;
+  version: string;
+  templatePath: string;
+}
+
+interface MigrationResult {
+  status: 'migrated' | 'skipped' | 'error';
+  reason?: string;
+  error?: string;
+  template?: string;
+  version?: string;
+  file?: string;
+}
+
+interface MigrationResults {
+  migrated: MigrationResult[];
+  skipped: { file: string; reason: string }[];
+  errors: MigrationResult[];
+}
+
+interface MigrateOptions {
+  dryRun?: boolean;
+}
 
 class ProvenanceMigrator {
+  protected docsDir: string;
+  protected projectRoot: string;
+  protected templateMappings: Record<string, TemplateMapping>;
+
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.docsDir = path.join(projectRoot, 'docs');
@@ -22,7 +58,7 @@ class ProvenanceMigrator {
         pattern: /req-\d{3}/,
         template: 'requirement-template.md',
         version: '1.0.0',
-        templateType: 'instantiated', // Documents created via sc req new
+        templateType: 'instantiated',
       },
       'architecture/decisions': {
         pattern: /ADD-\d{3}/,
@@ -36,25 +72,17 @@ class ProvenanceMigrator {
         version: '1.0.0',
         templateType: 'instantiated',
       },
-      // Note: Removed feature READMEs - these are structural scaffolding copied by sc init,
-      // not instantiated documents. They don't need template provenance.
     };
   }
 
-  /**
-   * Find all markdown files in docs/
-   */
-  async findDocuments() {
+  async findDocuments(): Promise<string[]> {
     const files = await glob(`${this.docsDir}/**/*.md`, {
       ignore: ['**/node_modules/**', '**/templates/**'],
     });
     return files;
   }
 
-  /**
-   * Determine template for a document based on its path and filename
-   */
-  determineTemplate(filePath) {
+  determineTemplate(filePath: string): TemplateInfo | null {
     const relativePath = path.relative(this.docsDir, filePath);
     const filename = path.basename(filePath);
 
@@ -71,40 +99,30 @@ class ProvenanceMigrator {
     return null;
   }
 
-  /**
-   * Check if document already has provenance
-   */
-  hasProvenance(frontmatter) {
-    return frontmatter.created_from_template && frontmatter.version;
+  hasProvenance(frontmatter: Record<string, unknown>): boolean {
+    return !!(frontmatter.created_from_template && frontmatter.version);
   }
 
-  /**
-   * Migrate a single document
-   */
-  async migrateDocument(filePath, dryRun = false) {
+  async migrateDocument(filePath: string, dryRun = false): Promise<MigrationResult> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
       const { data: frontmatter, content: body } = matter(content);
 
-      // Skip if already has provenance
       if (this.hasProvenance(frontmatter)) {
         return { status: 'skipped', reason: 'Already has provenance' };
       }
 
-      // Determine template
       const templateInfo = this.determineTemplate(filePath);
       if (!templateInfo) {
         return { status: 'skipped', reason: 'No template mapping found' };
       }
 
-      // Add provenance
       const updatedFrontmatter = {
         ...frontmatter,
         created_from_template: `${templateInfo.templatePath}@${templateInfo.version}`,
-        version: frontmatter.version || '1.0.0', // Use existing version or default
+        version: frontmatter.version || '1.0.0',
       };
 
-      // Reconstruct content
       const newContent = matter.stringify(body, updatedFrontmatter);
 
       if (!dryRun) {
@@ -114,22 +132,19 @@ class ProvenanceMigrator {
       return {
         status: 'migrated',
         template: templateInfo.template,
-        version: updatedFrontmatter.version,
+        version: updatedFrontmatter.version as string,
         file: path.relative(this.projectRoot, filePath),
       };
     } catch (error) {
       return {
         status: 'error',
-        error: error.message,
+        error: (error as Error).message,
         file: path.relative(this.projectRoot, filePath),
       };
     }
   }
 
-  /**
-   * Run migration on all documents
-   */
-  async migrate(options = {}) {
+  async migrate(options: MigrateOptions = {}): Promise<MigrationResults> {
     const { dryRun = false } = options;
 
     console.log(chalk.blue('\n📋 Phase 3: Template Provenance Migration\n'));
@@ -138,7 +153,7 @@ class ProvenanceMigrator {
     const files = await this.findDocuments();
     console.log(chalk.gray(`Found ${files.length} markdown files\n`));
 
-    const results = {
+    const results: MigrationResults = {
       migrated: [],
       skipped: [],
       errors: [],
@@ -156,7 +171,7 @@ class ProvenanceMigrator {
       } else if (result.status === 'skipped') {
         results.skipped.push({
           file: path.relative(this.projectRoot, file),
-          reason: result.reason,
+          reason: result.reason || 'Unknown',
         });
         console.log(
           chalk.yellow(
@@ -169,7 +184,6 @@ class ProvenanceMigrator {
       }
     }
 
-    // Summary
     console.log(chalk.blue('\n📊 Migration Summary:\n'));
     console.log(chalk.green(`  Migrated: ${results.migrated.length}`));
     console.log(chalk.yellow(`  Skipped:  ${results.skipped.length}`));
@@ -185,24 +199,25 @@ class ProvenanceMigrator {
   }
 }
 
-// CLI
 if (require.main === module) {
-  const program = require('commander');
+  const { Command } = require('commander');
+  const program = new Command();
 
   program
     .name('migrate-provenance')
     .description('Add template provenance to existing documents')
     .option('--dry-run', 'Show what would be changed without modifying files')
     .option('--project-root <path>', 'Project root directory', process.cwd())
-    .action(async (options) => {
+    .option('--verbose', 'Show detailed output')
+    .action(async (options: { dryRun?: boolean; projectRoot: string; verbose?: boolean }) => {
       try {
         const migrator = new ProvenanceMigrator(options.projectRoot);
         await migrator.migrate({ dryRun: options.dryRun });
         process.exit(0);
       } catch (error) {
-        console.error(chalk.red(`\n❌ Migration failed: ${error.message}`));
+        console.error(chalk.red(`\n❌ Migration failed: ${(error as Error).message}`));
         if (options.verbose) {
-          console.error(error.stack);
+          console.error((error as Error).stack);
         }
         process.exit(1);
       }
@@ -211,4 +226,5 @@ if (require.main === module) {
   program.parse(process.argv);
 }
 
+export default ProvenanceMigrator;
 module.exports = ProvenanceMigrator;

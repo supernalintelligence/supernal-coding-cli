@@ -3,14 +3,19 @@
  * Utilities for formatting CLI output
  */
 
-const chalk = require('chalk');
+import chalk from 'chalk';
+
+/** Error with optional code */
+interface ErrorWithCode extends Error {
+  code?: string;
+}
 
 /**
  * Format error for CLI display
- * @param {Error} error - Error to format
- * @returns {string} Formatted error message
+ * @param error - Error to format
+ * @returns Formatted error message
  */
-function formatError(error) {
+export function formatError(error: ErrorWithCode): string {
   if (error.code) {
     return chalk.red(`Error [${error.code}]: ${error.message}`);
   }
@@ -19,38 +24,38 @@ function formatError(error) {
 
 /**
  * Format success message
- * @param {string} message - Success message
- * @returns {string} Formatted success message
+ * @param message - Success message
+ * @returns Formatted success message
  */
-function formatSuccess(message) {
+export function formatSuccess(message: string): string {
   return chalk.green('✓ ') + message;
 }
 
 /**
  * Format warning message
- * @param {string} message - Warning message
- * @returns {string} Formatted warning message
+ * @param message - Warning message
+ * @returns Formatted warning message
  */
-function formatWarning(message) {
+export function formatWarning(message: string): string {
   return chalk.yellow('⚠ ') + message;
 }
 
 /**
  * Format info message
- * @param {string} message - Info message
- * @returns {string} Formatted info message
+ * @param message - Info message
+ * @returns Formatted info message
  */
-function formatInfo(message) {
+export function formatInfo(message: string): string {
   return chalk.blue('ℹ ') + message;
 }
 
 /**
  * Format table for CLI display
- * @param {Array<Object>} rows - Table rows
- * @param {Array<string>} headers - Column headers
- * @returns {string} Formatted table
+ * @param rows - Table rows (array of arrays or objects)
+ * @param headers - Column headers
+ * @returns Formatted table
  */
-function formatTable(rows, headers) {
+export function formatTable(rows: unknown[][], headers: string[]): string {
   if (rows.length === 0) {
     return 'No data to display';
   }
@@ -84,24 +89,24 @@ function formatTable(rows, headers) {
 
 /**
  * Format YAML for CLI display
- * @param {Object} obj - Object to format
- * @param {number} indent - Indentation level
- * @returns {string} Formatted YAML-like output
+ * @param obj - Object to format
+ * @param indent - Indentation level
+ * @returns Formatted YAML-like output
  */
-function formatYAML(obj, indent = 0) {
+export function formatYAML(obj: Record<string, unknown>, indent = 0): string {
   const spaces = '  '.repeat(indent);
-  const lines = [];
+  const lines: string[] = [];
 
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       lines.push(`${spaces}${key}:`);
-      lines.push(formatYAML(value, indent + 1));
+      lines.push(formatYAML(value as Record<string, unknown>, indent + 1));
     } else if (Array.isArray(value)) {
       lines.push(`${spaces}${key}:`);
       value.forEach((item) => {
-        if (typeof item === 'object') {
+        if (typeof item === 'object' && item !== null) {
           lines.push(`${spaces}  -`);
-          lines.push(formatYAML(item, indent + 2));
+          lines.push(formatYAML(item as Record<string, unknown>, indent + 2));
         } else {
           lines.push(`${spaces}  - ${item}`);
         }

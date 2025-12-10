@@ -4,16 +4,71 @@
  * @fileoverview DocumentManager Base Class
  * 
  * Type definitions available at: lib/types/documents/index.ts
- * When migrating to TypeScript, use:
- * - SupernalConfig from '@supernal/types/config'
- * - BaseFrontmatter, ParsedRequirement from '@supernal/types/documents'
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const chalk = require('chalk');
-const { loadProjectConfig, getDocPaths } = require('../../utils/config-loader');
+import fs from 'fs-extra';
+import path from 'node:path';
+import chalk from 'chalk';
+import { loadProjectConfig, getDocPaths } from '../../utils/config-loader';
+import type { RawSupernalConfig, DocPaths } from '../../../types/config';
+
+// TemplateResolver is still JS, use require
 const TemplateResolver = require('../../../utils/template-resolver');
+
+/** Options for DocumentManager constructor */
+export interface DocumentManagerOptions {
+  documentType?: string;
+  prefix?: string;
+  baseDirectory?: string;
+}
+
+/** Result of document creation */
+export interface CreateDocumentResult {
+  id: string;
+  path: string;
+  filename: string;
+}
+
+/** Result of document update */
+export interface UpdateDocumentResult {
+  id: string | number;
+  path: string;
+}
+
+/** Result of document deletion */
+export interface DeleteDocumentResult {
+  id: string | number;
+  deleted: boolean;
+  archived: boolean;
+}
+
+/** Template data */
+export interface TemplateData {
+  content: string;
+  path: string | null;
+  version: string;
+  name: string;
+}
+
+/** Document filters */
+export interface DocumentFilters {
+  status?: string;
+  category?: string;
+  [key: string]: string | undefined;
+}
+
+/** Document data for creation */
+export interface DocumentCreateData {
+  id?: number | string;
+  title: string;
+  category?: string;
+  templateName?: string;
+  created_from_template?: string;
+  version?: string;
+  created?: string;
+  date?: string;
+  [key: string]: unknown;
+}
 
 /**
  * DocumentManager Base Class
@@ -24,7 +79,15 @@ const TemplateResolver = require('../../../utils/template-resolver');
  * See: docs/features/compliance-framework/framework-expansion/design/adrs/adr-architecture-003-framework-base-class.md
  */
 class DocumentManager {
-  constructor(options = {}) {
+  protected baseDirectory: string;
+  protected config: RawSupernalConfig | null;
+  protected documentType: string;
+  protected paths: DocPaths;
+  protected prefix: string;
+  protected projectRoot: string;
+  protected templateResolver: InstanceType<typeof TemplateResolver>;
+
+  constructor(options: DocumentManagerOptions = {}) {
     this.projectRoot = this.findProjectRoot();
     this.config = loadProjectConfig(this.projectRoot);
     this.paths = getDocPaths(this.config);
@@ -40,7 +103,7 @@ class DocumentManager {
    * Find the project root by looking for supernal.yaml
    * Prioritizes configs that have requirements defined
    */
-  findProjectRoot() {
+  findProjectRoot(): string {
     let currentDir = process.cwd();
     let fallbackRoot = null;
 
@@ -71,7 +134,7 @@ class DocumentManager {
   /**
    * Get next available document ID
    */
-  async getNextDocumentId() {
+  async getNextDocumentId(): Promise<number> {
     const docFiles = await this.getAllDocumentFiles();
     let highestId = 0;
 
@@ -91,7 +154,7 @@ class DocumentManager {
   /**
    * Get all document files recursively
    */
-  async getAllDocumentFiles() {
+  async getAllDocumentFiles(): Promise<string[]> {
     const files = [];
     const basePath = path.join(this.projectRoot, this.baseDirectory);
     const prefix = this.prefix; // Capture prefix in closure
@@ -121,7 +184,7 @@ class DocumentManager {
    * Load template file using TemplateResolver (finds in SC package or project override)
    * Subclasses should override getDefaultTemplate()
    */
-  async loadTemplate(templateName = null) {
+  async loadTemplate(templateName: string | null = null): Promise<TemplateData> {
     if (templateName) {
       try {
         // Use TemplateResolver to find template (checks project override first, then package)
@@ -155,7 +218,7 @@ class DocumentManager {
   /**
    * Extract version from template frontmatter
    */
-  extractTemplateVersion(content) {
+  extractTemplateVersion(content: string): string | null {
     const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
     if (!match) return null;
 
@@ -166,7 +229,7 @@ class DocumentManager {
   /**
    * Subclasses must override this to provide default template
    */
-  getDefaultTemplate() {
+  getDefaultTemplate(): string {
     throw new Error('Subclass must implement getDefaultTemplate()');
   }
 
@@ -174,12 +237,12 @@ class DocumentManager {
    * Populate template with values
    * Subclasses can override for custom placeholder handling
    */
-  populateTemplate(template, values) {
+  populateTemplate(template: string, values: Record<string, unknown>): string {
     let result = template;
 
     for (const [key, value] of Object.entries(values)) {
       const placeholder = new RegExp(`\\{${key}\\}`, 'g');
-      result = result.replace(placeholder, value);
+      result = result.replace(placeholder, String(value));
     }
 
     return result;
@@ -188,7 +251,7 @@ class DocumentManager {
   /**
    * Create a new document
    */
-  async createDocument(data) {
+  async createDocument(data: DocumentCreateData): Promise<CreateDocumentResult> {
     try {
       // Generate ID if not provided
       if (!data.id) {
@@ -262,7 +325,7 @@ class DocumentManager {
   /**
    * List documents with optional filtering
    */
-  async listDocuments(filters = {}) {
+  async listDocuments(filters: DocumentFilters = {}): Promise<Array<Record<string, unknown>>> {
     const files = await this.getAllDocumentFiles();
     const documents = [];
 
@@ -293,7 +356,7 @@ class DocumentManager {
   /**
    * Update document
    */
-  async updateDocument(id, updates) {
+  async updateDocument(id: string | number, updates: Record<string, unknown>): Promise<UpdateDocumentResult> {
     const filePath = await this.findDocumentById(id);
     if (!filePath) {
       throw new Error(`${this.documentType} ${id} not found`);
@@ -317,7 +380,7 @@ class DocumentManager {
   /**
    * Delete or archive document
    */
-  async deleteDocument(id, options = {}) {
+  async deleteDocument(id: string | number, options: { archive?: boolean } = {}): Promise<DeleteDocumentResult> {
     const filePath = await this.findDocumentById(id);
     if (!filePath) {
       throw new Error(`${this.documentType} ${id} not found`);
@@ -346,7 +409,7 @@ class DocumentManager {
   /**
    * Find document file by ID
    */
-  async findDocumentById(id) {
+  async findDocumentById(id: string | number | undefined): Promise<string | null> {
     const formattedId = String(id).padStart(3, '0');
     const basePath = path.join(this.projectRoot, this.baseDirectory);
 
@@ -372,7 +435,7 @@ class DocumentManager {
   /**
    * Extract metadata from document frontmatter
    */
-  extractMetadata(content) {
+  extractMetadata(content: string): Record<string, string> {
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
     if (!frontmatterMatch) return {};
 
@@ -392,7 +455,7 @@ class DocumentManager {
   /**
    * Parse document content into frontmatter and body
    */
-  parseContent(content) {
+  parseContent(content: string): { frontmatter: Record<string, string>; body: string } {
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
     if (!frontmatterMatch) {
       return { frontmatter: {}, body: content };
@@ -415,7 +478,7 @@ class DocumentManager {
   /**
    * Reconstruct content from frontmatter and body
    */
-  reconstructContent(frontmatter, body) {
+  reconstructContent(frontmatter: Record<string, unknown>, body: string): string {
     const frontmatterLines = Object.entries(frontmatter)
       .map(([key, value]) => `${key}: ${value}`)
       .join('\n');
@@ -429,7 +492,7 @@ class DocumentManager {
    * Determine category/subdirectory for document
    * Override in subclasses for custom logic
    */
-  determineCategory(data) {
+  determineCategory(data: DocumentCreateData): string {
     return data.category || '';
   }
 
@@ -437,7 +500,7 @@ class DocumentManager {
    * Generate filename for document
    * Override in subclasses for custom naming
    */
-  generateFilename(id, title, _category) {
+  generateFilename(id: string, title: string, _category: string): string {
     const slug = title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -449,11 +512,12 @@ class DocumentManager {
    * Log document creation
    * Override in subclasses for custom messages
    */
-  logCreation(id, filename) {
+  logCreation(id: string, filename: string): void {
     console.log(
       chalk.green(`✅ Created ${this.documentType} ${id}: ${filename}`)
     );
   }
 }
 
+export default DocumentManager;
 module.exports = DocumentManager;

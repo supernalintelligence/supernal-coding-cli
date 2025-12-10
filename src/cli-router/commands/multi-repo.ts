@@ -3,16 +3,53 @@
  * Commands for multi-repository management
  */
 
-const { RepoDiscovery, RepoAggregator } = require('../../lib/multi-repo');
-const { findProjectRoot } = require('../utils/project-finder');
-const {
+import { Command } from 'commander';
+import { findProjectRoot } from '../utils/project-finder';
+import {
   formatSuccess,
   formatError,
-  formatTable,
-  formatYAML
-} = require('../utils/formatters');
+  formatTable
+} from '../utils/formatters';
 
-function registerMultiRepoCommands(program) {
+const { RepoDiscovery, RepoAggregator } = require('../../multi-repo');
+
+/** Discover options */
+interface DiscoverOptions {
+  depth: string;
+  exclude?: string;
+}
+
+/** Aggregate options */
+interface AggregateOptions {
+  type: string;
+  status?: string;
+}
+
+/** Repository info */
+interface RepoInfo {
+  name: string;
+  path: string;
+  workflow?: string;
+  currentPhase?: string;
+  requirements?: unknown[];
+}
+
+/** Aggregated requirement/task */
+interface AggregatedItem {
+  repo: string;
+  id: string;
+  title: string;
+  status?: string;
+}
+
+/** Aggregated document */
+interface AggregatedDocument {
+  repo: string;
+  type: string;
+  path: string;
+}
+
+function registerMultiRepoCommands(program: Command): void {
   const multiRepo = program
     .command('multi-repo')
     .alias('mr')
@@ -24,7 +61,7 @@ function registerMultiRepoCommands(program) {
     .description('Discover sub-repositories')
     .option('--depth <n>', 'Maximum search depth', '5')
     .option('--exclude <patterns>', 'Comma-separated exclude patterns')
-    .action(async (options) => {
+    .action(async (options: DiscoverOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const discovery = new RepoDiscovery({
@@ -32,7 +69,7 @@ function registerMultiRepoCommands(program) {
           exclude: options.exclude ? options.exclude.split(',') : undefined
         });
 
-        const repos = await discovery.discover(projectRoot);
+        const repos: RepoInfo[] = await discovery.discover(projectRoot);
 
         if (repos.length === 0) {
           console.log('No sub-repositories found');
@@ -45,12 +82,12 @@ function registerMultiRepoCommands(program) {
           repo.workflow || 'None'
         ]);
 
-        console.log(`\n${formatTable(rows, ['Name', 'Path', 'Workflow'])}`);
+        console.log(`\n${formatTable(rows as unknown[][], ['Name', 'Path', 'Workflow'])}`);
         console.log(
           `\nFound ${repos.length} sub-repositor${repos.length === 1 ? 'y' : 'ies'}`
         );
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -65,11 +102,11 @@ function registerMultiRepoCommands(program) {
       'requirements'
     )
     .option('--status <status>', 'Filter by status')
-    .action(async (options) => {
+    .action(async (options: AggregateOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const discovery = new RepoDiscovery();
-        const repos = await discovery.discover(projectRoot);
+        const repos: RepoInfo[] = await discovery.discover(projectRoot);
 
         if (repos.length === 0) {
           console.log('No sub-repositories found');
@@ -77,7 +114,7 @@ function registerMultiRepoCommands(program) {
         }
 
         const aggregator = new RepoAggregator(repos);
-        let data;
+        let data: (AggregatedItem | AggregatedDocument)[];
 
         switch (options.type) {
           case 'requirements':
@@ -103,11 +140,11 @@ function registerMultiRepoCommands(program) {
         }
 
         // Format based on type
-        let rows;
-        let headers;
+        let rows: unknown[][];
+        let headers: string[];
 
         if (options.type === 'requirements') {
-          rows = data.map((item) => [
+          rows = (data as AggregatedItem[]).map((item) => [
             item.repo,
             item.id,
             item.title,
@@ -115,7 +152,7 @@ function registerMultiRepoCommands(program) {
           ]);
           headers = ['Repository', 'ID', 'Title', 'Status'];
         } else if (options.type === 'tasks') {
-          rows = data.map((item) => [
+          rows = (data as AggregatedItem[]).map((item) => [
             item.repo,
             item.id,
             item.title,
@@ -123,14 +160,14 @@ function registerMultiRepoCommands(program) {
           ]);
           headers = ['Repository', 'ID', 'Title', 'Status'];
         } else {
-          rows = data.map((item) => [item.repo, item.type, item.path]);
+          rows = (data as AggregatedDocument[]).map((item) => [item.repo, item.type, item.path]);
           headers = ['Repository', 'Type', 'Path'];
         }
 
         console.log(`\n${formatTable(rows, headers)}`);
         console.log(`\nTotal: ${data.length} ${options.type}`);
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -143,7 +180,7 @@ function registerMultiRepoCommands(program) {
       try {
         const projectRoot = await findProjectRoot();
         const discovery = new RepoDiscovery();
-        const repos = await discovery.discover(projectRoot);
+        const repos: RepoInfo[] = await discovery.discover(projectRoot);
 
         if (repos.length === 0) {
           console.log('No sub-repositories found');
@@ -159,7 +196,7 @@ function registerMultiRepoCommands(program) {
 
         console.log(
           '\n' +
-            formatTable(rows, [
+            formatTable(rows as unknown[][], [
               'Repository',
               'Workflow',
               'Phase',
@@ -168,10 +205,11 @@ function registerMultiRepoCommands(program) {
         );
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
 }
 
+export default registerMultiRepoCommands;
 module.exports = registerMultiRepoCommands;

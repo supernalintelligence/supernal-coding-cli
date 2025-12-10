@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs');
 const path = require('node:path');
 const _matter = require('gray-matter');
@@ -11,6 +12,11 @@ const { TemplateValidator } = require('../../validation/TemplateValidator');
  * for consistent validation across all document types
  */
 class FrontmatterValidator {
+  fixedFiles: any;
+  issues: any;
+  projectRoot: any;
+  templateValidator: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

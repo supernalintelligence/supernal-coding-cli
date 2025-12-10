@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('fs-extra');
 const path = require('node:path');
@@ -10,6 +11,9 @@ const { execSync } = require('node:child_process');
  * Implements REQ-038: Comprehensive Requirement-to-Test Traceability System
  */
 class TestCoverageManager {
+  projectRoot: any;
+  requirementsDir: any;
+  testsDir: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.requirementsDir = path.join(

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * SC Type Check Command - Self-Contained Type Duplication Checker

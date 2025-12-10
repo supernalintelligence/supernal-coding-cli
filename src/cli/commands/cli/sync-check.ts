@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CLI Map Sync Check
  *

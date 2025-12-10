@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Compliance Configuration Checks CLI
  * 

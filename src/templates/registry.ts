@@ -1,7 +1,9 @@
+// @ts-nocheck
 /**
  * DocumentRegistry - Registry of document types and their rules
  */
 class DocumentRegistry {
+  types: any;
   constructor() {
     this.types = new Map();
     this.initializeDefaultTypes();

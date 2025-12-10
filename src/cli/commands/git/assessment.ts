@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Git Assessment Command
@@ -17,6 +18,9 @@ const path = require('node:path');
 const { execSync } = require('node:child_process');
 
 class GitAssessmentCommand {
+  assessment: any;
+  config: any;
+  projectRoot: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.config = this.loadConfiguration();

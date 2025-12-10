@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Document Schema Validator for REQ-075
  * Validates document frontmatter against defined schemas
@@ -10,6 +11,8 @@ const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
 
 class SchemaValidator {
+  ajv: any;
+  schemas: any;
   constructor() {
     this.ajv = new Ajv({ allErrors: true });
     addFormats(this.ajv);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * GitHub Issue Response Awaiter - sc monitor await
@@ -17,6 +18,12 @@ const { execSync } = require('node:child_process');
 const chalk = require('chalk');
 
 class IssueAwaiter {
+  attempts: any;
+  interval: any;
+  issue: any;
+  lastCommentId: any;
+  maxRetries: any;
+  timeout: any;
   constructor(options = {}) {
     this.issue = options.issue;
     this.interval = this.parseTimeMs(options.interval || '2m');

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const chalk = require('chalk');
 const _fs = require('fs-extra');
@@ -15,6 +16,10 @@ const { getConfig } = require('../../../scripts/config-loader');
  */
 
 class RulesSuggest {
+  config: any;
+  dryRun: any;
+  projectRoot: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

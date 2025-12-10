@@ -1,3 +1,4 @@
+// @ts-nocheck
 const { execSync } = require('node:child_process');
 const chalk = require('chalk');
 const path = require('node:path');
@@ -8,6 +9,8 @@ const fs = require('node:fs');
  * This is separate from RepoSyncChecker which handles repository state synchronization
  */
 class PackageUpdater {
+  projectRoot: any;
+  verbose: any;
   constructor(options = {}) {
     this.verbose = options.verbose || false;
     this.projectRoot = options.projectRoot || process.cwd();

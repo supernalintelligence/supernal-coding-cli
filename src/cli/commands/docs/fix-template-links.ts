@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Fix Template Links to Use Repo-Relative Paths
@@ -16,6 +17,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 class TemplateLinkFixer {
+  dryRun: any;
+  filesModified: any;
+  fixed: any;
+  projectRoot: any;
   constructor(options = {}) {
     this.projectRoot = process.cwd();
     this.dryRun = options.dryRun || false;

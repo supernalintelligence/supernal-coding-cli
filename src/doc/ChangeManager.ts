@@ -1,9 +1,11 @@
+// @ts-nocheck
 const fs = require('node:fs');
 const path = require('node:path');
 const chalk = require('chalk');
 const { execSync } = require('node:child_process');
 
 class ChangeManager {
+  changesDir: any;
   constructor() {
     this.changesDir = 'docs/changes';
   }

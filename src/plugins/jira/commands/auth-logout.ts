@@ -1,26 +1,30 @@
 /**
  * Jira Auth Logout Command
  */
-const chalk = require('chalk');
+import chalk from 'chalk';
 const api = require('../api');
 
-async function handler() {
+interface LogoutResult {
+  success: boolean;
+  reason?: string;
+  error?: string;
+}
+
+async function handler(): Promise<LogoutResult> {
   try {
-    const result = await api.logout();
+    const result: LogoutResult = await api.logout();
 
     if (result.success) {
       console.log(chalk.green('✓ Disconnected from Jira'));
     } else if (result.reason === 'not_found') {
       console.log(chalk.yellow('No Jira credentials found'));
     }
-    
+
     return result;
   } catch (error) {
-    console.error(chalk.red(`Logout failed: ${error.message}`));
-    return { success: false, error: error.message };
+    console.error(chalk.red(`Logout failed: ${(error as Error).message}`));
+    return { success: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'Disconnect from Jira';
-
+export = handler;

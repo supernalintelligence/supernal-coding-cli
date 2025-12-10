@@ -1,14 +1,11 @@
-const chalk = require('chalk');
-const _fs = require('fs-extra');
-const _path = require('node:path');
+import chalk from 'chalk';
 
 /**
  * Create test repository for development environments
- * @param {string} targetDir - Target installation directory
+ * @param targetDir - Target installation directory
  */
-async function createTestRepository(_targetDir) {
+export async function createTestRepository(_targetDir: string): Promise<void> {
   // TODO: Extract from init.js
-  // This is a placeholder - the actual implementation will be moved from init.js
   console.log(chalk.blue('   🧪 Creating test repository...'));
 }
 

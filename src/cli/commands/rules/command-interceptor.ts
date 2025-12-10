@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const chalk = require('chalk');
 const RuleChangeDetector = require('./rule-change-detector');
@@ -14,6 +15,11 @@ const RuleSubmissionClient = require('./rule-submission-client');
  */
 
 class CommandInterceptor {
+  bypassFlag: any;
+  commandName: any;
+  interactive: any;
+  projectRoot: any;
+  testMode: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.bypassFlag = options.bypassFlag || false;

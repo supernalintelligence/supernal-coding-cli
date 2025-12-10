@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Workflow Guard System
@@ -12,6 +13,8 @@ const chalk = require('chalk');
 const { execSync } = require('node:child_process');
 
 class WorkflowGuard {
+  projectRoot: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

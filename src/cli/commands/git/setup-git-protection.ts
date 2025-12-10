@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // setup-git-protection.js - Setup enhanced git workflow protection
 // Installs git aliases and hooks for comprehensive workflow safety
@@ -9,6 +10,8 @@ const path = require('node:path');
 const chalk = require('chalk');
 
 class GitProtectionSetup {
+  projectRoot: any;
+  wrapperPath: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.wrapperPath = path.join(__dirname, 'safe-git-wrapper.js');

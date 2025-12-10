@@ -5,19 +5,26 @@
  * This file re-exports functions from the shared parser for CLI convenience
  */
 
-// Import shared comprehensive parser
 const sharedParser = require('../../../../requirements/parser');
+
+interface Frontmatter {
+  [key: string]: string;
+}
+
+interface ParsedContent {
+  frontmatter: Frontmatter;
+  body: string;
+}
 
 /**
  * Extract frontmatter from markdown content
- * Uses shared parser internally
  */
-function extractFrontmatter(content) {
+function extractFrontmatter(content: string): Frontmatter {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return {};
 
   const frontmatterText = match[1];
-  const frontmatter = {};
+  const frontmatter: Frontmatter = {};
 
   frontmatterText.split('\n').forEach((line) => {
     const [key, ...valueParts] = line.split(':');
@@ -32,7 +39,7 @@ function extractFrontmatter(content) {
 /**
  * Parse content into frontmatter and body
  */
-function parseContent(content) {
+function parseContent(content: string): ParsedContent {
   const match = content.match(/^(---\n[\s\S]*?\n---)\n([\s\S]*)$/);
   if (!match) {
     return { frontmatter: {}, body: content };
@@ -48,7 +55,7 @@ function parseContent(content) {
 /**
  * Reconstruct content from frontmatter and body
  */
-function reconstructContent(frontmatter, body) {
+function reconstructContent(frontmatter: Frontmatter, body: string): string {
   const frontmatterLines = Object.entries(frontmatter)
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n');
@@ -59,14 +66,13 @@ function reconstructContent(frontmatter, body) {
 /**
  * Get search context showing lines containing search terms
  */
-function getSearchContext(content, searchPattern) {
+function getSearchContext(content: string, searchPattern: string): string[] {
   const lines = content.split('\n');
   const regex = new RegExp(searchPattern, 'gi');
-  const contextLines = [];
+  const contextLines: string[] = [];
 
   for (const line of lines) {
     if (regex.test(line)) {
-      // Clean up the line and highlight matches
       const cleanLine = line
         .trim()
         .replace(/^#+\s*/, '')
@@ -75,7 +81,7 @@ function getSearchContext(content, searchPattern) {
         contextLines.push(
           cleanLine.substring(0, 80) + (cleanLine.length > 80 ? '...' : '')
         );
-        if (contextLines.length >= 2) break; // Limit context
+        if (contextLines.length >= 2) break;
       }
     }
   }
@@ -83,15 +89,18 @@ function getSearchContext(content, searchPattern) {
   return contextLines;
 }
 
-// Re-export comprehensive shared parser functions
+export {
+  extractFrontmatter,
+  parseContent,
+  reconstructContent,
+  getSearchContext
+};
+
 module.exports = {
-  // Local helper functions
   extractFrontmatter,
   parseContent,
   reconstructContent,
   getSearchContext,
-
-  // Re-export shared parser functions for comprehensive requirement parsing
   parseRequirement: sharedParser.parseRequirement,
   determineRequirementType: sharedParser.determineRequirementType,
   loadRequirements: sharedParser.loadRequirements,

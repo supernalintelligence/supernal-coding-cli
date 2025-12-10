@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GitHub Handler - Routes GitHub subcommands
  * 

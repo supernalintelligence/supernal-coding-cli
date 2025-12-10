@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SC Upgrade Command - Template upgrade system for sc init users
  * Allows users to safely update templates while preserving customizations
@@ -14,6 +15,12 @@ const TemplateFetcher = require('../../../upgrade/template-fetcher');
 const { SmartMerger, MergeStrategy } = require('../../../upgrade/smart-merger');
 
 class UpgradeCommand {
+  backupManager: any;
+  customizationDetector: any;
+  projectRoot: any;
+  scDir: any;
+  templateFetcher: any;
+  versionManager: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.scDir = path.join(this.projectRoot, '.supernal-coding');

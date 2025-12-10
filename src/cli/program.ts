@@ -1083,12 +1083,18 @@ function buildProgram() {
   // ============================================================================
   program
     .command('init [directory]')
-    .description('Equip repository with Supernal Coding')
+    .description('Equip repository with Supernal Coding (presets or content modules)')
+    // Presets (full installation)
     .option('--minimal', 'Install minimal preset')
     .option('--standard', 'Install standard preset (recommended)')
     .option('--full', 'Install full preset')
     .option('--development', 'Install development preset')
     .option('--interactive', 'Interactive setup mode')
+    // Content modules (standalone for docs sites)
+    .option('--guides', 'Install guides/tutorials to docs/guides/')
+    .option('--compliance', 'Install compliance templates to docs/compliance/')
+    .option('--workflow', 'Install workflow/SOPs to docs/workflow/')
+    // Other options
     .option('--dry-run', 'Show what would be installed')
     .option('--overwrite', 'Overwrite existing files')
     .option('--skip-upgrade-check', 'Skip package upgrade check')
@@ -1390,15 +1396,17 @@ function buildProgram() {
     });
 
   // ============================================================================
-  // BUILD COMMAND - Build execution wrapper with ME.sh convention
+  // BUILD COMMAND - Unified build with docs generation and validation
   // ============================================================================
   program
     .command('build')
-    .description('Build execution wrapper (BUILDME.sh or npm run build)')
+    .description('Unified build with docs generation and validation')
     .option('--quiet', 'CI mode (minimal output)')
+    .option('-v, --verbose', 'Verbose output')
+    .option('--skip-docs', 'Skip CLI docs generation')
+    .option('--skip-validate', 'Skip template validation')
     .option('--no-colors', 'Disable colored output')
     .option('--no-smoke-tests', 'Skip smoke tests (BUILDME.sh only)')
-    .option('-v, --verbose', 'Verbose output')
     .action(async (options) => {
       try {
         const { handleBuildCommand } = require('./commands/development/build');

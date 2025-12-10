@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { Command } = require('commander');
-const WipManager = require('../lib/wip/WipManager');
+const WipManager = require('../wip/WipManager');
 const chalk = require('chalk');
 
 const program = new Command();

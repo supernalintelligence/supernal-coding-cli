@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * install-pre-push-hook.js - Install Git pre-push hooks

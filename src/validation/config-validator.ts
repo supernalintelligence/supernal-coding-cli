@@ -3,20 +3,31 @@
  * Part of REQ-REN-004: Config Display & Debug Commands
  */
 
-const Ajv = require('ajv');
-const path = require('node:path');
-const fs = require('fs-extra');
+import Ajv, { ErrorObject } from 'ajv';
+import path from 'node:path';
+import fs from 'fs-extra';
+
+interface ValidationResult {
+  valid: boolean;
+  errors: ErrorObject[];
+}
+
+interface ConfigSchema {
+  type: string;
+  properties?: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 class ConfigValidator {
+  protected ajv: Ajv;
+  protected schema: ConfigSchema | null;
+
   constructor() {
     this.ajv = new Ajv({ allErrors: true, strict: false });
     this.schema = null;
   }
 
-  /**
-   * Load and compile the project config schema
-   */
-  async loadSchema() {
+  async loadSchema(): Promise<ConfigSchema> {
     if (this.schema) return this.schema;
 
     const schemaPath = path.join(
@@ -28,7 +39,6 @@ class ConfigValidator {
     if (await fs.pathExists(schemaPath)) {
       this.schema = await fs.readJson(schemaPath);
     } else {
-      // Minimal fallback schema
       this.schema = {
         type: 'object',
         properties: {
@@ -42,37 +52,28 @@ class ConfigValidator {
     return this.schema;
   }
 
-  /**
-   * Validate configuration against schema
-   * @param {Object} config - Configuration to validate
-   * @returns {Object} { valid: boolean, errors: Array }
-   */
-  async validate(config) {
+  async validate(config: Record<string, unknown>): Promise<ValidationResult> {
     await this.loadSchema();
-    const validate = this.ajv.compile(this.schema);
+    const validate = this.ajv.compile(this.schema!);
     const valid = validate(config);
 
     return {
-      valid,
+      valid: !!valid,
       errors: validate.errors || []
     };
   }
 
-  /**
-   * Format validation errors for display
-   * @param {Array} errors - AJV errors
-   * @returns {string} Formatted error messages
-   */
-  formatErrors(errors) {
+  formatErrors(errors: ErrorObject[] | null | undefined): string {
     if (!errors || errors.length === 0) return '';
 
     return errors
       .map((err) => {
-        const path = err.instancePath || err.dataPath || '';
+        const path = err.instancePath || '';
         return `  - ${path}: ${err.message}`;
       })
       .join('\n');
   }
 }
 
+export default ConfigValidator;
 module.exports = ConfigValidator;

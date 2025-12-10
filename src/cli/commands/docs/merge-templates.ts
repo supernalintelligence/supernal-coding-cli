@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Smart Template Merge Tool
@@ -30,6 +31,13 @@ const chalk = require('chalk');
 const crypto = require('node:crypto');
 
 class TemplateMerger {
+  errors: any;
+  mergedFiles: any;
+  needsReapproval: any;
+  options: any;
+  preserveFields: any;
+  projectRoot: any;
+  templateSource: any;
   constructor(projectRoot, options = {}) {
     this.projectRoot = projectRoot;
     this.options = options;

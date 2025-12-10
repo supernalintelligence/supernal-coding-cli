@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Rule Generator - Auto-generate Cursor rules from template metadata
@@ -20,6 +21,12 @@ const glob = require('glob');
 const TemplateResolver = require('../utils/template-resolver');
 
 class RuleGenerator {
+  dryRun: any;
+  projectRoot: any;
+  rulesDir: any;
+  templateResolver: any;
+  templatesDir: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.templateResolver = new TemplateResolver(this.projectRoot);

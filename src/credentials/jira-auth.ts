@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Jira Authentication Module
  *

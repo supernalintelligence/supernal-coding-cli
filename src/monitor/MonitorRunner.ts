@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const { execSync } = require('node:child_process');
@@ -12,6 +13,12 @@ const { execSync } = require('node:child_process');
  * - Trigger configured actions
  */
 class MonitorRunner {
+  config: any;
+  pollInterval: any;
+  pollTimer: any;
+  projectRoot: any;
+  running: any;
+  watchers: any;
   constructor(projectRoot, config) {
     this.projectRoot = projectRoot;
     this.config = config;

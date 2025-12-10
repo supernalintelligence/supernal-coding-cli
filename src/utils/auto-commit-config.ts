@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Auto-Commit Configuration Manager
  * Reads and manages auto-commit settings from supernal.yaml
@@ -8,6 +9,8 @@ const path = require('node:path');
 const yaml = require('js-yaml');
 
 class AutoCommitConfig {
+  config: any;
+  projectRoot: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.config = null;

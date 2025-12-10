@@ -1,9 +1,12 @@
 const { TemplateLoader } = require('./loader');
-// const { DocumentValidator } = require('./validator'); // TODO: Create validator
 const { DocumentRegistry } = require('./registry');
+
+export {
+  TemplateLoader,
+  DocumentRegistry
+};
 
 module.exports = {
   TemplateLoader,
-  // DocumentValidator, // TODO: Create validator
   DocumentRegistry
 };

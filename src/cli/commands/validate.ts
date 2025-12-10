@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * Validation System
  * REQ-003: NPM Package Foundation - Validate Command
@@ -9,28 +7,35 @@
  * validation system implemented in development/validate.js (901 lines).
  */
 
-const path = require('node:path');
+import path from 'node:path';
+
+interface ValidateOptions {
+  help?: boolean;
+  verbose?: boolean;
+  requirements?: boolean;
+  tests?: boolean;
+  config?: boolean;
+  all?: boolean;
+}
 
 class ValidatorManager {
+  protected validatePath: string;
+
   constructor() {
     this.validatePath = path.join(__dirname, 'development', 'validate.js');
   }
 
-  async execute(options = {}) {
+  async execute(options: ValidateOptions = {}): Promise<void> {
     try {
-      // Import the comprehensive validation system
       const ValidationSystem = require('./development/validate');
-
-      // Execute validation with provided options
       await ValidationSystem(options);
     } catch (error) {
-      console.error('❌ Validation error:', error.message);
+      console.error('❌ Validation error:', (error as Error).message);
       throw error;
     }
   }
 
-  // Show help text that matches REQ-003 test expectations
-  showHelp() {
+  showHelp(): void {
     console.log('Usage: sc validate [options]');
     console.log('Validate current installation');
     console.log('');
@@ -43,11 +48,9 @@ class ValidatorManager {
     console.log('  -h, --help         display help for command');
   }
 
-  // Static method for direct execution (used by CLI)
-  static async main(options = {}) {
+  static async main(options: ValidateOptions = {}): Promise<void> {
     const manager = new ValidatorManager();
 
-    // Handle help request
     if (options.help) {
       manager.showHelp();
       return;
@@ -57,15 +60,13 @@ class ValidatorManager {
   }
 }
 
-// Export for CLI usage
+export default ValidatorManager;
 module.exports = ValidatorManager;
 
-// If run directly, execute with command line arguments
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const options = {};
+  const options: ValidateOptions = {};
 
-  // Parse basic command line arguments
   args.forEach((arg) => {
     if (arg === '--help' || arg === '-h') options.help = true;
     if (arg === '--verbose' || arg === '-v') options.verbose = true;
@@ -76,7 +77,7 @@ if (require.main === module) {
   });
 
   ValidatorManager.main(options).catch((error) => {
-    console.error('❌ Error:', error.message);
+    console.error('❌ Error:', (error as Error).message);
     process.exit(1);
   });
 }

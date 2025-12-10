@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -9,6 +10,7 @@ const { extractFrontmatter, getSearchContext } = require('./utils/parsers');
  * Handles search and similarity detection for requirements
  */
 class SearchManager {
+  requirementManager: any;
   constructor(requirementManager) {
     this.requirementManager = requirementManager;
   }

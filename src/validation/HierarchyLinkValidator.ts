@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * HierarchyLinkValidator - Cross-entity validation for project hierarchy
  *
@@ -17,6 +18,9 @@ const fs = require('node:fs').promises;
 const yaml = require('yaml');
 
 class HierarchyLinkValidator {
+  cache: any;
+  projectRoot: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

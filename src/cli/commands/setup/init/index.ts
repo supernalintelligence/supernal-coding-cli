@@ -1,3 +1,4 @@
+// @ts-nocheck
 const chalk = require('chalk');
 const fs = require('fs-extra');
 const path = require('node:path');
@@ -24,6 +25,13 @@ const {
 const { createEnhancedTOMLConfig } = require('./config-management');
 const { installGitignore } = require('./gitignore-installer');
 const { showActionableNextSteps } = require('./next-steps');
+
+// Import individual content installers for standalone flags
+const {
+  installWorkflowSystem,
+  installGuidesSystem,
+  installComplianceTemplates
+} = require('./docs-structure');
 
 /**
  * Enhanced Equipment Pack with Project Type Intelligence
@@ -77,6 +85,87 @@ const EQUIPMENT_PACK = {
 };
 
 /**
+ * Handle standalone content installation (--guides, --compliance, --workflow)
+ * These can be run independently without a full preset installation.
+ * Perfect for docs sites that need specific content types.
+ * @param {Object} options - Command line options
+ */
+async function handleContentInstall(options) {
+  const targetDir = options.directory || process.cwd();
+  const absoluteTargetDir = path.resolve(targetDir);
+  
+  console.log(chalk.blue('📦 Installing content modules...'));
+  console.log(chalk.white(`   Target: ${absoluteTargetDir}`));
+  
+  // Ensure docs directory exists
+  await fs.ensureDir(path.join(absoluteTargetDir, 'docs'));
+  
+  let installed = [];
+  
+  // Install guides if requested
+  if (options.guides) {
+    console.log(chalk.blue('\n📖 Installing guides...'));
+    try {
+      await installGuidesSystem(absoluteTargetDir, options);
+      installed.push('guides');
+      console.log(chalk.green('   ✓ Guides installed → docs/guides/'));
+    } catch (error) {
+      console.log(chalk.yellow(`   ⚠️ Guides: ${error.message}`));
+    }
+  }
+  
+  // Install compliance templates if requested
+  if (options.compliance) {
+    console.log(chalk.blue('\n🛡️ Installing compliance templates...'));
+    try {
+      await installComplianceTemplates(absoluteTargetDir, options);
+      installed.push('compliance');
+      console.log(chalk.green('   ✓ Compliance templates installed → docs/compliance/'));
+    } catch (error) {
+      console.log(chalk.yellow(`   ⚠️ Compliance: ${error.message}`));
+    }
+  }
+  
+  // Install workflow/SOPs if requested
+  if (options.workflow) {
+    console.log(chalk.blue('\n📚 Installing workflow/SOPs...'));
+    try {
+      await installWorkflowSystem(absoluteTargetDir, options);
+      installed.push('workflow');
+      console.log(chalk.green('   ✓ Workflow/SOPs installed → docs/workflow/'));
+    } catch (error) {
+      console.log(chalk.yellow(`   ⚠️ Workflow: ${error.message}`));
+    }
+  }
+  
+  // Summary
+  if (installed.length > 0) {
+    console.log(chalk.green(`\n✅ Content installation complete!`));
+    console.log(chalk.white(`   Installed: ${installed.join(', ')}`));
+    
+    // Show what was created
+    console.log(chalk.blue('\n📁 Installed content:'));
+    if (installed.includes('guides')) {
+      console.log(chalk.white('   docs/guides/     - User guides and tutorials'));
+    }
+    if (installed.includes('compliance')) {
+      console.log(chalk.white('   docs/compliance/ - Compliance framework templates'));
+    }
+    if (installed.includes('workflow')) {
+      console.log(chalk.white('   docs/workflow/   - SOPs and workflow documentation'));
+    }
+    
+    console.log(chalk.blue('\n💡 These can be referenced by your site build.'));
+    console.log(chalk.white('   Run "sc build" to validate and generate CLI docs.'));
+  } else {
+    console.log(chalk.yellow('\n⚠️ No content modules were installed.'));
+    console.log(chalk.white('   Use: sc init --guides --compliance --workflow'));
+  }
+  
+  return { success: true, installed };
+}
+
+/**
  * Determine preset based on command line options
  * @param {Object} options - Command line options
  * @returns {string|null} Preset name or null
@@ -103,6 +192,13 @@ async function initCommand(directory, options) {
   }
 
   try {
+    // Handle standalone content installation flags (--guides, --compliance, --workflow)
+    const isContentInstall = options.guides || options.compliance || options.workflow;
+    
+    if (isContentInstall) {
+      return await handleContentInstall(options);
+    }
+
     // Check if user provided proper initialization options
     if (
       !options.interactive &&
@@ -658,6 +754,7 @@ function showEquipmentPackSummary(activeFeatures, detectedType) {
 module.exports = {
   handleInitCommand: initCommand, // Alias for new CLI
   initCommand,
+  handleContentInstall,
   determinePreset,
   determineActiveFeatures,
   showEquipmentPackSummary,

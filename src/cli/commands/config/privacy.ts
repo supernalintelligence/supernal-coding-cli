@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const chalk = require('chalk');
 const ConsentManager = require('../rules/consent-manager');

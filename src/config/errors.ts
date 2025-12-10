@@ -1,10 +1,7 @@
 /**
  * Simple fuzzy string matching using Levenshtein distance
- * @param {string} str1 - First string
- * @param {string} str2 - Second string
- * @returns {number} Similarity score (0-1)
  */
-function similarity(str1, str2) {
+function similarity(str1: string, str2: string): number {
   const longer = str1.length > str2.length ? str1 : str2;
   const shorter = str1.length > str2.length ? str2 : str1;
 
@@ -17,8 +14,8 @@ function similarity(str1, str2) {
 /**
  * Calculate Levenshtein distance between two strings
  */
-function levenshtein(str1, str2) {
-  const matrix = [];
+function levenshtein(str1: string, str2: string): number {
+  const matrix: number[][] = [];
 
   for (let i = 0; i <= str2.length; i++) {
     matrix[i] = [i];
@@ -34,9 +31,9 @@ function levenshtein(str1, str2) {
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1, // insertion
-          matrix[i - 1][j] + 1 // deletion
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
         );
       }
     }
@@ -45,11 +42,24 @@ function levenshtein(str1, str2) {
   return matrix[str2.length][str1.length];
 }
 
+interface YAMLErrorMark {
+  line?: number;
+  column?: number;
+}
+
+interface YAMLOriginalError extends Error {
+  mark?: YAMLErrorMark;
+}
+
 /**
  * YAMLSyntaxError - YAML parsing error with context
  */
-class YAMLSyntaxError extends Error {
-  constructor(originalError, filePath, content) {
+export class YAMLSyntaxError extends Error {
+  public column: number;
+  public filePath: string;
+  public lineNumber: number;
+
+  constructor(originalError: YAMLOriginalError, filePath: string, content: string) {
     const lineNumber = originalError.mark?.line || 0;
     const column = originalError.mark?.column || 0;
     const context = YAMLSyntaxError.getContext(content, lineNumber);
@@ -64,7 +74,7 @@ class YAMLSyntaxError extends Error {
     this.column = column;
   }
 
-  static getContext(content, lineNumber, contextLines = 3) {
+  static getContext(content: string, lineNumber: number, contextLines = 3): string {
     const lines = content.split('\n');
     const start = Math.max(0, lineNumber - contextLines);
     const end = Math.min(lines.length, lineNumber + contextLines + 1);
@@ -83,10 +93,13 @@ class YAMLSyntaxError extends Error {
 /**
  * PatternNotFoundError - Pattern not found with suggestions
  */
-class PatternNotFoundError extends Error {
-  constructor(patternName, patternType, availablePatterns) {
-    // Find best match using our similarity function
-    let bestMatch = null;
+export class PatternNotFoundError extends Error {
+  public availablePatterns: string[];
+  public patternName: string;
+  public patternType: string;
+
+  constructor(patternName: string, patternType: string, availablePatterns: string[]) {
+    let bestMatch: string | null = null;
     let bestScore = 0;
 
     for (const pattern of availablePatterns) {
@@ -119,8 +132,10 @@ class PatternNotFoundError extends Error {
 /**
  * CircularDependencyError - Circular pattern references
  */
-class CircularDependencyError extends Error {
-  constructor(dependencyChain) {
+export class CircularDependencyError extends Error {
+  public dependencyChain: string[];
+
+  constructor(dependencyChain: string[]) {
     const chain = dependencyChain.join(' -> ');
     super(`Circular dependency detected: ${chain}`);
     this.name = 'CircularDependencyError';

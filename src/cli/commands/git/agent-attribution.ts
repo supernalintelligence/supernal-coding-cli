@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('node:fs').promises;
 const path = require('node:path');
@@ -10,6 +11,7 @@ const { execSync } = require('node:child_process');
  */
 
 class AgentDetector {
+  detectionRules: any;
   constructor() {
     this.detectionRules = {
       // Environment variable patterns for agent detection
@@ -218,6 +220,8 @@ class AgentDetector {
 }
 
 class CommitAttributor {
+  auditTrail: any;
+  detector: any;
   constructor() {
     this.detector = new AgentDetector();
     this.auditTrail = [];

@@ -3,27 +3,39 @@
  * Part of REQ-REN-004: Config Display & Debug Commands
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const yaml = require('yaml');
+import fs from 'fs-extra';
+import path from 'node:path';
+import yaml from 'yaml';
+
+interface Pattern {
+  name: string;
+  type: string;
+  path: string;
+  description: string;
+  usageExample?: string;
+}
+
+interface PatternList {
+  shipped: Pattern[];
+  userDefined: Pattern[];
+}
+
+interface ListOptions {
+  usage?: boolean;
+}
 
 class PatternLister {
+  protected searchPaths: string[];
+
   constructor() {
     this.searchPaths = this._getSearchPaths();
   }
 
-  /**
-   * List patterns by type
-   * @param {string} type - 'workflows', 'phases', 'documents', or 'all'
-   * @param {Object} options
-   * @param {boolean} options.usage - Include usage examples
-   * @returns {Promise<PatternList>}
-   */
-  async listPatterns(type = 'all', options = {}) {
+  async listPatterns(type: string = 'all', options: ListOptions = {}): Promise<PatternList> {
     const types =
       type === 'all' ? ['workflows', 'phases', 'documents'] : [type];
-    const shipped = [];
-    const userDefined = [];
+    const shipped: Pattern[] = [];
+    const userDefined: Pattern[] = [];
 
     for (const patternType of types) {
       for (const searchPath of this.searchPaths) {
@@ -38,20 +50,19 @@ class PatternLister {
         for (const file of yamlFiles) {
           const filePath = path.join(patternDir, file);
           const content = await fs.readFile(filePath, 'utf8');
-          const parsed = yaml.parse(content);
+          const parsed = yaml.parse(content) as Record<string, unknown>;
 
-          const pattern = {
+          const pattern: Pattern = {
             name: path.basename(file, path.extname(file)),
             type: patternType,
             path: filePath,
-            description: parsed.description || 'No description',
+            description: (parsed.description as string) || 'No description',
           };
 
           if (options.usage && parsed.usageExample) {
-            pattern.usageExample = parsed.usageExample;
+            pattern.usageExample = parsed.usageExample as string;
           }
 
-          // Categorize as shipped vs user-defined
           if (searchPath.includes('lib/patterns')) {
             shipped.push(pattern);
           } else {
@@ -64,16 +75,13 @@ class PatternLister {
     return { shipped, userDefined };
   }
 
-  /**
-   * Get search paths for patterns
-   * @private
-   */
-  _getSearchPaths() {
+  private _getSearchPaths(): string[] {
     return [
-      path.join(process.cwd(), '.supernal', 'patterns'), // User patterns
-      path.join(__dirname, '..', 'patterns'), // Shipped patterns
+      path.join(process.cwd(), '.supernal', 'patterns'),
+      path.join(__dirname, '..', 'patterns'),
     ];
   }
 }
 
+export default PatternLister;
 module.exports = PatternLister;

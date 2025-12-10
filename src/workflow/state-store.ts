@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs').promises;
 const path = require('node:path');
 const yaml = require('yaml');
@@ -7,6 +8,10 @@ const { WorkflowState } = require('./state');
  * StateStore - Persist and load workflow state
  */
 class StateStore {
+  backupDir: any;
+  projectRoot: any;
+  stateDir: any;
+  stateFile: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.stateDir = path.join(projectRoot, '.supernal');

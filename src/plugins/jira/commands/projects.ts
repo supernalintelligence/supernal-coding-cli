@@ -1,10 +1,21 @@
 /**
  * Jira List Projects Command
  */
-const chalk = require('chalk');
+import chalk from 'chalk';
 const api = require('../api');
 
-async function handler() {
+interface Project {
+  key: string;
+  name: string;
+}
+
+interface ProjectsResult {
+  success: boolean;
+  projects?: Project[];
+  error?: string;
+}
+
+async function handler(): Promise<ProjectsResult> {
   try {
     const isAuth = await api.isAuthenticated();
     if (!isAuth) {
@@ -21,17 +32,15 @@ async function handler() {
 
     console.log(chalk.white(`\nAccessible projects:\n`));
 
-    for (const project of response.values) {
+    for (const project of response.values as Project[]) {
       console.log(chalk.cyan(project.key.padEnd(10)) + chalk.white(project.name));
     }
-    
+
     return { success: true, projects: response.values };
   } catch (error) {
-    console.error(chalk.red(`Failed to list projects: ${error.message}`));
-    return { success: false, error: error.message };
+    console.error(chalk.red(`Failed to list projects: ${(error as Error).message}`));
+    return { success: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'List accessible Jira projects';
-
+export = handler;

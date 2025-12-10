@@ -1,13 +1,17 @@
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+
+interface MultiRepoOptions {
+  [key: string]: unknown;
+}
 
 /**
  * Multi-repo command handler
  * Manages multiple repositories
  */
-async function handleMultiRepoCommand(action, options) {
+async function handleMultiRepoCommand(action: string, options: MultiRepoOptions): Promise<void> {
   switch (action) {
     case 'discover':
       await discoverRepos(options);
@@ -28,7 +32,7 @@ async function handleMultiRepoCommand(action, options) {
   }
 }
 
-async function discoverRepos(_options) {
+async function discoverRepos(_options: MultiRepoOptions): Promise<void> {
   console.log(chalk.blue('🔍 Discovering repositories...'));
 
   const cwd = process.cwd();
@@ -46,7 +50,7 @@ async function discoverRepos(_options) {
   });
 }
 
-async function showStatus(_options) {
+async function showStatus(_options: MultiRepoOptions): Promise<void> {
   console.log(chalk.blue('📊 Repository Status:'));
 
   const cwd = process.cwd();
@@ -75,13 +79,13 @@ async function showStatus(_options) {
       console.log(chalk.white(`    Branch: ${branch}`));
       console.log(chalk.white(`    Status: ${status ? 'Modified' : 'Clean'}`));
     } catch (error) {
-      console.log(chalk.red(`    Error: ${error.message}`));
+      console.log(chalk.red(`    Error: ${(error as Error).message}`));
     }
   });
 }
 
-function findGitDirectories(dir, maxDepth = 3, currentDepth = 0) {
-  const results = [];
+function findGitDirectories(dir: string, maxDepth: number = 3, currentDepth: number = 0): string[] {
+  const results: string[] = [];
 
   if (currentDepth > maxDepth) return results;
 
@@ -108,4 +112,5 @@ function findGitDirectories(dir, maxDepth = 3, currentDepth = 0) {
   return results;
 }
 
+export { handleMultiRepoCommand };
 module.exports = { handleMultiRepoCommand };

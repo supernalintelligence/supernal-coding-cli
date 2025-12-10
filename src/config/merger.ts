@@ -6,70 +6,64 @@
  * - Handle array merge strategies (append vs replace)
  * - Last-wins for scalar values
  */
+
+export type MergeStrategy = 'deep' | 'shallow';
+
 class ConfigMerger {
-  constructor(strategy = 'deep') {
+  protected strategy: MergeStrategy;
+
+  constructor(strategy: MergeStrategy = 'deep') {
     this.strategy = strategy;
   }
 
   /**
    * Merge configs in order (first to last)
-   * @param {Array<object>} configs - Ordered configs to merge
-   * @returns {object} Final merged config
    */
-  merge(configs) {
+  merge<T extends Record<string, unknown>>(configs: T[]): T {
     return configs.reduce((merged, config) => {
-      return this.deepMerge(merged, config);
-    }, {});
+      return this.deepMerge(merged, config) as T;
+    }, {} as T);
   }
 
   /**
    * Deep merge two objects
-   * @param {object} target - Target object
-   * @param {object} source - Source object
-   * @returns {object} Merged result
    */
-  deepMerge(target, source) {
-    const result = { ...target };
+  deepMerge<T extends Record<string, unknown>>(target: T, source: T): T {
+    const result = { ...target } as Record<string, unknown>;
 
     for (const [key, value] of Object.entries(source)) {
       if (this.isPlainObject(value) && this.isPlainObject(result[key])) {
-        // Recurse for objects
-        result[key] = this.deepMerge(result[key], value);
+        result[key] = this.deepMerge(
+          result[key] as Record<string, unknown>,
+          value as Record<string, unknown>
+        );
       } else if (Array.isArray(value) && Array.isArray(result[key])) {
-        // Array merge strategy
-        result[key] = this.mergeArrays(result[key], value);
+        result[key] = this.mergeArrays(result[key] as unknown[], value);
       } else {
-        // Scalar: last wins
         result[key] = value;
       }
     }
 
-    return result;
+    return result as T;
   }
 
   /**
    * Merge arrays based on strategy
-   * @param {Array} target - Target array
-   * @param {Array} source - Source array
-   * @returns {Array} Merged array
    */
-  mergeArrays(target, source) {
-    // Check for merge strategy marker
+  mergeArrays<T>(target: T[], source: T[]): T[] {
     if (source.length > 0 && source[0] === '__replace__') {
-      return source.slice(1); // Replace, skip marker
+      return source.slice(1);
     }
-    // Default: append
     return [...target, ...source];
   }
 
   /**
    * Check if value is a plain object
-   * @param {*} value - Value to check
-   * @returns {boolean} True if plain object
    */
-  isPlainObject(value) {
-    return value && typeof value === 'object' && !Array.isArray(value);
+  isPlainObject(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
   }
 }
 
+export default ConfigMerger;
 module.exports = ConfigMerger;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const yaml = require('js-yaml');
@@ -10,6 +11,10 @@ const { spawn } = require('node:child_process');
  * Supports watching multiple repos with configurable actions.
  */
 class MonitorManager {
+  logFile: any;
+  pidFile: any;
+  projectRoot: any;
+  stateFile: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.pidFile = path.join(projectRoot, '.supernal', 'monitor.pid');

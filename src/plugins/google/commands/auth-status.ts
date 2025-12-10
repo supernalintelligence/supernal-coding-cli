@@ -1,18 +1,25 @@
 /**
  * Google Auth Status Command
  */
-const chalk = require('chalk');
-const api = require('../api');
+import chalk from 'chalk';
+import * as api from '../api';
 
-async function handler() {
+interface AuthStatusResult {
+  success: boolean;
+  connected: boolean;
+  email?: string;
+  error?: string;
+}
+
+async function handler(): Promise<AuthStatusResult> {
   try {
     const isAuth = await api.isAuthenticated();
-    
+
     if (isAuth) {
       try {
         const clientId = process.env.GOOGLE_CLIENT_ID;
         const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-        
+
         if (clientId && clientSecret) {
           const userInfo = await api.getUserInfo({ clientId, clientSecret });
           console.log(chalk.green('\n✅ Connected to Google\n'));
@@ -35,11 +42,9 @@ async function handler() {
       return { success: true, connected: false };
     }
   } catch (error) {
-    console.error(chalk.red(`Status check failed: ${error.message}`));
-    return { success: false, connected: false, error: error.message };
+    console.error(chalk.red(`Status check failed: ${(error as Error).message}`));
+    return { success: false, connected: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'Check Google connection status';
-
+export = handler;

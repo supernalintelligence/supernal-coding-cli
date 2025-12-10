@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Test Guidance System for Supernal Coding
@@ -13,6 +14,15 @@ const chalk = require('chalk');
 const { execSync, spawn } = require('node:child_process');
 
 class TestGuidanceSystem {
+  frameworks: any;
+  guidesPath: any;
+  projectRoot: any;
+  showDocumentationGuidance: any;
+  showQualityGuidance: any;
+  showTestPatterns: any;
+  testStructure: any;
+  testsPath: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

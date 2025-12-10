@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * sc validate feature - Validate feature frontmatter
  */

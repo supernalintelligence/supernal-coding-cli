@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Centralized Command Metadata
  * Single source of truth for all CLI command definitions
@@ -6,14 +7,20 @@
 
 const COMMAND_METADATA = {
   init: {
-    description: 'Equip current repository with specific preset',
+    description: 'Equip current repository with specific preset or content modules',
     actions: ['minimal', 'standard', 'full', 'development', 'interactive'],
     options: [
+      // Presets (full installation)
       ['--minimal', 'Install minimal preset (just essentials)'],
       ['--standard', 'Install standard preset (recommended)'],
       ['--full', 'Install full preset (complete ecosystem)'],
       ['--development', 'Install development preset (for contributors)'],
       ['--interactive', 'Interactive setup mode'],
+      // Content modules (standalone installation for docs sites)
+      ['--guides', 'Install guides/tutorials to docs/guides/'],
+      ['--compliance', 'Install compliance templates to docs/compliance/'],
+      ['--workflow', 'Install workflow/SOPs to docs/workflow/'],
+      // Options
       ['--dry-run', 'Show what would be installed without doing it'],
       ['--overwrite', 'Overwrite existing files without confirmation'],
       ['--skip-upgrade-check', 'Skip checking for package upgrades'],
@@ -33,7 +40,9 @@ const COMMAND_METADATA = {
     examples: [
       'sc init --standard',
       'sc init --development --dry-run',
-      'sc init --interactive'
+      'sc init --interactive',
+      'sc init --guides --compliance --workflow',
+      'sc init --guides'
     ]
   },
 

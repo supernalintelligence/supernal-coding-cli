@@ -14,10 +14,10 @@
 const { FileChangeDetector, HASH_ALGORITHM } = require('./FileChangeDetector');
 const ComplianceValidator = require('./ComplianceValidator');
 
-// Re-export classes
+export { FileChangeDetector, ComplianceValidator, HASH_ALGORITHM };
+
 module.exports = {
   FileChangeDetector,
   ComplianceValidator,
   HASH_ALGORITHM
 };
-

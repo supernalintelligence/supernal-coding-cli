@@ -1,7 +1,10 @@
+// @ts-nocheck
 /**
  * PhaseNavigator - Phase navigation logic
  */
 class PhaseNavigator {
+  phases: any;
+  workflow: any;
   constructor(workflowDefinition) {
     this.workflow = workflowDefinition;
     this.phases = workflowDefinition.phases || [];

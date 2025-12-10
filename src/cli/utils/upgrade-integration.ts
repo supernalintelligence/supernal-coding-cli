@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Upgrade Integration - Automatic upgrade checking for sc commands
  * Integrates with all sc commands to provide upgrade notifications
@@ -6,6 +7,8 @@
 const UpgradeChecker = require('../commands/upgrade/check-upgrade');
 
 class UpgradeIntegration {
+  checker: any;
+  skipUpgradeCheck: any;
   constructor() {
     this.checker = new UpgradeChecker();
     this.skipUpgradeCheck =

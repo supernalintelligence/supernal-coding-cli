@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -8,6 +9,8 @@ const matter = require('gray-matter');
  * Manages high-level business plans that group requirements and sub-requirements
  */
 class BusinessPlanManager {
+  plansDir: any;
+  projectRoot: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.plansDir = path.join(projectRoot, 'docs', 'business-plans');

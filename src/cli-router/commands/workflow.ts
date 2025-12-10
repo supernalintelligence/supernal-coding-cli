@@ -3,16 +3,63 @@
  * Commands for workflow management
  */
 
-const { WorkflowLoader } = require('../../lib/workflow');
-const { findProjectRoot } = require('../utils/project-finder');
-const {
+import { Command } from 'commander';
+import { findProjectRoot } from '../utils/project-finder';
+import {
   formatSuccess,
   formatError,
   formatYAML,
   formatTable
-} = require('../utils/formatters');
+} from '../utils/formatters';
 
-function registerWorkflowCommands(program) {
+const { WorkflowLoader } = require('../../workflow');
+
+/** Next options */
+interface NextOptions {
+  force?: boolean;
+  reason?: string;
+}
+
+/** Jump options */
+interface JumpOptions {
+  phase: string;
+  force?: boolean;
+}
+
+/** History options */
+interface HistoryOptions {
+  limit: string;
+}
+
+/** Init options */
+interface InitOptions {
+  pattern: string;
+}
+
+/** Phase history entry */
+interface PhaseHistoryEntry {
+  phase: string;
+  completedAt?: string;
+  forced?: boolean;
+}
+
+/** Phase info */
+interface PhaseInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+/** Workflow status */
+interface WorkflowStatus {
+  currentPhase: {
+    name: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+function registerWorkflowCommands(program: Command): void {
   const workflow = program
     .command('workflow')
     .description('Workflow management commands');
@@ -25,12 +72,12 @@ function registerWorkflowCommands(program) {
       try {
         const projectRoot = await findProjectRoot();
         const loader = await WorkflowLoader.load(projectRoot);
-        const status = loader.getStatus();
+        const status: WorkflowStatus = loader.getStatus();
 
-        console.log(`\n${formatYAML(status)}`);
+        console.log(`\n${formatYAML(status as Record<string, unknown>)}`);
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -41,7 +88,7 @@ function registerWorkflowCommands(program) {
     .description('Move to next phase')
     .option('--force', 'Force transition without validation')
     .option('--reason <text>', 'Reason for transition')
-    .action(async (options) => {
+    .action(async (options: NextOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = await WorkflowLoader.load(projectRoot);
@@ -52,13 +99,13 @@ function registerWorkflowCommands(program) {
         };
 
         await loader.next(context);
-        const status = loader.getStatus();
+        const status: WorkflowStatus = loader.getStatus();
 
         console.log(
           formatSuccess(`Transitioned to: ${status.currentPhase.name}`)
         );
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -74,13 +121,13 @@ function registerWorkflowCommands(program) {
         const loader = await WorkflowLoader.load(projectRoot);
 
         await loader.previous();
-        const status = loader.getStatus();
+        const status: WorkflowStatus = loader.getStatus();
 
         console.log(
           formatSuccess(`Moved back to: ${status.currentPhase.name}`)
         );
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -91,17 +138,17 @@ function registerWorkflowCommands(program) {
     .description('Jump to specific phase')
     .requiredOption('--phase <name>', 'Phase name or ID to jump to')
     .option('--force', 'Force jump without validation')
-    .action(async (options) => {
+    .action(async (options: JumpOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = await WorkflowLoader.load(projectRoot);
 
         await loader.jumpTo(options.phase, { forced: options.force });
-        const status = loader.getStatus();
+        const status: WorkflowStatus = loader.getStatus();
 
         console.log(formatSuccess(`Jumped to: ${status.currentPhase.name}`));
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -111,13 +158,13 @@ function registerWorkflowCommands(program) {
     .command('history')
     .description('Show workflow history')
     .option('--limit <n>', 'Limit number of entries', '10')
-    .action(async (options) => {
+    .action(async (options: HistoryOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = await WorkflowLoader.load(projectRoot);
         const state = loader.state;
 
-        const history = state.phaseHistory.slice(-parseInt(options.limit, 10));
+        const history: PhaseHistoryEntry[] = state.phaseHistory.slice(-parseInt(options.limit, 10));
 
         if (history.length === 0) {
           console.log('No history available');
@@ -132,10 +179,10 @@ function registerWorkflowCommands(program) {
           entry.forced ? 'Yes' : 'No'
         ]);
 
-        console.log(`\n${formatTable(rows, ['Phase', 'Completed', 'Forced'])}`);
+        console.log(`\n${formatTable(rows as unknown[][], ['Phase', 'Completed', 'Forced'])}`);
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -148,8 +195,8 @@ function registerWorkflowCommands(program) {
       try {
         const projectRoot = await findProjectRoot();
         const loader = await WorkflowLoader.load(projectRoot);
-        const phases = loader.phaseManager.getAllPhases();
-        const current = loader.state.currentPhase;
+        const phases: PhaseInfo[] = loader.phaseManager.getAllPhases();
+        const current: string = loader.state.currentPhase;
 
         const rows = phases.map((phase) => [
           phase.id === current ? '▶' : ' ',
@@ -159,11 +206,11 @@ function registerWorkflowCommands(program) {
         ]);
 
         console.log(
-          `\n${formatTable(rows, ['', 'ID', 'Name', 'Description'])}`
+          `\n${formatTable(rows as unknown[][], ['', 'ID', 'Name', 'Description'])}`
         );
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -176,7 +223,7 @@ function registerWorkflowCommands(program) {
       '--pattern <name>',
       'Workflow pattern (minimal, agile-4, comprehensive-16, medical-csv)'
     )
-    .action(async (options) => {
+    .action(async (options: InitOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = await WorkflowLoader.initialize(
@@ -189,10 +236,11 @@ function registerWorkflowCommands(program) {
           formatSuccess(`Starting phase: ${loader.state.currentPhase}`)
         );
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
 }
 
+export default registerWorkflowCommands;
 module.exports = registerWorkflowCommands;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Shared requirement parser for dashboard applications
  * Extracted from apps/supernal-dashboard for DRY compliance

@@ -1,8 +1,8 @@
 /**
  * Google Plugin
- * 
+ *
  * Integration with Google Workspace (Drive, Docs, Sheets).
- * 
+ *
  * Commands:
  *   sc connect google auth login    - Connect with OAuth
  *   sc connect google auth logout   - Disconnect
@@ -24,13 +24,13 @@ const importCmd = require('./commands/import');
 const status = require('./commands/status');
 const sync = require('./commands/sync');
 
-module.exports = createPlugin({
+const googlePlugin = createPlugin({
   id: 'google',
   name: 'Google Workspace',
   description: 'Google Drive, Docs, and Sheets integration for iResource import',
   version: '1.0.0',
   icon: 'google',
-  
+
   capabilities: {
     auth: ['oauth2'],
     browse: true,
@@ -39,12 +39,12 @@ module.exports = createPlugin({
     sync: true,
     webhook: false
   },
-  
+
   credentials: {
     required: ['clientId', 'clientSecret', 'tokens'],
     optional: ['defaultFolder']
   },
-  
+
   commands: {
     auth: {
       login: authLogin,
@@ -58,3 +58,5 @@ module.exports = createPlugin({
   }
 });
 
+export default googlePlugin;
+module.exports = googlePlugin;

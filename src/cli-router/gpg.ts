@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GPG Setup CLI Command
  *
@@ -18,7 +19,7 @@ const os = require('node:os');
 const chalk = require('chalk');
 
 // Import agent signing modules
-const { AgentKeyManager, SigningManager } = require('../lib/signing');
+const { AgentKeyManager, SigningManager } = require('../signing');
 
 const gpg = new Command('gpg').description(
   'GPG key management for signed commits'

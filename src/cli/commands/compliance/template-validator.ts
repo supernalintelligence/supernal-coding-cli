@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Template Similarity Detector for Compliance Documents
  *

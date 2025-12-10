@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { execSync } = require('node:child_process');
 const path = require('node:path');
@@ -17,6 +18,8 @@ const colors = {
 };
 
 class GitHooks {
+  configLoader: any;
+  scriptsDir: any;
   constructor() {
     this.scriptsDir = path.join(__dirname, 'git-hooks-scripts');
     this.configLoader = new HookConfigLoader();

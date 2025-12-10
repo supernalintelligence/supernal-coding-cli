@@ -5,9 +5,7 @@
  * Main command router for sc commands
  */
 
-const { Command } = require('commander');
-const _path = require('node:path');
-const _fs = require('node:fs').promises;
+import { Command } from 'commander';
 
 // Import command modules
 const workflowCommands = require('./commands/workflow');
@@ -19,7 +17,6 @@ const complianceCommand = require('./compliance');
 const connectCommand = require('./connect');
 
 // Import utilities
-const { findProjectRoot } = require('./utils/project-finder');
 const { formatError } = require('./utils/formatters');
 
 const program = new Command();
@@ -50,11 +47,15 @@ program.addCommand(connectCommand.program);
 // Global error handler
 program.exitOverride();
 
-async function main() {
+interface CommanderError extends Error {
+  code?: string;
+}
+
+async function main(): Promise<void> {
   try {
     await program.parseAsync(process.argv);
   } catch (error) {
-    if (error.code === 'commander.helpDisplayed') {
+    if ((error as CommanderError).code === 'commander.helpDisplayed') {
       process.exit(0);
     }
     console.error(formatError(error));
@@ -64,4 +65,5 @@ async function main() {
 
 main();
 
+export default program;
 module.exports = program;

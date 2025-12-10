@@ -1,13 +1,12 @@
 /**
  * Google API Client
- * 
+ *
  * Wraps the credential management and provides a clean API interface.
  */
 
 const googleAuth = require('../../credentials/google-oauth');
 
-// Re-export auth functions
-const {
+export const {
   startCLIAuthFlow,
   isAuthenticated,
   logout,
@@ -22,4 +21,3 @@ module.exports = {
   getUserInfo,
   getAuthenticatedClient
 };
-

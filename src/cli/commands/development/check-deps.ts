@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * SC Dev Check Dependencies Command
@@ -12,6 +13,10 @@ const path = require('node:path');
 const chalk = require('chalk');
 
 class UndeclaredDependencyChecker {
+  builtInModules: any;
+  declaredDeps: any;
+  packageJson: any;
+  projectRoot: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
 

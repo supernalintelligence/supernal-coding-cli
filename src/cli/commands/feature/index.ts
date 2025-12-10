@@ -1,13 +1,23 @@
-#!/usr/bin/env node
-
 /**
  * Feature Management Commands
  * Includes: create, validate, move
  */
 
-const { program } = require('commander');
+import { Command } from 'commander';
+import chalk from 'chalk';
 const { createFeature } = require('./create');
-const chalk = require('chalk');
+
+interface CreateFeatureOptions {
+  id: string;
+  title?: string;
+  phase?: string;
+  epic?: string;
+  priority?: string;
+  assignee?: string;
+  minimal?: boolean;
+}
+
+const program = new Command();
 
 program
   .name('sc feature')
@@ -30,14 +40,16 @@ program
   .option('--priority <priority>', 'Priority level (high|medium|low)', 'medium')
   .option('--assignee <assignee>', 'GitHub username')
   .option('--minimal', 'Create minimal structure (README only)')
-  .action(async (options) => {
+  .action(async (options: CreateFeatureOptions) => {
     try {
       await createFeature(options);
     } catch (error) {
-      console.error(chalk.red(`\n❌ Error: ${error.message}\n`));
+      console.error(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
       process.exit(1);
     }
   });
+
+export { program };
 
 module.exports = { program };
 

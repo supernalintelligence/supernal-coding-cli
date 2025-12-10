@@ -2,14 +2,20 @@
 
 /**
  * Monitor Daemon Process
- * 
+ *
  * Runs in background to monitor repos, GitHub issues, and CI events.
  * Launched by MonitorManager.startDaemon()
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
+import fs from 'fs-extra';
+import path from 'node:path';
+
 const MonitorRunner = require('./MonitorRunner');
+
+/** Monitor configuration */
+interface MonitorConfig {
+  [key: string]: unknown;
+}
 
 // Get config file from command line
 const configFile = process.argv[2];
@@ -19,11 +25,11 @@ if (!configFile) {
 }
 
 // Load configuration
-let config;
+let config: MonitorConfig;
 try {
   config = fs.readJsonSync(configFile);
 } catch (error) {
-  console.error(`Failed to load config: ${error.message}`);
+  console.error(`Failed to load config: ${(error as Error).message}`);
   process.exit(1);
 }
 
@@ -45,17 +51,17 @@ process.on('SIGINT', async () => {
 });
 
 // Handle uncaught errors
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
   runner.log(`Uncaught exception: ${error.message}`);
   runner.log(error.stack);
 });
 
-process.on('unhandledRejection', (reason) => {
+process.on('unhandledRejection', (reason: unknown) => {
   runner.log(`Unhandled rejection: ${reason}`);
 });
 
 // Start monitoring
-runner.start().catch((error) => {
+runner.start().catch((error: Error) => {
   console.error(`Failed to start monitor: ${error.message}`);
   process.exit(1);
 });

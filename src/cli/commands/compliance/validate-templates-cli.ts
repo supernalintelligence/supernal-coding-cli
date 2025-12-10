@@ -1,17 +1,31 @@
-#!/usr/bin/env node
-
 /**
  * CLI for validating compliance template customization
  * Usage: node validate-templates.js [options]
  */
 
+import path from 'node:path';
+import { Command } from 'commander';
 const {
   validateAllFrameworks,
   displayResults,
   saveResults
 } = require('./template-validator');
-const { program } = require('commander');
-const path = require('node:path');
+
+interface ValidateOptions {
+  path: string;
+  output?: string;
+  showGeneric: boolean;
+  limit: string;
+  verbose: boolean;
+}
+
+interface ValidationResults {
+  overall: {
+    customizationRate: number;
+  };
+}
+
+const program = new Command();
 
 program
   .name('validate-compliance-templates')
@@ -31,13 +45,13 @@ program
   .option('-v, --verbose', 'Verbose output', false)
   .parse();
 
-const options = program.opts();
+const options = program.opts<ValidateOptions>();
 
-async function main() {
+async function main(): Promise<void> {
   try {
     console.log('🔍 Validating compliance templates...\n');
 
-    const results = await validateAllFrameworks(options.path);
+    const results: ValidationResults = await validateAllFrameworks(options.path);
 
     displayResults(results, {
       showGeneric: options.showGeneric,
@@ -50,7 +64,6 @@ async function main() {
       await saveResults(results, outputPath);
     }
 
-    // Exit with status code based on customization rate
     const customizationRate = results.overall.customizationRate;
     if (customizationRate < 10) {
       console.log('\n⚠️  Warning: Very low customization rate (<10%)');
@@ -61,9 +74,9 @@ async function main() {
       console.log('\n✅ Good customization rate');
     }
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('❌ Error:', (error as Error).message);
     if (options.verbose) {
-      console.error(error.stack);
+      console.error((error as Error).stack);
     }
     process.exit(1);
   }
@@ -73,4 +86,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main };
+export { main };

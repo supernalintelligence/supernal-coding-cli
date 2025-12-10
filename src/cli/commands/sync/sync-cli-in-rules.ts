@@ -1,8 +1,12 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
 
 class CommandMapper {
+  cliDir: any;
+  commandsDir: any;
+  mappingFile: any;
   constructor() {
     this.cliDir = path.join(__dirname, '../..');
     this.mappingFile = path.join(this.cliDir, 'command-mapping.json');

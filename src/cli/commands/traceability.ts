@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Traceability Matrix System
@@ -20,6 +21,12 @@ const crypto = require('node:crypto');
 const { loadProjectConfig, getDocPaths } = require('../utils/config-loader');
 
 class TraceabilityMatrix {
+  complianceMappingPath: any;
+  featuresPath: any;
+  matrixPath: any;
+  projectRoot: any;
+  requirementsPath: any;
+  testsPath: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.matrixPath = path.join(
@@ -564,11 +571,9 @@ class TraceabilityMatrix {
         const matches = featureReqs.some((r) => {
           const normalizedR = r.toLowerCase();
           // Match exact or partial (e.g., req-044 matches REQ-044)
-          return (
-            normalizedR === normalizedReqId ||
-            normalizedR.endsWith(normalizedReqId.replace(/^req-/, '')) ||
-            normalizedReqId.endsWith(normalizedR.replace(/^req-/, ''))
-          );
+          return normalizedR === normalizedReqId ||
+          normalizedR.endsWith(normalizedReqId.replace(/^req-/, '')) ||
+          normalizedReqId.endsWith(normalizedR.replace(/^req-/, ''));
         });
 
         if (matches) {

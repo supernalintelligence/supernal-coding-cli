@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { execSync } = require('node:child_process');
 const path = require('node:path');
@@ -17,6 +18,9 @@ const colors = {
 };
 
 class DocsWrapper {
+  docSystemScript: any;
+  generateScript: any;
+  scriptsDir: any;
   constructor() {
     this.scriptsDir = path.join(__dirname, 'docs-scripts');
     this.generateScript = path.join(this.scriptsDir, 'generate-docs.cjs');

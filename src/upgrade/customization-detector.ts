@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Customization Detector - Identifies user modifications to SC templates/rules
  * Used by upgrade and sync systems to preserve user customizations
@@ -9,6 +10,10 @@ const crypto = require('node:crypto');
 const glob = require('glob');
 
 class CustomizationDetector {
+  customizationsFile: any;
+  projectRoot: any;
+  scDir: any;
+  verbose: any;
   constructor(projectRoot, options = {}) {
     this.projectRoot = projectRoot;
     this.scDir = path.join(projectRoot, '.supernal-coding');

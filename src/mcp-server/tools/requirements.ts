@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Requirements Manager for MCP Server
  *
@@ -10,6 +11,8 @@ const { execSync } = require('node:child_process');
 const yaml = require('yaml');
 
 class RequirementsManager {
+  projectRoot: any;
+  requirementsDir: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.requirementsDir = path.join(

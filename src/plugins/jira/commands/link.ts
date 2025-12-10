@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Jira Link Command - Link requirement to Jira issue
  */
@@ -62,7 +63,7 @@ async function handler(args) {
     ].join('\n');
     
     // Remove existing jira section if present
-    let newFrontmatter = frontmatter.replace(/jira:\n(?:  [^\n]*\n)*/g, '').trim();
+    let newFrontmatter = frontmatter.replace(/jira:\n(?: {2}[^\n]*\n)*/g, '').trim();
     newFrontmatter += '\n' + jiraSection;
     
     // Write updated file

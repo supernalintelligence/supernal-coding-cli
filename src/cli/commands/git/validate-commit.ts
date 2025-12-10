@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Git Commit Validation Script
@@ -16,6 +17,7 @@ const { execSync } = require('node:child_process');
 const chalk = require('chalk');
 
 class CommitValidator {
+  validationFailed: any;
   constructor() {
     this.validationFailed = false;
   }

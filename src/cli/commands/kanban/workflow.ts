@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // Supernal Coding - Workflow Management Command
 // Integrates kanban-style project management into supernal-coding system

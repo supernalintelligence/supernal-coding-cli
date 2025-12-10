@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const chalk = require('chalk');
 const { execSync } = require('node:child_process');
@@ -13,6 +14,7 @@ const { SigningManager } = require('../../../signing');
  * Handles Git integration for requirements
  */
 class GitManager {
+  requirementManager: any;
   constructor(requirementManager) {
     this.requirementManager = requirementManager;
   }

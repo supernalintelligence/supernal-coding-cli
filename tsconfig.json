@@ -24,11 +24,12 @@
     "noImplicitThis": false,
     "alwaysStrict": true,
 
-    // Error Checking
+    // Error Checking - all disabled for migration
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": true,
+    "noFallthroughCasesInSwitch": false,
+    "noPropertyAccessFromIndexSignature": false,
 
     // Interop - critical for CommonJS require()
     "esModuleInterop": true,

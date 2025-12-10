@@ -5,16 +5,21 @@
  * TODO: Full implementation pending
  */
 
+interface ValidationResult {
+  success: boolean;
+  message: string;
+  validated: number;
+  category?: string;
+}
+
 class ValidationManager {
-  constructor(projectRoot) {
+  protected projectRoot: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
   }
 
-  /**
-   * Validate all requirements
-   */
-  async validateAll() {
-    // Stub implementation
+  async validateAll(): Promise<ValidationResult> {
     return {
       success: true,
       message: 'Validation not yet implemented',
@@ -22,11 +27,7 @@ class ValidationManager {
     };
   }
 
-  /**
-   * Validate requirements in a category
-   */
-  async validateCategory(category) {
-    // Stub implementation
+  async validateCategory(category: string): Promise<ValidationResult> {
     return {
       success: true,
       message: 'Validation not yet implemented',
@@ -36,4 +37,5 @@ class ValidationManager {
   }
 }
 
+export default ValidationManager;
 module.exports = ValidationManager;

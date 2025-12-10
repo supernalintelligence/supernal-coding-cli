@@ -5,13 +5,78 @@
  * Part of REQ-INFRA-111: Agent Commit Signing
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
-const os = require('os');
-const yaml = require('yaml');
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'os';
+import yaml from 'yaml';
+
+/** Agent entry in registry */
+export interface AgentEntry {
+  id: string;
+  host: string;
+  gpg_key_id: string;
+  email: string;
+  created: string;
+  last_used?: string;
+  commit_count?: number;
+}
+
+/** Agent registry structure */
+export interface AgentRegistry {
+  agents?: AgentEntry[];
+  [key: string]: unknown;
+}
+
+/** Agent commits config */
+export interface AgentCommitsConfig {
+  sign: boolean;
+  keySource: string;
+  gpgKeyId: string | null;
+}
+
+/** Human commits config */
+export interface HumanCommitsConfig {
+  requireSignature: boolean;
+}
+
+/** Signing configuration */
+export interface SigningConfig {
+  enabled: boolean;
+  agentCommits: AgentCommitsConfig;
+  humanCommits: HumanCommitsConfig;
+  agentRegistry: string;
+}
+
+/** Options for signing flags */
+export interface SigningFlagsOptions {
+  isAgentCommit?: boolean;
+}
+
+/** Raw configuration */
+interface RawConfig {
+  git?: {
+    signing?: {
+      enabled?: boolean;
+      agent_commits?: {
+        sign?: boolean;
+        key_source?: string;
+        gpg_key_id?: string;
+      };
+      human_commits?: {
+        require_signature?: boolean;
+      };
+      agent_registry?: string;
+    };
+  };
+  [key: string]: unknown;
+}
 
 class SigningManager {
-  constructor(projectRoot) {
+  protected agentRegistry: AgentRegistry | null;
+  protected config: RawConfig | null;
+  protected projectRoot: string;
+
+  constructor(projectRoot?: string) {
     this.projectRoot = projectRoot || process.cwd();
     this.config = null;
     this.agentRegistry = null;
@@ -20,7 +85,7 @@ class SigningManager {
   /**
    * Load configuration from supernal.yaml
    */
-  loadConfig() {
+  loadConfig(): RawConfig {
     if (this.config) return this.config;
 
     const configPaths = [
@@ -35,7 +100,7 @@ class SigningManager {
           this.config = yaml.parse(content) || {};
           return this.config;
         } catch (error) {
-          console.warn(`Warning: Could not parse ${configPath}: ${error.message}`);
+          console.warn(`Warning: Could not parse ${configPath}: ${(error as Error).message}`);
         }
       }
     }
@@ -46,9 +111,9 @@ class SigningManager {
 
   /**
    * Get signing configuration
-   * @returns {Object} Signing config with defaults
+   * @returns Signing config with defaults
    */
-  getSigningConfig() {
+  getSigningConfig(): SigningConfig {
     const config = this.loadConfig();
     return {
       enabled: config.git?.signing?.enabled ?? false,
@@ -66,11 +131,10 @@ class SigningManager {
 
   /**
    * Get signing flags for git commit command
-   * @param {Object} options
-   * @param {boolean} options.isAgentCommit - True if SC is making the commit
-   * @returns {string} Git signing flags to add to commit command
+   * @param options
+   * @returns Git signing flags to add to commit command
    */
-  getSigningFlags(options = {}) {
+  getSigningFlags(options: SigningFlagsOptions = {}): string {
     const signingConfig = this.getSigningConfig();
 
     // If signing not enabled, return empty (let git config decide)
@@ -87,10 +151,10 @@ class SigningManager {
 
   /**
    * Get signing flags for agent (SC) commits
-   * @param {Object} signingConfig
-   * @returns {string} Git flags
+   * @param signingConfig
+   * @returns Git flags
    */
-  getAgentSigningFlags(signingConfig) {
+  getAgentSigningFlags(signingConfig: SigningConfig): string {
     if (!signingConfig.agentCommits.sign) {
       // Explicitly don't sign agent commits
       return '--no-gpg-sign';
@@ -112,10 +176,10 @@ class SigningManager {
 
   /**
    * Get signing flags for human (manual) commits
-   * @param {Object} signingConfig
-   * @returns {string} Git flags
+   * @param signingConfig
+   * @returns Git flags
    */
-  getHumanSigningFlags(signingConfig) {
+  getHumanSigningFlags(signingConfig: SigningConfig): string {
     if (signingConfig.humanCommits.requireSignature) {
       // Force signing with user's default key
       return '-S';
@@ -128,10 +192,10 @@ class SigningManager {
   /**
    * Get the agent's GPG key ID from various sources
    * Priority: environment > registry > static config
-   * @param {Object} signingConfig
-   * @returns {string|null} Key ID or null if not found
+   * @param signingConfig
+   * @returns Key ID or null if not found
    */
-  getAgentKeyId(signingConfig) {
+  getAgentKeyId(signingConfig: SigningConfig): string | null {
     // 1. Check environment variable first
     if (process.env.SC_AGENT_GPG_KEY) {
       return process.env.SC_AGENT_GPG_KEY;
@@ -151,10 +215,10 @@ class SigningManager {
 
   /**
    * Load agent registry and find key for current host
-   * @param {string} registryPath - Relative path to registry file
-   * @returns {string|null} Key ID or null
+   * @param registryPath - Relative path to registry file
+   * @returns Key ID or null
    */
-  getKeyFromRegistry(registryPath) {
+  getKeyFromRegistry(registryPath: string): string | null {
     const fullPath = path.join(this.projectRoot, registryPath);
 
     if (!fs.existsSync(fullPath)) {
@@ -163,7 +227,7 @@ class SigningManager {
 
     try {
       const content = fs.readFileSync(fullPath, 'utf8');
-      const registry = yaml.parse(content);
+      const registry: AgentRegistry = yaml.parse(content);
       this.agentRegistry = registry;
 
       const hostname = os.hostname();
@@ -175,16 +239,16 @@ class SigningManager {
 
       return agent?.gpg_key_id || null;
     } catch (error) {
-      console.warn(`Warning: Could not read agent registry: ${error.message}`);
+      console.warn(`Warning: Could not read agent registry: ${(error as Error).message}`);
       return null;
     }
   }
 
   /**
    * Get the loaded agent registry
-   * @returns {Object|null} Registry data
+   * @returns Registry data
    */
-  getAgentRegistry() {
+  getAgentRegistry(): AgentRegistry | null {
     if (!this.agentRegistry) {
       const signingConfig = this.getSigningConfig();
       this.getKeyFromRegistry(signingConfig.agentRegistry);
@@ -194,36 +258,34 @@ class SigningManager {
 
   /**
    * Check if agent signing is enabled and configured
-   * @returns {boolean}
    */
-  isAgentSigningEnabled() {
+  isAgentSigningEnabled(): boolean {
     const signingConfig = this.getSigningConfig();
     return signingConfig.enabled && signingConfig.agentCommits.sign;
   }
 
   /**
    * Check if an agent key is available for the current host
-   * @returns {boolean}
    */
-  hasAgentKey() {
+  hasAgentKey(): boolean {
     const signingConfig = this.getSigningConfig();
     return !!this.getAgentKeyId(signingConfig);
   }
 
   /**
    * Get information about the current agent (if registered)
-   * @returns {Object|null} Agent info or null
+   * @returns Agent info or null
    */
-  getCurrentAgent() {
+  getCurrentAgent(): AgentEntry | null {
     const registry = this.getAgentRegistry();
     if (!registry?.agents) return null;
 
     const hostname = os.hostname();
     return registry.agents.find(
       (a) => a.host === hostname || a.host === hostname.split('.')[0]
-    );
+    ) || null;
   }
 }
 
+export default SigningManager;
 module.exports = SigningManager;
-

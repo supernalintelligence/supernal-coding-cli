@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Backup Manager - Create and restore backups for safe upgrades
  * Ensures atomic updates with rollback capability
@@ -9,6 +10,10 @@ const archiver = require('archiver');
 const extract = require('extract-zip');
 
 class BackupManager {
+  backupDir: any;
+  projectRoot: any;
+  scDir: any;
+  verbose: any;
   constructor(projectRoot, options = {}) {
     this.projectRoot = projectRoot;
     this.scDir = path.join(projectRoot, '.supernal-coding');

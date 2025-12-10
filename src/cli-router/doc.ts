@@ -5,8 +5,51 @@
  * and checking compliance with document registry.
  */
 
-const { Command } = require('commander');
-const chalk = require('chalk');
+import { Command } from 'commander';
+import chalk from 'chalk';
+
+/** History options */
+interface HistoryOptions {
+  since?: string;
+  author?: string;
+  showDiff?: boolean;
+  json?: boolean;
+  signedOnly?: boolean;
+  limit?: string;
+}
+
+/** Check options */
+interface CheckOptions {
+  staged?: boolean;
+  all?: boolean;
+  quiet?: boolean;
+  json?: boolean;
+}
+
+/** Check result */
+interface CheckResult {
+  success: boolean;
+  controlledFiles?: unknown[];
+}
+
+/** Registry check result */
+interface RegistryCheckResult {
+  isControlled: boolean;
+  level?: string;
+  requiresSigned?: boolean;
+}
+
+/** Registry stats */
+interface RegistryStats {
+  requiredCount: number;
+  trackedCount: number;
+  totalPatterns: number;
+}
+
+/** Add options */
+interface AddOptions {
+  level: string;
+}
 
 const doc = new Command('doc').description('Document management commands');
 
@@ -22,8 +65,8 @@ doc
   .option('--json', 'Output as JSON for dashboard integration')
   .option('--signed-only', 'Only show signed commits')
   .option('--limit <n>', 'Limit number of commits', '50')
-  .action(async (file, options) => {
-    const DocumentHistory = require('../lib/doc/DocumentHistory');
+  .action(async (file: string, options: HistoryOptions) => {
+    const DocumentHistory = require('../doc/DocumentHistory');
     const history = new DocumentHistory();
     await history.show(file, options);
   });
@@ -38,10 +81,10 @@ doc
   .option('--all', 'Check all modified files')
   .option('--quiet', 'Suppress output, only return exit code')
   .option('--json', 'Output as JSON')
-  .action(async (options) => {
-    const DocumentRegistryCheck = require('../lib/doc/DocumentRegistryCheck');
+  .action(async (options: CheckOptions) => {
+    const DocumentRegistryCheck = require('../doc/DocumentRegistryCheck');
     const checker = new DocumentRegistryCheck();
-    const result = await checker.check(options);
+    const result: CheckResult = await checker.check(options);
 
     if (options.json) {
       console.log(JSON.stringify(result, null, 2));
@@ -49,7 +92,7 @@ doc
       checker.displayResults(result);
     }
 
-    if (!result.success && result.controlledFiles?.length > 0) {
+    if (!result.success && result.controlledFiles?.length) {
       process.exit(1);
     }
   });
@@ -65,8 +108,8 @@ registry
   .command('list')
   .description('List all registered document paths')
   .option('--json', 'Output as JSON')
-  .action(async (options) => {
-    const DocumentRegistry = require('../lib/doc/DocumentRegistry');
+  .action(async (options: { json?: boolean }) => {
+    const DocumentRegistry = require('../doc/DocumentRegistry');
     const reg = new DocumentRegistry();
 
     if (options.json) {
@@ -81,10 +124,10 @@ registry
 registry
   .command('check <file>')
   .description('Check if a file is in a controlled path')
-  .action(async (file) => {
-    const DocumentRegistry = require('../lib/doc/DocumentRegistry');
+  .action(async (file: string) => {
+    const DocumentRegistry = require('../doc/DocumentRegistry');
     const reg = new DocumentRegistry();
-    const result = reg.check(file);
+    const result: RegistryCheckResult = reg.check(file);
 
     if (result.isControlled) {
       console.log(chalk.green(`✅ ${file}`));
@@ -101,8 +144,8 @@ registry
   .command('add <pattern>')
   .description('Add a path pattern to the registry')
   .option('--level <level>', 'Control level: required or tracked', 'tracked')
-  .action(async (pattern, options) => {
-    const DocumentRegistry = require('../lib/doc/DocumentRegistry');
+  .action(async (pattern: string, options: AddOptions) => {
+    const DocumentRegistry = require('../doc/DocumentRegistry');
     const reg = new DocumentRegistry();
     reg.add(pattern, options.level);
     console.log(chalk.green(`✅ Added ${pattern} as ${options.level}`));
@@ -112,7 +155,7 @@ registry
   .command('init')
   .description('Initialize document registry with defaults')
   .action(async () => {
-    const DocumentRegistry = require('../lib/doc/DocumentRegistry');
+    const DocumentRegistry = require('../doc/DocumentRegistry');
     const reg = new DocumentRegistry();
     reg.init();
     console.log(
@@ -126,9 +169,9 @@ registry
   .command('stats')
   .description('Show document registry statistics')
   .action(async () => {
-    const DocumentRegistry = require('../lib/doc/DocumentRegistry');
+    const DocumentRegistry = require('../doc/DocumentRegistry');
     const reg = new DocumentRegistry();
-    const stats = reg.stats();
+    const stats: RegistryStats = reg.stats();
 
     console.log(chalk.bold('Document Registry Statistics'));
     console.log(`  Required paths: ${stats.requiredCount}`);
@@ -136,4 +179,5 @@ registry
     console.log(`  Total patterns: ${stats.totalPatterns}`);
   });
 
+export default doc;
 module.exports = doc;

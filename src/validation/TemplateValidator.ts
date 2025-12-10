@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Unified Template Validator
@@ -23,6 +24,8 @@ const matter = require('gray-matter');
 const { checkYAMLSyntax } = require('../cli/commands/validation/frontmatter');
 
 class TemplateValidator {
+  projectRoot: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

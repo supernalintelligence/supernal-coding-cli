@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs').promises;
 const path = require('node:path');
 const yaml = require('js-yaml');
@@ -11,6 +12,9 @@ const chalk = require('chalk');
  */
 
 class DocsCleanup {
+  config: any;
+  issues: any;
+  projectRoot: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.config = null;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -10,6 +11,9 @@ const { execSync } = require('node:child_process');
  * guidance, warnings, and next-step recommendations.
  */
 class WorkflowStateTracker {
+  currentState: any;
+  projectRoot: any;
+  stateFile: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.stateFile = path.join(

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FeatureValidator - Hierarchical Structure
  *
@@ -12,6 +13,7 @@ const fs = require('node:fs').promises;
 const yaml = require('yaml');
 
 class FeatureValidator {
+  phaseNames: any;
   constructor() {
     // Phase names for reference
     this.phaseNames = {

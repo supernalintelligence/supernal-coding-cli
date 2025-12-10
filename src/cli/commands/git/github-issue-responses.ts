@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GitHub Issue Response Detection
  * 

@@ -1,7 +1,17 @@
-const yaml = require('js-yaml');
-const fs = require('fs-extra');
-const path = require('node:path');
-const { PatternNotFoundError, CircularDependencyError } = require('./errors');
+import yaml from 'js-yaml';
+import fs from 'fs-extra';
+import path from 'node:path';
+import { PatternNotFoundError, CircularDependencyError } from './errors';
+
+export interface ParsedDefault {
+  type: string;
+  name: string;
+}
+
+export interface PatternConfig {
+  defaults?: (string | Record<string, string>)[];
+  [key: string]: unknown;
+}
 
 /**
  * PatternResolver - Resolve pattern references from shipped/user patterns
@@ -13,26 +23,21 @@ const { PatternNotFoundError, CircularDependencyError } = require('./errors');
  * - Suggest similar patterns when not found
  */
 class PatternResolver {
-  constructor(searchPaths) {
+  protected patterns: Map<string, PatternConfig>;
+  protected searchPaths: string[];
+
+  constructor(searchPaths: string[]) {
     this.searchPaths = searchPaths;
-    this.patterns = new Map(); // Pattern cache
+    this.patterns = new Map();
   }
 
-  /**
-   * Resolve pattern by name
-   * @param {string} patternName - e.g.,
-   * @param {string} patternType - "workflows", "phases", "documents"
-   * @returns {Promise<object>} Resolved pattern
-   * @throws {PatternNotFoundError} If pattern not found
-   */
-  async resolvePattern(patternName, patternType = 'workflows') {
+  async resolvePattern(patternName: string, patternType = 'workflows'): Promise<PatternConfig> {
     const cacheKey = `${patternType}/${patternName}`;
 
     if (this.patterns.has(cacheKey)) {
-      return this.patterns.get(cacheKey);
+      return this.patterns.get(cacheKey)!;
     }
 
-    // Search in order: user patterns, shipped patterns
     for (const searchPath of this.searchPaths) {
       const patternPath = path.join(
         searchPath,
@@ -47,32 +52,19 @@ class PatternResolver {
       }
     }
 
-    // Pattern not found - suggest similar
     const availablePatterns = await this.listPatterns(patternType);
     throw new PatternNotFoundError(patternName, patternType, availablePatterns);
   }
 
-  /**
-   * Load pattern from file
-   * @param {string} patternPath - Full path to pattern file
-   * @returns {Promise<object>} Parsed pattern
-   */
-  async loadPattern(patternPath) {
+  async loadPattern(patternPath: string): Promise<PatternConfig> {
     const content = await fs.readFile(patternPath, 'utf8');
-    return yaml.load(content, { filename: patternPath });
+    return yaml.load(content, { filename: patternPath }) as PatternConfig;
   }
 
-  /**
-   * Resolve complete config with all defaults
-   * @param {object} userConfig - User's .supernal/project.yaml
-   * @returns {Promise<Array<object>>} Ordered list of configs to merge
-   * @throws {CircularDependencyError} If circular references detected
-   */
-  async resolve(userConfig) {
-    const resolved = [];
-    const visited = new Set(); // Circular dependency detection
+  async resolve(userConfig: PatternConfig): Promise<PatternConfig[]> {
+    const resolved: PatternConfig[] = [];
+    const visited = new Set<string>();
 
-    // Process defaults list
     const defaults = userConfig.defaults || [];
     const selfIndex = defaults.indexOf('_self_');
 
@@ -84,20 +76,16 @@ class PatternResolver {
         continue;
       }
 
-      // Extract pattern type and name
       const { type, name } = this.parseDefault(def);
 
-      // Detect circular dependency
       const key = `${type}/${name}`;
       if (visited.has(key)) {
         throw new CircularDependencyError([...visited, key]);
       }
       visited.add(key);
 
-      // Resolve pattern
       const pattern = await this.resolvePattern(name, type);
 
-      // Recursively resolve pattern's defaults
       if (pattern.defaults) {
         const subResolved = await this.resolve(pattern);
         resolved.push(...subResolved);
@@ -106,7 +94,6 @@ class PatternResolver {
       }
     }
 
-    // If no _self_ in defaults, add user config last
     if (selfIndex === -1) {
       resolved.push(userConfig);
     }
@@ -114,31 +101,19 @@ class PatternResolver {
     return resolved;
   }
 
-  /**
-   * Parse default entry to extract type and name
-   * @param {string|object} def - Default entry
-   * @returns {{type: string, name: string}} Pattern type and name
-   */
-  parseDefault(def) {
+  parseDefault(def: string | Record<string, string>): ParsedDefault {
     if (typeof def === 'string') {
-      // Simple reference: "workflow-name"
       return { type: 'workflows', name: def };
     }
     if (typeof def === 'object' && !Array.isArray(def)) {
-      // Explicit: { workflow: "name" } or { phase: "name" }
       const [[type, name]] = Object.entries(def);
-      return { type: `${type}s`, name }; // workflow → workflows
+      return { type: `${type}s`, name };
     }
     throw new Error(`Invalid default: ${JSON.stringify(def)}`);
   }
 
-  /**
-   * List available patterns of a given type
-   * @param {string} patternType - "workflows", "phases", or "documents"
-   * @returns {Promise<Array<string>>} List of pattern names
-   */
-  async listPatterns(patternType) {
-    const patterns = [];
+  async listPatterns(patternType: string): Promise<string[]> {
+    const patterns: string[] = [];
 
     for (const searchPath of this.searchPaths) {
       const dir = path.join(searchPath, patternType);
@@ -153,8 +128,9 @@ class PatternResolver {
       }
     }
 
-    return [...new Set(patterns)]; // Deduplicate
+    return [...new Set(patterns)];
   }
 }
 
+export default PatternResolver;
 module.exports = PatternResolver;

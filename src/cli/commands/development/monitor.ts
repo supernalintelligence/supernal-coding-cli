@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // Development Monitoring System
 // Integrated continuous build and workflow monitoring
@@ -9,6 +10,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 class DevelopmentMonitor {
+  monitorConfig: any;
+  projectRoot: any;
   constructor() {
     this.projectRoot = process.cwd();
     this.monitorConfig = path.join(this.projectRoot, '.supernal-monitor.json');

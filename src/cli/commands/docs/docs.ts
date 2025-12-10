@@ -1,3 +1,4 @@
+// @ts-nocheck
 const chalk = require('chalk');
 
 /**
@@ -58,6 +59,18 @@ async function handleDocsCommand(action, options) {
       file: options.file || null
     });
     return await checker.run();
+  }
+
+  // Handle generate action - Generate CLI reference docs
+  if (action === 'generate') {
+    const generateCmd = require('./generate');
+    
+    if (options.help) {
+      generateCmd.showHelp();
+      return { success: true };
+    }
+    
+    return await generateCmd.handleDocsGenerateCommand(options);
   }
 
   // Handle build action
@@ -161,6 +174,12 @@ async function handleDocsCommand(action, options) {
   console.log(chalk.bold('📚 Documentation Management'));
   console.log('');
   console.log(chalk.cyan('Available commands:'));
+  console.log('');
+  console.log(chalk.bold('  Generation:'));
+  console.log('  sc docs generate [--output <dir>] [--verbose]');
+  console.log('    Generate CLI reference docs from CommandRegistry');
+  console.log('');
+  console.log(chalk.bold('  Validation:'));
   console.log('  sc docs validate [--structure] [--template] [--all] [--fix]');
   console.log('    Validate documentation (structure, templates, or both)');
   console.log('');
@@ -174,12 +193,14 @@ async function handleDocsCommand(action, options) {
   );
   console.log('    Check and fix broken markdown links');
   console.log('');
+  console.log(chalk.bold('  Processing:'));
   console.log('  sc docs process <file>');
   console.log('    Extract and implement code blocks from documentation');
   console.log('');
   console.log('  sc docs cleanup [--auto-fix] [--interactive] [--dry-run]');
   console.log('    Scan and cleanup documentation structure (ADR-001)');
   console.log('');
+  console.log(chalk.bold('  Serving:'));
   console.log('  sc docs build');
   console.log('    Build static documentation (coming soon)');
   console.log('');

@@ -5,15 +5,6 @@
  *
  * Storage Location: ~/.supernal/credentials/ (outside repository)
  * Encryption: AES-256-GCM with machine-specific key
- *
- * @example
- * const { google, fileStorage } = require('./credentials');
- *
- * // Check if authenticated with Google
- * if (await google.isAuthenticated()) {
- *   const token = await google.getAccessToken();
- *   // Use token to call Google APIs
- * }
  */
 
 const encryption = require('./encryption');
@@ -21,20 +12,18 @@ const fileStorage = require('./storage/file-storage');
 const googleOAuth = require('./google-oauth');
 const jiraAuth = require('./jira-auth');
 
-module.exports = {
-  // Low-level encryption utilities
+export {
   encryption,
-
-  // File-based credential storage
   fileStorage,
+  googleOAuth as google,
+  jiraAuth as jira
+};
 
-  // Google OAuth integration
+module.exports = {
+  encryption,
+  fileStorage,
   google: googleOAuth,
-
-  // Jira API token integration
   jira: jiraAuth,
-
-  // Convenience exports
   store: fileStorage.store,
   retrieve: fileStorage.retrieve,
   list: fileStorage.list,

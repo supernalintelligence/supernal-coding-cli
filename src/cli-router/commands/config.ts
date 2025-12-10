@@ -3,18 +3,60 @@
  * Commands for configuration management
  */
 
-const { ConfigLoader } = require('../../lib/config');
-const { ConfigDisplayer } = require('../../lib/display');
-const { ConfigValidator } = require('../../lib/validation/config-validator');
-const { findProjectRoot } = require('../utils/project-finder');
-const {
+import { Command } from 'commander';
+import { findProjectRoot } from '../utils/project-finder';
+import {
   formatSuccess,
   formatError,
-  formatYAML,
   formatTable
-} = require('../utils/formatters');
+} from '../utils/formatters';
 
-function registerConfigCommands(program) {
+const { ConfigLoader } = require('../../config');
+const { ConfigDisplayer } = require('../../display');
+const { ConfigValidator } = require('../../validation/config-validator');
+
+/** Show options */
+interface ShowOptions {
+  section?: string;
+}
+
+/** Validate options */
+interface ValidateOptions {
+  type: string;
+}
+
+/** List patterns options */
+interface ListPatternsOptions {
+  type: string;
+}
+
+/** Inspect pattern options */
+interface InspectPatternOptions {
+  name: string;
+  type: string;
+}
+
+/** Validation result */
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+/** Pattern info */
+interface PatternInfo {
+  name: string;
+  type: string;
+  description?: string;
+  source?: string;
+}
+
+/** Patterns result */
+interface PatternsResult {
+  shipped: PatternInfo[];
+  userDefined: PatternInfo[];
+}
+
+function registerConfigCommands(program: Command): void {
   const config = program
     .command('config')
     .alias('cfg')
@@ -25,7 +67,7 @@ function registerConfigCommands(program) {
     .command('show')
     .description('Show resolved configuration')
     .option('--section <name>', 'Show specific section only')
-    .action(async (options) => {
+    .action(async (options: ShowOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = new ConfigLoader({ projectRoot });
@@ -34,7 +76,7 @@ function registerConfigCommands(program) {
         const output = await displayer.show(options.section);
         console.log(`\n${output}`);
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -52,7 +94,7 @@ function registerConfigCommands(program) {
         const output = await displayer.trace();
         console.log(`\n${output}`);
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -62,14 +104,14 @@ function registerConfigCommands(program) {
     .command('validate')
     .description('Validate configuration')
     .option('--type <type>', 'Config type (project|workflow)', 'project')
-    .action(async (options) => {
+    .action(async (options: ValidateOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = new ConfigLoader({ projectRoot });
         const cfg = await loader.load();
 
         const validator = new ConfigValidator();
-        const result = validator.validate(cfg, options.type);
+        const result: ValidationResult = validator.validate(cfg, options.type);
 
         if (result.valid) {
           console.log(formatSuccess('Configuration is valid'));
@@ -81,7 +123,7 @@ function registerConfigCommands(program) {
           process.exit(1);
         }
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -96,16 +138,16 @@ function registerConfigCommands(program) {
       'Pattern type (workflows|phases|documents)',
       'workflows'
     )
-    .action(async (options) => {
+    .action(async (options: ListPatternsOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = new ConfigLoader({ projectRoot });
         const displayer = new ConfigDisplayer(loader);
 
-        const patterns = await displayer.listPatterns(options.type);
+        const patterns: PatternsResult = await displayer.listPatterns(options.type);
 
         // Format the output
-        const allPatterns = [
+        const allPatterns: (PatternInfo & { source: string })[] = [
           ...patterns.shipped.map((p) => ({ ...p, source: 'Shipped' })),
           ...patterns.userDefined.map((p) => ({ ...p, source: 'User' }))
         ];
@@ -123,11 +165,11 @@ function registerConfigCommands(program) {
         ]);
 
         console.log(
-          `\n${formatTable(rows, ['Name', 'Type', 'Source', 'Description'])}`
+          `\n${formatTable(rows as unknown[][], ['Name', 'Type', 'Source', 'Description'])}`
         );
         console.log();
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
@@ -142,7 +184,7 @@ function registerConfigCommands(program) {
       'Pattern type (workflows|phases|documents)',
       'workflows'
     )
-    .action(async (options) => {
+    .action(async (options: InspectPatternOptions) => {
       try {
         const projectRoot = await findProjectRoot();
         const loader = new ConfigLoader({ projectRoot });
@@ -154,10 +196,11 @@ function registerConfigCommands(program) {
         );
         console.log(`\n${output}`);
       } catch (error) {
-        console.error(formatError(error));
+        console.error(formatError(error as Error));
         process.exit(1);
       }
     });
 }
 
+export default registerConfigCommands;
 module.exports = registerConfigCommands;

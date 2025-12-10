@@ -1,3 +1,4 @@
+// @ts-nocheck
 const chalk = require('chalk');
 const fs = require('fs-extra');
 const path = require('node:path');
@@ -7,6 +8,9 @@ const path = require('node:path');
  * Non-blocking health monitoring for feature documentation compliance
  */
 class FeatureHealthCheck {
+  cacheFile: any;
+  featuresDir: any;
+  projectRoot: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.featuresDir = path.join(projectRoot, 'docs', 'features');

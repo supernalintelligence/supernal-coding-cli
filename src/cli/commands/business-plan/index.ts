@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const chalk = require('chalk');
 const BusinessPlanManager = require('./BusinessPlanManager');
@@ -9,6 +10,8 @@ const { getConfig } = require('../../../scripts/config-loader');
  * CLI interface for business plan management
  */
 class BusinessPlanCommandHandler {
+  manager: any;
+  projectRoot: any;
   constructor() {
     this.projectRoot = this.findProjectRoot();
     const config = getConfig(this.projectRoot);

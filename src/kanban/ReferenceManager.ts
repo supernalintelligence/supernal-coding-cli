@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -7,6 +8,10 @@ const chalk = require('chalk');
  * Manages board references without moving requirement files
  */
 class ReferenceManager {
+  boardsDir: any;
+  kanbanDir: any;
+  projectRoot: any;
+  referencesDir: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.kanbanDir = path.join(projectRoot, 'docs', 'kanban');

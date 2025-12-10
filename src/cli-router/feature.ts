@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { Command } = require('commander');
-const FeatureManager = require('../lib/feature/FeatureManager');
+const FeatureManager = require('../feature/FeatureManager');
 const chalk = require('chalk');
 
 const program = new Command();

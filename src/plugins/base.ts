@@ -1,56 +1,69 @@
 /**
  * Base Plugin Interface
- * 
+ *
  * All plugins must implement this interface to be discovered and used
  * by the `sc connect` command and dashboard.
  */
 
-/**
- * @typedef {Object} PluginCapabilities
- * @property {string[]} auth - Supported auth methods: 'api-token', 'oauth2', 'pat'
- * @property {boolean} browse - Can browse/list content
- * @property {boolean} import - Can import content as iResources
- * @property {boolean} export - Can export/push content
- * @property {boolean} sync - Supports bidirectional sync
- * @property {boolean} webhook - Supports webhook notifications
- */
+export interface PluginCapabilities {
+  auth: string[];
+  browse: boolean;
+  import: boolean;
+  export: boolean;
+  sync: boolean;
+  webhook: boolean;
+  [key: string]: unknown;
+}
 
-/**
- * @typedef {Object} PluginCredentials
- * @property {string[]} required - Required credential fields
- * @property {string[]} [optional] - Optional credential fields
- */
+export interface PluginCredentials {
+  required: string[];
+  optional: string[];
+  [key: string]: unknown;
+}
 
-/**
- * @typedef {Object} PluginCommand
- * @property {string} description - Command description
- * @property {string[]} [args] - Expected arguments
- * @property {Object} [options] - Command options
- * @property {Function} handler - Command handler function
- */
+export interface PluginCommand {
+  description?: string;
+  args?: string[];
+  options?: Record<string, unknown>;
+  handler?: (...args: unknown[]) => unknown;
+  [key: string]: unknown;
+}
 
-/**
- * @typedef {Object} Plugin
- * @property {string} id - Unique plugin identifier (lowercase, no spaces)
- * @property {string} name - Display name
- * @property {string} description - Plugin description
- * @property {string} version - Plugin version
- * @property {string} [icon] - Icon name for dashboard
- * @property {PluginCapabilities} capabilities - What the plugin can do
- * @property {Object<string, PluginCommand|Object>} commands - CLI commands
- * @property {PluginCredentials} credentials - Credential requirements
- * @property {Function} [createClient] - Factory for API client
- */
+export interface Plugin {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  icon: string;
+  capabilities: PluginCapabilities;
+  commands: Record<string, PluginCommand | Record<string, PluginCommand>>;
+  credentials: PluginCredentials;
+  createClient?: ((...args: unknown[]) => unknown) | null;
+}
+
+export interface PluginConfig {
+  id: string;
+  name: string;
+  description?: string;
+  version?: string;
+  icon?: string;
+  capabilities?: Partial<PluginCapabilities>;
+  commands?: Record<string, PluginCommand | Record<string, PluginCommand>>;
+  credentials?: Partial<PluginCredentials>;
+  createClient?: ((...args: unknown[]) => unknown) | null;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
 
 /**
  * Validate that a plugin implements the required interface
- * @param {Object} plugin - Plugin to validate
- * @returns {{ valid: boolean, errors: string[] }}
  */
-function validatePlugin(plugin) {
-  const errors = [];
-  
-  // Required fields
+export function validatePlugin(plugin: Partial<Plugin>): ValidationResult {
+  const errors: string[] = [];
+
   if (!plugin.id || typeof plugin.id !== 'string') {
     errors.push('Plugin must have a string "id" field');
   }
@@ -63,21 +76,19 @@ function validatePlugin(plugin) {
   if (!plugin.commands || typeof plugin.commands !== 'object') {
     errors.push('Plugin must have a "commands" object');
   }
-  
-  // Validate capabilities if present
+
   if (plugin.capabilities) {
     if (plugin.capabilities.auth && !Array.isArray(plugin.capabilities.auth)) {
       errors.push('capabilities.auth must be an array');
     }
   }
-  
-  // Validate credentials if present
+
   if (plugin.credentials) {
     if (plugin.credentials.required && !Array.isArray(plugin.credentials.required)) {
       errors.push('credentials.required must be an array');
     }
   }
-  
+
   return {
     valid: errors.length === 0,
     errors
@@ -86,10 +97,8 @@ function validatePlugin(plugin) {
 
 /**
  * Create a base plugin with defaults
- * @param {Partial<Plugin>} config - Plugin configuration
- * @returns {Plugin}
  */
-function createPlugin(config) {
+export function createPlugin(config: PluginConfig): Plugin {
   return {
     id: config.id,
     name: config.name,
@@ -119,4 +128,3 @@ module.exports = {
   validatePlugin,
   createPlugin
 };
-

@@ -1,7 +1,12 @@
-const yaml = require('js-yaml');
-const fs = require('fs-extra');
-const path = require('node:path');
-const { YAMLSyntaxError } = require('./errors');
+import yaml from 'js-yaml';
+import fs from 'fs-extra';
+import path from 'node:path';
+import { YAMLSyntaxError } from './errors';
+
+export interface ConfigLoaderOptions {
+  searchPaths?: string[];
+  cache?: Map<string, unknown>;
+}
 
 /**
  * ConfigLoader - Main entry point for loading and resolving configurations
@@ -13,87 +18,65 @@ const { YAMLSyntaxError } = require('./errors');
  * - Cache results
  */
 class ConfigLoader {
-  constructor(options = {}) {
+  protected cache: Map<string, unknown>;
+  protected merger: unknown;
+  protected resolver: unknown;
+  protected searchPaths: string[];
+
+  constructor(options: ConfigLoaderOptions = {}) {
     this.searchPaths = options.searchPaths || this.getDefaultSearchPaths();
     this.cache = options.cache || new Map();
-    this.resolver = null; // Lazy load to avoid circular deps
-    this.merger = null; // Lazy load
+    this.resolver = null;
+    this.merger = null;
   }
 
-  /**
-   * Get default search paths for patterns
-   * @returns {Array<string>} Search paths in order: user → shipped
-   */
-  getDefaultSearchPaths() {
+  getDefaultSearchPaths(): string[] {
     return [
-      path.join(process.cwd(), '.supernal', 'patterns'), // User patterns
-      path.join(__dirname, '..', 'patterns'), // Shipped patterns (lib/patterns)
+      path.join(process.cwd(), '.supernal', 'patterns'),
+      path.join(__dirname, '..', 'patterns'),
     ];
   }
 
-  /**
-   * Load and resolve configuration from file
-   * @param {string} configPath - Path to .supernal/project.yaml
-   * @returns {Promise<object>} Resolved configuration
-   * @throws {YAMLSyntaxError, PatternNotFoundError, ValidationError}
-   */
-  async load(configPath) {
-    // 1. Parse YAML
+  async load(configPath: string): Promise<Record<string, unknown>> {
     const userConfig = await this.parseYAML(configPath);
 
-    // 2. Resolve patterns (defaults list) - lazy load resolver
     if (!this.resolver) {
       const PatternResolver = require('./resolver');
       this.resolver = new PatternResolver(this.searchPaths);
     }
-    const resolved = await this.resolver.resolve(userConfig);
+    const resolved = await (this.resolver as any).resolve(userConfig);
 
-    // 3. Merge in order - lazy load merger
     if (!this.merger) {
       const ConfigMerger = require('./merger');
       this.merger = new ConfigMerger();
     }
-    const merged = this.merger.merge(resolved);
+    const merged = (this.merger as any).merge(resolved);
 
-    // 4. Cache result
     this.cache.set(configPath, merged);
 
     return merged;
   }
 
-  /**
-   * Parse YAML file with error context
-   * @param {string} filePath - Path to YAML file
-   * @returns {Promise<object>} Parsed YAML as JavaScript object
-   * @throws {YAMLSyntaxError} If YAML is invalid
-   */
-  async parseYAML(filePath) {
+  async parseYAML(filePath: string): Promise<Record<string, unknown>> {
     const content = await fs.readFile(filePath, 'utf8');
     try {
-      return yaml.load(content, { filename: filePath });
+      return yaml.load(content, { filename: filePath }) as Record<string, unknown>;
     } catch (error) {
-      throw new YAMLSyntaxError(error, filePath, content);
+      throw new YAMLSyntaxError(error as Error, filePath, content);
     }
   }
 
-  /**
-   * Get resolved config (cached if available)
-   * @param {string} configPath - Path to config file
-   * @returns {Promise<object>} Resolved configuration
-   */
-  async get(configPath) {
+  async get(configPath: string): Promise<Record<string, unknown>> {
     if (this.cache.has(configPath)) {
-      return this.cache.get(configPath);
+      return this.cache.get(configPath) as Record<string, unknown>;
     }
     return this.load(configPath);
   }
 
-  /**
-   * Clear cache (useful for testing or dev mode)
-   */
-  clearCache() {
+  clearCache(): void {
     this.cache.clear();
   }
 }
 
+export default ConfigLoader;
 module.exports = ConfigLoader;

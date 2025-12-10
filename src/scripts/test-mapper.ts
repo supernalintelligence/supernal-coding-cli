@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * Test Mapper Script (Wrapper)
  *
@@ -10,10 +8,15 @@
  * while keeping the core logic in the CLI commands structure.
  */
 
-const _path = require('node:path');
 const TestMapperCommand = require('../cli/commands/testing/test-mapper');
 
-async function main() {
+interface TestMapperStats {
+  totalFiles: number;
+  totalTests: number;
+  coveragePercentage: number;
+}
+
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const format = args[0] || 'report';
 
@@ -29,7 +32,7 @@ async function main() {
         console.log(JSON.stringify(testMapper.generateTestCommands(), null, 2));
         break;
       case 'stats': {
-        const stats = testMapper.getStats();
+        const stats: TestMapperStats = testMapper.getStats();
         console.log(`Total Files: ${stats.totalFiles}`);
         console.log(`Total Tests: ${stats.totalTests}`);
         console.log(`Requirements Coverage: ${stats.coveragePercentage}%`);
@@ -42,7 +45,7 @@ async function main() {
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Test mapping failed:', error.message);
+    console.error('❌ Test mapping failed:', (error as Error).message);
     process.exit(1);
   }
 }
@@ -50,3 +53,5 @@ async function main() {
 if (require.main === module) {
   main();
 }
+
+export { main };

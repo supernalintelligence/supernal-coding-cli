@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const yaml = require('js-yaml');
@@ -52,6 +53,11 @@ class FeatureDocumentSync {
     'research',
     'implementation'
   ];
+
+  featureManager: any;
+  featuresDir: any;
+  projectRoot: any;
+  templatesDir: any;
 
   /**
    * Sync registry with documentation

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * People Management CLI
  *
@@ -14,7 +15,7 @@
  */
 
 const { Command } = require('commander');
-const { PeopleManager } = require('../lib/people/PeopleManager');
+const { PeopleManager } = require('../people/PeopleManager');
 const readline = require('node:readline');
 
 const people = new Command('people').description(

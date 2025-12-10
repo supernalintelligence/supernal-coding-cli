@@ -1,12 +1,28 @@
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
+
+/** Git repository information */
+export interface GitInfo {
+  root: string;
+  remoteUrl: string | null;
+  currentBranch: string;
+  configPath: string;
+}
+
+/** Git validation result */
+export interface GitValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  gitRoot?: string;
+}
 
 /**
  * Find the git repository root directory
- * @param {string} startPath - Starting directory path (defaults to current working directory)
- * @returns {string|null} - Path to git root or null if not found
+ * @param startPath - Starting directory path (defaults to current working directory)
+ * @returns Path to git root or null if not found
  */
-function findGitRoot(startPath = process.cwd()) {
+export function findGitRoot(startPath = process.cwd()): string | null {
   try {
     // Normalize the path
     const normalizedPath = path.resolve(startPath);
@@ -32,17 +48,17 @@ function findGitRoot(startPath = process.cwd()) {
 
     return null;
   } catch (error) {
-    console.warn('Error finding git root:', error.message);
+    console.warn('Error finding git root:', (error as Error).message);
     return null;
   }
 }
 
 /**
  * Check if a directory is a git repository
- * @param {string} dirPath - Directory path to check
- * @returns {boolean} - True if directory is a git repository
+ * @param dirPath - Directory path to check
+ * @returns True if directory is a git repository
  */
-function isGitRepository(dirPath) {
+export function isGitRepository(dirPath: string): boolean {
   try {
     const gitDir = path.join(dirPath, '.git');
     return fs.existsSync(gitDir) && fs.statSync(gitDir).isDirectory();
@@ -53,10 +69,10 @@ function isGitRepository(dirPath) {
 
 /**
  * Get git repository information
- * @param {string} repoPath - Repository path (defaults to git root)
- * @returns {Object} - Repository information
+ * @param repoPath - Repository path (defaults to git root)
+ * @returns Repository information or null
  */
-function getGitInfo(repoPath = null) {
+export function getGitInfo(repoPath: string | null = null): GitInfo | null {
   try {
     const gitRoot = repoPath || findGitRoot();
     if (!gitRoot) {
@@ -94,26 +110,26 @@ function getGitInfo(repoPath = null) {
       configPath
     };
   } catch (error) {
-    console.warn('Error getting git info:', error.message);
+    console.warn('Error getting git info:', (error as Error).message);
     return null;
   }
 }
 
 /**
  * Check if current directory is within a git repository
- * @param {string} dirPath - Directory to check (defaults to current working directory)
- * @returns {boolean} - True if within a git repository
+ * @param dirPath - Directory to check (defaults to current working directory)
+ * @returns True if within a git repository
  */
-function isWithinGitRepository(dirPath = process.cwd()) {
+export function isWithinGitRepository(dirPath = process.cwd()): boolean {
   return findGitRoot(dirPath) !== null;
 }
 
 /**
  * Get relative path from git root to current directory
- * @param {string} dirPath - Directory path (defaults to current working directory)
- * @returns {string|null} - Relative path or null if not in git repository
+ * @param dirPath - Directory path (defaults to current working directory)
+ * @returns Relative path or null if not in git repository
  */
-function getRelativePathFromGitRoot(dirPath = process.cwd()) {
+export function getRelativePathFromGitRoot(dirPath = process.cwd()): string | null {
   const gitRoot = findGitRoot(dirPath);
   if (!gitRoot) {
     return null;
@@ -125,20 +141,21 @@ function getRelativePathFromGitRoot(dirPath = process.cwd()) {
 
 /**
  * Validate git repository structure
- * @param {string} repoPath - Repository path (defaults to git root)
- * @returns {Object} - Validation results
+ * @param repoPath - Repository path (defaults to git root)
+ * @returns Validation results
  */
-function validateGitRepository(repoPath = null) {
+export function validateGitRepository(repoPath: string | null = null): GitValidationResult {
   const gitRoot = repoPath || findGitRoot();
   if (!gitRoot) {
     return {
       isValid: false,
-      errors: ['Not a git repository']
+      errors: ['Not a git repository'],
+      warnings: []
     };
   }
 
-  const errors = [];
-  const warnings = [];
+  const errors: string[] = [];
+  const warnings: string[] = [];
 
   // Check for .git directory
   const gitDir = path.join(gitRoot, '.git');

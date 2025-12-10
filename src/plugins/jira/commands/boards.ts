@@ -1,10 +1,22 @@
 /**
  * Jira List Boards Command
  */
-const chalk = require('chalk');
+import chalk from 'chalk';
 const api = require('../api');
 
-async function handler() {
+interface Board {
+  id: number;
+  name: string;
+  type: string;
+}
+
+interface BoardsResult {
+  success: boolean;
+  boards?: Board[];
+  error?: string;
+}
+
+async function handler(): Promise<BoardsResult> {
   try {
     const isAuth = await api.isAuthenticated();
     if (!isAuth) {
@@ -21,21 +33,19 @@ async function handler() {
 
     console.log(chalk.white(`\nAccessible boards:\n`));
 
-    for (const board of response.values) {
+    for (const board of response.values as Board[]) {
       console.log(
         chalk.cyan(String(board.id).padEnd(8)) +
         chalk.white(board.name.padEnd(30)) +
         chalk.gray(board.type)
       );
     }
-    
+
     return { success: true, boards: response.values };
   } catch (error) {
-    console.error(chalk.red(`Failed to list boards: ${error.message}`));
-    return { success: false, error: error.message };
+    console.error(chalk.red(`Failed to list boards: ${(error as Error).message}`));
+    return { success: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'List accessible Jira boards';
-
+export = handler;

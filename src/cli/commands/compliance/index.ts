@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Compliance Framework Management System
@@ -12,6 +13,9 @@ const { getConfig } = require('../../../scripts/config-loader');
 const DocumentManager = require('../base/DocumentManager');
 
 class ComplianceManager extends DocumentManager {
+  supportedFrameworks: any;
+  templateValidator: any;
+  templatesDir: any;
   constructor() {
     super({
       documentType: 'compliance',

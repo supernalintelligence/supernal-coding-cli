@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Naming Convention Validator for REQ-075
  * Validates document IDs and filenames against naming conventions
@@ -6,6 +7,7 @@
 const path = require('node:path');
 
 class NamingValidator {
+  patterns: any;
   constructor() {
     this.patterns = {
       evidence: {

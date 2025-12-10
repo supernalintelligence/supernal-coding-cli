@@ -1,17 +1,23 @@
+import chalk from 'chalk';
+import path from 'node:path';
+import fs from 'node:fs';
 const { DocumentationProcessor } = require('./DocumentationProcessor');
-const chalk = require('chalk');
-const path = require('node:path');
-const fs = require('node:fs');
+
+interface ProcessOptions {
+  [key: string]: unknown;
+}
+
+interface ProcessResult {
+  success: boolean;
+  errors?: string[];
+  processedFiles?: number;
+}
 
 /**
  * Process documentation file to extract and implement code blocks
- * @param {string} docFile - Path to documentation file
- * @param {Object} options - Processing options
- * @returns {Promise<{success: boolean, errors?: string[]}>}
  */
-async function processDocumentation(docFile, _options = {}) {
+async function processDocumentation(docFile: string, _options: ProcessOptions = {}): Promise<ProcessResult> {
   try {
-    // Resolve the doc file path
     const resolvedPath = path.isAbsolute(docFile)
       ? docFile
       : path.resolve(process.cwd(), docFile);
@@ -25,7 +31,7 @@ async function processDocumentation(docFile, _options = {}) {
     console.log(chalk.gray(`   File: ${resolvedPath}\n`));
 
     const processor = new DocumentationProcessor(process.cwd());
-    const result = await processor.processDocumentation(resolvedPath);
+    const result: ProcessResult = await processor.processDocumentation(resolvedPath);
 
     processor.printSummary();
 
@@ -33,7 +39,7 @@ async function processDocumentation(docFile, _options = {}) {
       console.log(
         chalk.green('\n✅ Documentation processing completed successfully!')
       );
-      if (result.processedFiles > 0) {
+      if (result.processedFiles && result.processedFiles > 0) {
         console.log(
           chalk.gray(`   ${result.processedFiles} file(s) processed`)
         );
@@ -46,15 +52,12 @@ async function processDocumentation(docFile, _options = {}) {
       return { success: false, errors: result.errors };
     }
   } catch (error) {
-    console.error(chalk.red(`\n❌ Error: ${error.message}`));
-    return { success: false, errors: [error.message] };
+    console.error(chalk.red(`\n❌ Error: ${(error as Error).message}`));
+    return { success: false, errors: [(error as Error).message] };
   }
 }
 
-/**
- * Show usage information for the process command
- */
-function showHelp() {
+function showHelp(): void {
   console.log(chalk.bold('\n📄 Documentation Processor'));
   console.log('');
   console.log(chalk.cyan('Usage:'));
@@ -93,6 +96,11 @@ function showHelp() {
   );
   console.log('');
 }
+
+export {
+  processDocumentation,
+  showHelp
+};
 
 module.exports = {
   processDocumentation,

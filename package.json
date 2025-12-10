@@ -1,6 +1,6 @@
 {
   "name": "supernal-coding",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "publishConfig": {
     "access": "public"
   },
@@ -79,9 +79,10 @@
     "typescript": "^5.7.2"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:copy-assets",
     "build:watch": "tsc --watch",
-    "build:clean": "rm -rf lib && tsc",
+    "build:clean": "rm -rf lib .tsbuildinfo && tsc && npm run build:copy-assets",
+    "build:copy-assets": "rsync -av --include='*.yaml' --include='*.json' --include='*.md' --include='*.sh' --include='*/' --exclude='*.ts' --exclude='*.tsx' --exclude='*.js' --exclude='*.jsx' --exclude='*.d.ts' --exclude='*.map' src/ lib/ && find lib -name '*.ts' ! -name '*.d.ts' -delete",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "pretest": "npm run build",

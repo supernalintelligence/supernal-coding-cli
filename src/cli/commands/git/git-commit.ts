@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * git-commit.js - Safe Git Commit Operations for AI Workflows
  * 

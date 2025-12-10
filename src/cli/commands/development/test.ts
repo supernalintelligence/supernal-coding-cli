@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { execSync } = require('node:child_process');
 const path = require('node:path');
@@ -20,6 +21,9 @@ const chalk = require('chalk');
  */
 
 class TestRunner {
+  packageJson: any;
+  projectRoot: any;
+  testmeScript: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.testmeScript = path.join(projectRoot, 'TESTME.sh');

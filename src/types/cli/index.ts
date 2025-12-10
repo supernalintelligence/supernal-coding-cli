@@ -5,7 +5,7 @@
  * Types for CLI commands, options, and output formatting.
  */
 
-import type { RequirementId, EpicSlug, Priority, RequirementStatus, RequestType } from '../config/index.js';
+import type { EpicSlug, Priority, RequirementStatus, RequestType } from '../config/index.js';
 
 // =============================================================================
 // Command Types

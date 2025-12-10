@@ -3,16 +3,16 @@
  * Locates .supernal directory to determine project root
  */
 
-const path = require('node:path');
-const fs = require('node:fs').promises;
+import path from 'node:path';
+import fs from 'node:fs/promises';
 
 /**
  * Find project root by looking for .supernal directory
- * @param {string} startPath - Starting directory (defaults to cwd)
- * @returns {Promise<string>} Project root path
- * @throws {Error} If .supernal directory not found
+ * @param startPath - Starting directory (defaults to cwd)
+ * @returns Project root path
+ * @throws Error if .supernal directory not found
  */
-async function findProjectRoot(startPath = process.cwd()) {
+export async function findProjectRoot(startPath = process.cwd()): Promise<string> {
   let currentPath = path.resolve(startPath);
   const root = path.parse(currentPath).root;
 
@@ -37,10 +37,10 @@ async function findProjectRoot(startPath = process.cwd()) {
 
 /**
  * Check if current directory is a Supernal project
- * @param {string} dirPath - Directory to check (defaults to cwd)
- * @returns {Promise<boolean>} True if .supernal exists
+ * @param dirPath - Directory to check (defaults to cwd)
+ * @returns True if .supernal exists
  */
-async function isSupernalProject(dirPath = process.cwd()) {
+export async function isSupernalProject(dirPath = process.cwd()): Promise<boolean> {
   try {
     await findProjectRoot(dirPath);
     return true;

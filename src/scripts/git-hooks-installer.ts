@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Git Hooks Installer
@@ -16,6 +17,9 @@ const path = require('node:path');
 const { execSync } = require('node:child_process');
 
 class GitHooksInstaller {
+  config: any;
+  hooksDir: any;
+  projectRoot: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.hooksDir = path.join(this.projectRoot, '.git', 'hooks');

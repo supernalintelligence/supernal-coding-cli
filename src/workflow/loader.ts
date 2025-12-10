@@ -1,3 +1,4 @@
+// @ts-nocheck
 const path = require('node:path');
 const { ConfigLoader } = require('../config');
 const { WorkflowState } = require('./state');
@@ -8,6 +9,11 @@ const { StateStore } = require('./state-store');
  * WorkflowLoader - Main orchestrator for workflow execution
  */
 class WorkflowLoader {
+  config: any;
+  navigator: any;
+  projectRoot: any;
+  state: any;
+  store: any;
   constructor(projectRoot, config, state) {
     this.projectRoot = projectRoot;
     this.config = config;

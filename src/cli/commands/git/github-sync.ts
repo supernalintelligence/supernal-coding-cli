@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const { execSync } = require('node:child_process');
 const chalk = require('chalk');
@@ -17,6 +18,13 @@ const matter = require('gray-matter');
  */
 
 class GitHubSync {
+  ciDir: any;
+  issuesDir: any;
+  projectRoot: any;
+  prsDir: any;
+  repoName: any;
+  repoOwner: any;
+  verbose: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;

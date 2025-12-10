@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Multi-Repo Workspace Manager
@@ -10,6 +11,11 @@ const path = require('node:path');
 const yaml = require('js-yaml');
 
 class WorkspaceManager {
+  crossRepoDir: any;
+  dependenciesDir: any;
+  handoffsDir: any;
+  workspaceDir: any;
+  workspaceFile: any;
   constructor(workspaceDir = '.supernal') {
     this.workspaceDir = workspaceDir;
     this.workspaceFile = path.join(workspaceDir, 'workspace.yaml');

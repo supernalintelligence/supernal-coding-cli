@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('fs-extra');
 const path = require('node:path');
@@ -19,6 +20,12 @@ const { getConfig } = require('../../../scripts/config-loader');
  */
 
 class RuleDiscovery {
+  config: any;
+  discoveredRules: any;
+  gitRoot: any;
+  projectRoot: any;
+  verbose: any;
+  verboseLogFile: any;
   constructor(options = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.gitRoot = findGitRoot(this.projectRoot);

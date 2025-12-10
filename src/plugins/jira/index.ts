@@ -1,8 +1,8 @@
 /**
  * Jira Plugin
- * 
+ *
  * Integration with Atlassian Jira for issue tracking and requirement sync.
- * 
+ *
  * Commands:
  *   sc connect jira auth login    - Connect with API token
  *   sc connect jira auth logout   - Disconnect
@@ -38,13 +38,13 @@ const pull = require('./commands/pull');
 const sync = require('./commands/sync');
 const linked = require('./commands/linked');
 
-module.exports = createPlugin({
+const jiraPlugin = createPlugin({
   id: 'jira',
   name: 'Jira',
   description: 'Atlassian Jira integration for issue tracking and requirement sync',
   version: '1.0.0',
   icon: 'jira',
-  
+
   capabilities: {
     auth: ['api-token', 'oauth2'],
     browse: true,
@@ -53,12 +53,12 @@ module.exports = createPlugin({
     sync: true,
     webhook: false
   },
-  
+
   credentials: {
     required: ['domain', 'email', 'token'],
     optional: ['defaultProject', 'defaultIssueType']
   },
-  
+
   commands: {
     auth: {
       login: authLogin,
@@ -77,8 +77,10 @@ module.exports = createPlugin({
     sync,
     linked
   },
-  
+
   // API client factory
   createClient: api.createClient
 });
 
+export default jiraPlugin;
+module.exports = jiraPlugin;

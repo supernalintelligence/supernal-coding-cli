@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 /**
  * Supernal Coding MCP Server
  * Provides MCP (Model Context Protocol) server functionality for supernal-coding tools
@@ -13,6 +14,7 @@ const _path = require('node:path');
 const chalk = require('chalk');
 
 class SupernalCodingMCPServer {
+  server: any;
   constructor() {
     this.server = new Server(
       {

@@ -1,10 +1,19 @@
-const chalk = require('chalk');
-const { execSync } = require('node:child_process');
+import chalk from 'chalk';
+import { execSync } from 'node:child_process';
 
-/**
- * Check if GPG is installed
- */
-function isGpgInstalled() {
+interface DetectedType {
+  [key: string]: unknown;
+}
+
+interface ActiveFeatures {
+  [key: string]: unknown;
+}
+
+interface ResolvedPaths {
+  [key: string]: unknown;
+}
+
+function isGpgInstalled(): boolean {
   try {
     execSync('gpg --version', { stdio: 'pipe' });
     return true;
@@ -13,10 +22,7 @@ function isGpgInstalled() {
   }
 }
 
-/**
- * Check if git commit signing is configured
- */
-function isGitSigningConfigured() {
+function isGitSigningConfigured(): boolean {
   try {
     const signingKey = execSync('git config --get user.signingkey', {
       encoding: 'utf8',
@@ -30,23 +36,18 @@ function isGitSigningConfigured() {
 
 /**
  * Show actionable next steps based on project type and configuration
- * @param {Object} detectedType - Detected project type
- * @param {Object} activeFeatures - Active features configuration
- * @param {string} gitRoot - Git repository root
- * @param {Object} resolvedPaths - Resolved paths configuration
  */
 async function showActionableNextSteps(
-  _detectedType,
-  _activeFeatures,
-  gitRoot,
-  _resolvedPaths
-) {
+  _detectedType: DetectedType,
+  _activeFeatures: ActiveFeatures,
+  gitRoot: string,
+  _resolvedPaths: ResolvedPaths
+): Promise<void> {
   console.log(
     chalk.blue('\n🚀 Ready to Start! Here are your specific next steps:')
   );
   console.log(chalk.blue('='.repeat(60)));
 
-  // Check if we're in a git repository
   let isGitRepo = false;
   let currentBranch = '';
   try {
@@ -60,7 +61,6 @@ async function showActionableNextSteps(
     // Not a git repo or git not available
   }
 
-  // Check GPG status and suggest setup
   const gpgInstalled = isGpgInstalled();
   const signingConfigured = isGitSigningConfigured();
 
@@ -76,7 +76,6 @@ async function showActionableNextSteps(
     console.log('');
   }
 
-  // Step 1: Git workflow (if in git repo)
   if (isGitRepo) {
     console.log(chalk.green('\n📦 1. Create Feature Branch & Commit'));
     console.log(
@@ -100,7 +99,6 @@ async function showActionableNextSteps(
     );
   }
 
-  // Step 2: Create first requirement
   const stepNum = isGitRepo ? 2 : 1;
   console.log(chalk.green(`\n📋 ${stepNum}. Create Your First Requirement`));
   console.log(chalk.white('   Start by defining what you want to build:'));
@@ -111,6 +109,5 @@ async function showActionableNextSteps(
   );
 }
 
-module.exports = {
-  showActionableNextSteps
-};
+export { showActionableNextSteps };
+module.exports = { showActionableNextSteps };

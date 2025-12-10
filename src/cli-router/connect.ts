@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Connect CLI Command
  * 
@@ -18,7 +19,7 @@
 
 const { Command } = require('commander');
 const chalk = require('chalk');
-const pluginRegistry = require('../lib/plugins/registry');
+const pluginRegistry = require('../plugins/registry');
 
 const program = new Command('connect')
   .description('Connect to and interact with external services')

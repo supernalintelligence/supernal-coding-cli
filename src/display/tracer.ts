@@ -3,19 +3,30 @@
  * Part of REQ-REN-004: Config Display & Debug Commands
  */
 
-class ConfigTracer {
-  /**
-   * Trace resolution chain for a value
-   * @param {string} path - Dot-notation path (e.g., 'workflow.startPhase')
-   * @param {Object} finalConfig - Final resolved config
-   * @param {Array} mergeHistory - History of configs that were merged
-   * @returns {ResolutionChain}
-   */
-  trace(path, finalConfig, mergeHistory = []) {
-    const finalValue = this._getNestedValue(finalConfig, path);
-    const chain = [];
+interface MergeHistoryEntry {
+  config: Record<string, unknown>;
+  source?: string;
+  line?: number;
+}
 
-    // Build chain from merge history
+interface ChainEntry {
+  source: string;
+  line: number;
+  value: unknown;
+  isFinal: boolean;
+}
+
+interface ResolutionChain {
+  path: string;
+  finalValue: unknown;
+  chain: ChainEntry[];
+}
+
+class ConfigTracer {
+  trace(path: string, finalConfig: Record<string, unknown>, mergeHistory: MergeHistoryEntry[] = []): ResolutionChain {
+    const finalValue = this._getNestedValue(finalConfig, path);
+    const chain: ChainEntry[] = [];
+
     for (const entry of mergeHistory) {
       const value = this._getNestedValue(entry.config, path);
       if (value !== undefined) {
@@ -28,11 +39,9 @@ class ConfigTracer {
       }
     }
 
-    // Mark last as final
     if (chain.length > 0) {
       chain[chain.length - 1].isFinal = true;
     } else {
-      // No history, value came from final config
       chain.push({
         source: 'final',
         line: 0,
@@ -48,21 +57,20 @@ class ConfigTracer {
     };
   }
 
-  /**
-   * Get nested value from object using dot notation
-   * @private
-   */
-  _getNestedValue(obj, path) {
-    return path.split('.').reduce((current, key) => {
-      // Handle array access
+  private _getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+    return path.split('.').reduce((current: unknown, key: string) => {
+      if (current === null || current === undefined) return undefined;
+      
       const arrayMatch = key.match(/^(\w+)\[(\d+)\]$/);
       if (arrayMatch) {
         const [, prop, index] = arrayMatch;
-        return current?.[prop]?.[parseInt(index, 10)];
+        const currentObj = current as Record<string, unknown[]>;
+        return currentObj?.[prop]?.[parseInt(index, 10)];
       }
-      return current?.[key];
+      return (current as Record<string, unknown>)?.[key];
     }, obj);
   }
 }
 
+export default ConfigTracer;
 module.exports = ConfigTracer;

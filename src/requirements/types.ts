@@ -3,61 +3,63 @@
  * @module requirements/types
  */
 
-/**
- * @typedef {'Low' | 'Medium' | 'High' | 'Critical'} Priority
- */
+export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 
-/**
- * @typedef {'discovery' | 'foundation' | 'implementation' | 'integration' | 'release'} Phase
- */
+export type Phase = 'discovery' | 'foundation' | 'implementation' | 'integration' | 'release';
 
-/**
- * @typedef {'evidence' | 'problem' | 'story' | 'functional-requirement' | 'technical-requirement' | 'component' | 'architecture' | 'test' | 'monitoring' | 'verification' | 'compliance' | 'kanban'} RequirementType
- */
+export type RequirementType =
+  | 'evidence'
+  | 'problem'
+  | 'story'
+  | 'functional-requirement'
+  | 'technical-requirement'
+  | 'component'
+  | 'architecture'
+  | 'test'
+  | 'monitoring'
+  | 'verification'
+  | 'compliance'
+  | 'kanban';
 
-/**
- * @typedef {Object} Requirement
- * @property {string} id - Unique identifier
- * @property {string} title - Requirement title
- * @property {string} [description] - Brief description
- * @property {string} category - Category/folder name
- * @property {Priority} priority - Priority level
- * @property {number} priorityScore - Numeric priority score
- * @property {string} status - Current status
- * @property {Phase} phase - Development phase
- * @property {string} pattern - Pattern type (e.g., 'feature', 'bugfix')
- * @property {RequirementType} type - Requirement type
- * @property {string} filePath - Path to the requirement file
- * @property {string[]} [dependencies] - IDs of dependent requirements
- * @property {string} [epic] - Epic this requirement belongs to
- * @property {string} [assignee] - Assigned person
- * @property {string} [version] - Version
- * @property {string[]} [tags] - Tags
- * @property {string} [created] - Creation date
- * @property {string} [updated] - Last update date
- * @property {string} [reviewedBy] - Reviewer
- * @property {string} [approvedBy] - Approver
- * @property {'Low' | 'Medium' | 'High'} [riskLevel] - Risk level
- * @property {string[]} [complianceStandards] - Compliance standards
- */
+export type RiskLevel = 'Low' | 'Medium' | 'High';
 
-/**
- * @typedef {Object} PhaseStats
- * @property {number} total - Total count
- * @property {number} completed - Completed count
- * @property {number} inProgress - In-progress count
- * @property {number} pending - Pending count
- * @property {number} progress - Progress percentage
- */
+export interface Requirement {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  priority: Priority;
+  priorityScore: number;
+  status: string;
+  phase: Phase;
+  pattern: string;
+  type: RequirementType;
+  filePath: string;
+  dependencies?: string[];
+  epic?: string;
+  assignee?: string;
+  version?: string;
+  tags?: string[];
+  created?: string;
+  updated?: string;
+  reviewedBy?: string;
+  approvedBy?: string;
+  riskLevel?: RiskLevel;
+  complianceStandards?: string[];
+}
 
-/**
- * @typedef {Object} PhasesData
- * @property {Object.<RequirementType, Requirement[]>} groups - Requirements grouped by type
- * @property {Object.<RequirementType, PhaseStats>} stats - Statistics by type
- * @property {number} totalRequirements - Total requirement count
- */
+export interface PhaseStats {
+  total: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  progress: number;
+}
 
-module.exports = {
-  // Type definitions are exported for documentation purposes
-  // Actual types are available via JSDoc comments
-};
+export interface PhasesData {
+  groups: Record<RequirementType, Requirement[]>;
+  stats: Record<RequirementType, PhaseStats>;
+  totalRequirements: number;
+}
+
+module.exports = {};

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Template Fetcher - Fetch latest SC templates from various sources
  * Supports npm registry, git repository, and local sources
@@ -10,6 +11,9 @@ const https = require('node:https');
 const tar = require('tar');
 
 class TemplateFetcher {
+  cacheDir: any;
+  source: any;
+  verbose: any;
   constructor(options = {}) {
     this.cacheDir =
       options.cacheDir || path.join(process.cwd(), '.supernal-coding', 'cache');

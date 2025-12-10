@@ -9,13 +9,74 @@
  *   sc gpg agent list     - List registered agents
  */
 
-const { Command } = require('commander');
-const chalk = require('chalk');
-const os = require('os');
-const { AgentKeyManager } = require('../../../signing');
-const { SigningManager } = require('../../../signing');
+import { Command } from 'commander';
+import chalk from 'chalk';
+import os from 'os';
+import { AgentKeyManager, SigningManager } from '../../../signing';
 
-function createGpgCommand() {
+/** Setup options */
+interface SetupOptions {
+  agentId?: string;
+  force?: boolean;
+  nonInteractive?: boolean;
+}
+
+/** List options */
+interface ListOptions {
+  all?: boolean;
+}
+
+/** GPG check result */
+interface GpgCheckResult {
+  installed: boolean;
+  version?: string;
+  error?: string;
+}
+
+/** Key generation result */
+interface KeyGenerationResult {
+  success: boolean;
+  agentId?: string;
+  email?: string;
+  gpgKeyId?: string;
+  host?: string;
+  existing?: boolean;
+  error?: string;
+}
+
+/** Key verification result */
+interface VerificationResult {
+  valid: boolean;
+  error?: string;
+}
+
+/** Registration result */
+interface RegistrationResult {
+  success: boolean;
+  registryPath?: string;
+  error?: string;
+}
+
+/** Agent info */
+interface AgentInfo {
+  id: string;
+  email: string;
+  gpg_key_id: string;
+  host: string;
+  created: string;
+  last_used?: string;
+  commit_count?: number;
+}
+
+/** Signing config */
+interface SigningConfig {
+  enabled: boolean;
+  agentCommits: {
+    sign: boolean;
+  };
+}
+
+function createGpgCommand(): Command {
   const gpg = new Command('gpg')
     .description('GPG signing management for agent commits');
 
@@ -31,14 +92,14 @@ function createGpgCommand() {
     .option('--agent-id <id>', 'Specify agent ID (default: auto-generated)')
     .option('--force', 'Force regeneration even if key exists')
     .option('--non-interactive', 'Run without prompts (for scripts/CI)')
-    .action(async (options) => {
+    .action(async (options: SetupOptions) => {
       const keyManager = new AgentKeyManager(process.cwd());
 
       console.log(chalk.blue('\n🔑 Agent GPG Key Setup\n'));
 
       // Check GPG installation
       console.log(chalk.gray('Checking GPG installation...'));
-      const gpgCheck = keyManager.checkGpgInstalled();
+      const gpgCheck: GpgCheckResult = keyManager.checkGpgInstalled();
 
       if (!gpgCheck.installed) {
         console.log(chalk.red('\n❌ GPG not found\n'));
@@ -49,7 +110,7 @@ function createGpgCommand() {
       console.log(chalk.green(`✓ GPG ${gpgCheck.version} installed\n`));
 
       // Check for existing agent
-      const existingAgent = keyManager.getCurrentHostAgent();
+      const existingAgent: AgentInfo | null = keyManager.getCurrentHostAgent();
       if (existingAgent && !options.force) {
         console.log(chalk.yellow('⚠️  Agent key already exists for this host:\n'));
         console.log(chalk.gray(`   ID:    ${existingAgent.id}`));
@@ -59,7 +120,7 @@ function createGpgCommand() {
         console.log();
 
         // Verify it still works
-        const verification = keyManager.verifyKeyCanSign(existingAgent.gpg_key_id);
+        const verification: VerificationResult = keyManager.verifyKeyCanSign(existingAgent.gpg_key_id);
         if (verification.valid) {
           console.log(chalk.green('✓ Existing key verified - ready to use'));
           console.log(chalk.gray('\n   Use --force to regenerate\n'));
@@ -73,7 +134,7 @@ function createGpgCommand() {
       console.log(chalk.gray('Generating agent GPG key...'));
       console.log(chalk.gray('(This may take a moment for entropy collection)\n'));
 
-      const result = await keyManager.generateAgentKey({
+      const result: KeyGenerationResult = await keyManager.generateAgentKey({
         agentId: options.agentId,
         force: options.force,
       });
@@ -97,7 +158,7 @@ function createGpgCommand() {
 
       // Verify the key can sign
       console.log(chalk.gray('Verifying key can sign...'));
-      const verification = keyManager.verifyKeyCanSign(result.gpgKeyId);
+      const verification: VerificationResult = keyManager.verifyKeyCanSign(result.gpgKeyId!);
 
       if (!verification.valid) {
         console.log(chalk.red(`\n❌ ${verification.error}`));
@@ -109,7 +170,7 @@ function createGpgCommand() {
 
       // Register in project
       console.log(chalk.gray('Registering agent in project...'));
-      const registration = keyManager.registerAgent(result);
+      const registration: RegistrationResult = keyManager.registerAgent(result);
 
       if (!registration.success) {
         console.log(chalk.red(`\n❌ ${registration.error}`));
@@ -145,7 +206,7 @@ function createGpgCommand() {
       console.log(chalk.blue('\n🔍 Agent Key Verification\n'));
 
       // Check GPG
-      const gpgCheck = keyManager.checkGpgInstalled();
+      const gpgCheck: GpgCheckResult = keyManager.checkGpgInstalled();
       if (!gpgCheck.installed) {
         console.log(chalk.red('❌ GPG not installed'));
         process.exit(1);
@@ -153,7 +214,7 @@ function createGpgCommand() {
       console.log(chalk.green(`✓ GPG ${gpgCheck.version} installed`));
 
       // Check agent registration
-      const currentAgent = keyManager.getCurrentHostAgent();
+      const currentAgent: AgentInfo | null = keyManager.getCurrentHostAgent();
       if (!currentAgent) {
         console.log(chalk.red('\n❌ No agent registered for this host'));
         console.log(chalk.gray('   Run: sc gpg agent setup\n'));
@@ -174,7 +235,7 @@ function createGpgCommand() {
       console.log(chalk.green('✓ Key found in GPG keyring'));
 
       // Verify key can sign
-      const verification = keyManager.verifyKeyCanSign(currentAgent.gpg_key_id);
+      const verification: VerificationResult = keyManager.verifyKeyCanSign(currentAgent.gpg_key_id);
       if (!verification.valid) {
         console.log(chalk.red(`\n❌ Key cannot sign: ${verification.error}`));
         process.exit(1);
@@ -182,7 +243,7 @@ function createGpgCommand() {
       console.log(chalk.green('✓ Key can sign'));
 
       // Check signing config
-      const signingConfig = signingManager.getSigningConfig();
+      const signingConfig: SigningConfig = signingManager.getSigningConfig();
       if (signingConfig.enabled) {
         console.log(chalk.green('✓ Signing enabled in config'));
         if (signingConfig.agentCommits.sign) {
@@ -207,12 +268,12 @@ function createGpgCommand() {
     .command('list')
     .description('List all registered agents')
     .option('--all', 'Show agents from all hosts')
-    .action(async (options) => {
+    .action(async (_options: ListOptions) => {
       const keyManager = new AgentKeyManager(process.cwd());
 
       console.log(chalk.blue('\n📋 Registered Agents\n'));
 
-      const agents = keyManager.listAgents();
+      const agents: AgentInfo[] = keyManager.listAgents();
 
       if (agents.length === 0) {
         console.log(chalk.gray('No agents registered.'));
@@ -222,21 +283,21 @@ function createGpgCommand() {
 
       const currentHost = os.hostname();
 
-      for (const agent of agents) {
+      for (const agentInfo of agents) {
         const isCurrent =
-          agent.host === currentHost || agent.host === currentHost.split('.')[0];
+          agentInfo.host === currentHost || agentInfo.host === currentHost.split('.')[0];
         const marker = isCurrent ? chalk.green(' ← current') : '';
 
-        console.log(chalk.white(`${agent.id}${marker}`));
-        console.log(chalk.gray(`   Email:   ${agent.email}`));
-        console.log(chalk.gray(`   Key:     ${agent.gpg_key_id}`));
-        console.log(chalk.gray(`   Host:    ${agent.host}`));
-        console.log(chalk.gray(`   Created: ${agent.created}`));
-        if (agent.last_used) {
-          console.log(chalk.gray(`   Used:    ${agent.last_used}`));
+        console.log(chalk.white(`${agentInfo.id}${marker}`));
+        console.log(chalk.gray(`   Email:   ${agentInfo.email}`));
+        console.log(chalk.gray(`   Key:     ${agentInfo.gpg_key_id}`));
+        console.log(chalk.gray(`   Host:    ${agentInfo.host}`));
+        console.log(chalk.gray(`   Created: ${agentInfo.created}`));
+        if (agentInfo.last_used) {
+          console.log(chalk.gray(`   Used:    ${agentInfo.last_used}`));
         }
-        if (agent.commit_count > 0) {
-          console.log(chalk.gray(`   Commits: ${agent.commit_count}`));
+        if (agentInfo.commit_count && agentInfo.commit_count > 0) {
+          console.log(chalk.gray(`   Commits: ${agentInfo.commit_count}`));
         }
         console.log();
       }
@@ -253,7 +314,7 @@ function createGpgCommand() {
       console.log(chalk.blue('\n📊 GPG Signing Status\n'));
 
       // GPG
-      const gpgCheck = keyManager.checkGpgInstalled();
+      const gpgCheck: GpgCheckResult = keyManager.checkGpgInstalled();
       console.log(
         gpgCheck.installed
           ? chalk.green(`✓ GPG: ${gpgCheck.version}`)
@@ -261,15 +322,15 @@ function createGpgCommand() {
       );
 
       // Agent
-      const agent = keyManager.getCurrentHostAgent();
+      const agentInfo: AgentInfo | null = keyManager.getCurrentHostAgent();
       console.log(
-        agent
-          ? chalk.green(`✓ Agent: ${agent.id} (${agent.gpg_key_id})`)
+        agentInfo
+          ? chalk.green(`✓ Agent: ${agentInfo.id} (${agentInfo.gpg_key_id})`)
           : chalk.yellow('○ Agent: not registered')
       );
 
       // Config
-      const config = signingManager.getSigningConfig();
+      const config: SigningConfig = signingManager.getSigningConfig();
       console.log(
         config.enabled
           ? chalk.green('✓ Signing: enabled')
@@ -285,7 +346,7 @@ function createGpgCommand() {
       }
 
       // Effective flags
-      if (agent && config.enabled) {
+      if (agentInfo && config.enabled) {
         const flags = signingManager.getSigningFlags({ isAgentCommit: true });
         console.log(chalk.gray(`\nEffective flags: ${flags || '(default)'}`));
       }
@@ -296,5 +357,6 @@ function createGpgCommand() {
   return gpg;
 }
 
-module.exports = createGpgCommand();
-
+const gpgCommand = createGpgCommand();
+export default gpgCommand;
+module.exports = gpgCommand;

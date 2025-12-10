@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * GitHub Actions Monitor - Intelligent CI/CD Pipeline Monitoring
@@ -11,6 +12,10 @@ const _fs = require('node:fs');
 const _path = require('node:path');
 
 class GitHubActionsMonitor {
+  enabledChecks: any;
+  extractedRealErrors: any;
+  maxWaitTime: any;
+  pollInterval: any;
   constructor() {
     this.maxWaitTime = 300000; // 5 minutes max wait
     this.pollInterval = 15000; // Check every 15 seconds

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Git Hooks Configuration Loader
  *
@@ -10,6 +11,8 @@ const path = require('node:path');
 const yaml = require('js-yaml');
 
 class HookConfigLoader {
+  config: any;
+  projectRoot: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.config = null;

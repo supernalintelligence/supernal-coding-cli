@@ -1,11 +1,49 @@
 /**
  * Jira List Issues Command
  */
-const chalk = require('chalk');
+import chalk from 'chalk';
 const api = require('../api');
-const { getStatusColor, truncate } = require('./utils');
+import { getStatusColor, truncate } from './utils';
 
-async function handler(args, options = {}) {
+interface ListOptions {
+  jql?: string;
+  project?: string;
+  status?: string;
+  assignee?: string;
+  limit?: string;
+}
+
+interface JiraIssue {
+  key: string;
+  fields: {
+    summary: string;
+    status?: {
+      name: string;
+      statusCategory?: {
+        key: string;
+      };
+    };
+    priority?: {
+      name: string;
+    };
+    assignee?: {
+      displayName: string;
+    };
+  };
+}
+
+interface SearchResponse {
+  issues: JiraIssue[];
+  isLast: boolean;
+}
+
+interface ListResult {
+  success: boolean;
+  issues?: JiraIssue[];
+  error?: string;
+}
+
+async function handler(_args: string[], options: ListOptions = {}): Promise<ListResult> {
   try {
     const isAuth = await api.isAuthenticated();
     if (!isAuth) {
@@ -13,11 +51,10 @@ async function handler(args, options = {}) {
       return { success: false };
     }
 
-    // Build JQL query
     let jql = options.jql;
 
     if (!jql) {
-      const parts = [];
+      const parts: string[] = [];
       if (options.project) parts.push(`project = ${options.project}`);
       if (options.status) parts.push(`status = "${options.status}"`);
       if (options.assignee) {
@@ -25,7 +62,6 @@ async function handler(args, options = {}) {
           `assignee = ${options.assignee === 'me' ? 'currentUser()' : `"${options.assignee}"`}`
         );
       }
-      // Default time-bound for new API
       if (parts.length === 0) {
         parts.push('updated >= -90d');
       }
@@ -35,8 +71,8 @@ async function handler(args, options = {}) {
     console.log(chalk.gray(`Fetching issues: ${jql}\n`));
 
     const client = api.createClient();
-    const response = await client.searchIssues(jql, { 
-      maxResults: parseInt(options.limit || '20', 10) 
+    const response: SearchResponse = await client.searchIssues(jql, {
+      maxResults: parseInt(options.limit || '20', 10)
     });
 
     if (response.issues.length === 0) {
@@ -52,7 +88,7 @@ async function handler(args, options = {}) {
 
     for (const issue of response.issues) {
       const status = issue.fields.status?.name || 'Unknown';
-      const statusColor = getStatusColor(issue.fields.status?.statusCategory?.key);
+      const statusColor = getStatusColor(issue.fields.status?.statusCategory?.key || '');
       const priority = issue.fields.priority?.name || '-';
       const assignee = issue.fields.assignee?.displayName || 'Unassigned';
 
@@ -64,21 +100,12 @@ async function handler(args, options = {}) {
       );
       console.log(chalk.gray('            ') + chalk.gray(`Assignee: ${assignee}`));
     }
-    
+
     return { success: true, issues: response.issues };
   } catch (error) {
-    console.error(chalk.red(`Failed to list issues: ${error.message}`));
-    return { success: false, error: error.message };
+    console.error(chalk.red(`Failed to list issues: ${(error as Error).message}`));
+    return { success: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'List recent Jira issues';
-module.exports.options = [
-  ['-p, --project <key>', 'Filter by project key'],
-  ['-s, --status <status>', 'Filter by status'],
-  ['-a, --assignee <user>', 'Filter by assignee (use "me" for current user)'],
-  ['-n, --limit <number>', 'Maximum issues to show', '20'],
-  ['--jql <query>', 'Custom JQL query']
-];
-
+export = handler;

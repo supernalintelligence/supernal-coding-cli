@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * File-based Credential Storage
  * 

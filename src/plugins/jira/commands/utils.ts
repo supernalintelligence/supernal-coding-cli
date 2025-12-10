@@ -1,9 +1,20 @@
 /**
  * Shared utilities for Jira commands
  */
-const chalk = require('chalk');
+import chalk, { ChalkFunction } from 'chalk';
 
-function getStatusColor(categoryKey) {
+interface AtlassianNode {
+  text?: string;
+  content?: AtlassianNode[];
+  type?: string;
+}
+
+interface AtlassianDoc {
+  type: string;
+  content?: AtlassianNode[];
+}
+
+export function getStatusColor(categoryKey: string): ChalkFunction {
   switch (categoryKey) {
     case 'new':
       return chalk.gray;
@@ -16,12 +27,12 @@ function getStatusColor(categoryKey) {
   }
 }
 
-function truncate(str, maxLen) {
+export function truncate(str: string | null | undefined, maxLen: number): string {
   if (!str) return '';
   return str.length > maxLen ? `${str.substring(0, maxLen - 3)}...` : str;
 }
 
-function formatDate(dateStr) {
+export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
   return date.toLocaleDateString(undefined, {
@@ -33,19 +44,7 @@ function formatDate(dateStr) {
   });
 }
 
-function extractText(content) {
-  if (!content) return '';
-  if (typeof content === 'string') return content;
-
-  // Atlassian Document Format
-  if (content.type === 'doc' && content.content) {
-    return extractFromNodes(content.content);
-  }
-
-  return '';
-}
-
-function extractFromNodes(nodes) {
+function extractFromNodes(nodes: AtlassianNode[]): string {
   return nodes
     .map((node) => {
       if (node.text) return node.text;
@@ -56,10 +55,20 @@ function extractFromNodes(nodes) {
     .join('');
 }
 
+export function extractText(content: string | AtlassianDoc | null | undefined): string {
+  if (!content) return '';
+  if (typeof content === 'string') return content;
+
+  if (content.type === 'doc' && content.content) {
+    return extractFromNodes(content.content);
+  }
+
+  return '';
+}
+
 module.exports = {
   getStatusColor,
   truncate,
   formatDate,
   extractText
 };
-

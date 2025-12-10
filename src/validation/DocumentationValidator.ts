@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Documentation Validation System
@@ -15,6 +16,13 @@ const path = require('node:path');
 const chalk = require('chalk');
 
 class DocumentationValidator {
+  errors: any;
+  genericFilenames: any;
+  logFile: any;
+  projectRoot: any;
+  scanDirs: any;
+  verbose: any;
+  warnings: any;
   constructor(projectRoot = process.cwd()) {
     this.projectRoot = projectRoot;
     this.errors = [];

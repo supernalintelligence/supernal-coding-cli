@@ -1,13 +1,51 @@
 /**
  * Jira Show Issue Command
  */
-const chalk = require('chalk');
+import chalk from 'chalk';
 const api = require('../api');
-const { getStatusColor, formatDate, extractText } = require('./utils');
+import { getStatusColor, formatDate, extractText } from './utils';
 
-async function handler(args) {
+interface JiraIssue {
+  key: string;
+  fields: {
+    summary: string;
+    status?: {
+      name: string;
+      statusCategory?: {
+        key: string;
+      };
+    };
+    priority?: {
+      name: string;
+    };
+    issuetype?: {
+      name: string;
+    };
+    project?: {
+      name: string;
+    };
+    reporter?: {
+      displayName: string;
+    };
+    assignee?: {
+      displayName: string;
+    };
+    created: string;
+    updated: string;
+    labels?: string[];
+    description?: unknown;
+  };
+}
+
+interface ShowResult {
+  success: boolean;
+  issue?: JiraIssue;
+  error?: string;
+}
+
+async function handler(args: string[]): Promise<ShowResult> {
   const [key] = args;
-  
+
   if (!key) {
     console.error(chalk.red('Issue key required. Usage: sc connect jira show PROJ-123'));
     return { success: false };
@@ -20,19 +58,19 @@ async function handler(args) {
       return { success: false };
     }
 
-    const issue = await api.apiRequest(`/issue/${key}`);
+    const issue: JiraIssue = await api.apiRequest(`/issue/${key}`);
 
     console.log(chalk.cyan.bold(`\n${issue.key}: ${issue.fields.summary}\n`));
 
     console.log(
       chalk.white('Status:     ') +
-      getStatusColor(issue.fields.status?.statusCategory?.key)(issue.fields.status?.name)
+      getStatusColor(issue.fields.status?.statusCategory?.key || '')(issue.fields.status?.name || '')
     );
     console.log(
       chalk.white('Priority:   ') + chalk.yellow(issue.fields.priority?.name || '-')
     );
-    console.log(chalk.white('Type:       ') + chalk.white(issue.fields.issuetype?.name));
-    console.log(chalk.white('Project:    ') + chalk.white(issue.fields.project?.name));
+    console.log(chalk.white('Type:       ') + chalk.white(issue.fields.issuetype?.name || '-'));
+    console.log(chalk.white('Project:    ') + chalk.white(issue.fields.project?.name || '-'));
     console.log(
       chalk.white('Reporter:   ') + chalk.white(issue.fields.reporter?.displayName || '-')
     );
@@ -50,20 +88,17 @@ async function handler(args) {
 
     if (issue.fields.description) {
       console.log(chalk.white('\nDescription:'));
-      const desc = extractText(issue.fields.description);
+      const desc = extractText(issue.fields.description as string);
       console.log(chalk.gray(desc || '(empty)'));
     }
 
     console.log(chalk.gray(`\nView in Jira: https://${creds.domain}/browse/${issue.key}`));
-    
+
     return { success: true, issue };
   } catch (error) {
-    console.error(chalk.red(`Failed to show issue: ${error.message}`));
-    return { success: false, error: error.message };
+    console.error(chalk.red(`Failed to show issue: ${(error as Error).message}`));
+    return { success: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'Show Jira issue details';
-module.exports.args = ['<key>'];
-
+export = handler;

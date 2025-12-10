@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -8,6 +9,9 @@ const matter = require('gray-matter');
  * Handles creation, management, and organization of sub-requirements
  */
 class SubRequirementManager {
+  projectRoot: any;
+  requirementManager: any;
+  requirementsPath: any;
   constructor(requirementManager) {
     this.requirementManager = requirementManager;
     this.projectRoot = requirementManager.projectRoot;

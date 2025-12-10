@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Command Registry for lazy loading SC CLI commands
  * This registry stores command metadata without loading the actual command modules
@@ -8,6 +9,10 @@ const path = require('node:path');
 const { getCommandForRegistry } = require('./command-metadata');
 
 class CommandRegistry {
+  commands: any;
+  commandsDir: any;
+  initialized: any;
+  scriptsDir: any;
   constructor() {
     this.commands = new Map();
     this.commandsDir = path.join(__dirname, 'commands');
@@ -332,6 +337,19 @@ class CommandRegistry {
         'Install enhanced git workflow protection (prevents git add on main)',
       arguments: ['[action]'],
       modulePath: path.join(this.commandsDir, 'git', 'git-protect')
+    });
+
+    this.registerCommand('build', {
+      description: 'Unified build with docs generation and validation',
+      options: [
+        ['--quiet', 'CI mode (minimal output)'],
+        ['--verbose', 'Verbose output'],
+        ['--skip-docs', 'Skip CLI docs generation'],
+        ['--skip-validate', 'Skip template validation'],
+        ['--no-colors', 'Disable colored output'],
+        ['--no-smoke-tests', 'Skip smoke tests (BUILDME.sh only)']
+      ],
+      modulePath: path.join(this.commandsDir, 'development', 'build')
     });
 
     this.registerCommand('dev', {

@@ -77,7 +77,14 @@ module.exports = {
   moduleDirectories: ['node_modules', 'lib'],
 
   // Ignore patterns
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/', '/coverage/'],
+  testPathIgnorePatterns: [
+    '/node_modules/', 
+    '/dist/', 
+    '/build/', 
+    '/coverage/',
+    '/documentation/',                     // Playwright tests for old docusaurus site
+    'cli/commands/development/test\\.',    // Command file named test.js/ts (not a test file)
+  ],
 
   // Verbose output
   verbose: true,

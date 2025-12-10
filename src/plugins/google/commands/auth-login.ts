@@ -1,14 +1,25 @@
 /**
  * Google Auth Login Command
  */
-const chalk = require('chalk');
-const api = require('../api');
+import chalk from 'chalk';
+import * as api from '../api';
 
-async function handler(args, options = {}) {
-  // Get client credentials from environment or options
+interface LoginOptions {
+  clientId?: string;
+  clientSecret?: string;
+  port?: number | string;
+}
+
+interface LoginResult {
+  success: boolean;
+  email?: string;
+  error?: string;
+}
+
+async function handler(_args: string[], options: LoginOptions = {}): Promise<LoginResult> {
   const clientId = options.clientId || process.env.GOOGLE_CLIENT_ID;
   const clientSecret = options.clientSecret || process.env.GOOGLE_CLIENT_SECRET;
-  
+
   if (!clientId || !clientSecret) {
     console.log(chalk.red('\n❌ Google OAuth credentials not configured\n'));
     console.log('Set the following environment variables:');
@@ -21,35 +32,27 @@ async function handler(args, options = {}) {
     console.log('3. Create OAuth 2.0 credentials (Desktop app type)');
     return { success: false };
   }
-  
+
   console.log(chalk.blue('\n🔐 Starting Google authentication...\n'));
-  
+
   try {
     await api.startCLIAuthFlow({
       clientId,
       clientSecret,
       port: options.port || 3847
     });
-    
-    // Get user info to confirm
+
     const userInfo = await api.getUserInfo({ clientId, clientSecret });
-    
+
     console.log(chalk.green('\n✅ Successfully connected to Google!\n'));
     console.log(`Logged in as: ${chalk.bold(userInfo.email)}`);
     console.log(`Credentials stored in: ${chalk.dim('~/.supernal/credentials/google.enc')}`);
-    
+
     return { success: true, email: userInfo.email };
   } catch (error) {
-    console.log(chalk.red(`\n❌ Authentication failed: ${error.message}\n`));
-    return { success: false, error: error.message };
+    console.log(chalk.red(`\n❌ Authentication failed: ${(error as Error).message}\n`));
+    return { success: false, error: (error as Error).message };
   }
 }
 
-module.exports = handler;
-module.exports.description = 'Connect to Google with OAuth';
-module.exports.options = [
-  ['--client-id <id>', 'Google OAuth client ID'],
-  ['--client-secret <secret>', 'Google OAuth client secret'],
-  ['--port <port>', 'Local callback port', '3847']
-];
-
+export = handler;

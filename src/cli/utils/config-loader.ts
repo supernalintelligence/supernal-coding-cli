@@ -5,26 +5,38 @@
  * NO magic strings - all paths from configuration
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'js-yaml';
+import type {
+  RawSupernalConfig,
+  ConfigLoadOptions,
+  DocPaths,
+  PlanningPhasePaths,
+  PlanningLifecyclePaths,
+  ProjectInfo,
+} from '../../types/config';
 
 /**
  * Load project configuration from supernal.yaml
- * @param {string} projectRoot - Project root directory
- * @param {Object} options - Options { silent: boolean }
- * @returns {Object|null} Configuration object or null
+ * @param projectRoot - Project root directory
+ * @param options - Options { silent: boolean }
+ * @returns Configuration object or null
  */
-function loadProjectConfig(projectRoot, options = {}) {
+export function loadProjectConfig(
+  projectRoot: string,
+  options: ConfigLoadOptions = {}
+): RawSupernalConfig | null {
   const supernalPath = path.join(projectRoot, 'supernal.yaml');
   if (fs.existsSync(supernalPath)) {
     try {
-      const yaml = require('js-yaml');
       const content = fs.readFileSync(supernalPath, 'utf8');
-      const config = yaml.load(content);
+      const config = yaml.load(content) as RawSupernalConfig;
       config._source = 'supernal.yaml';
       return config;
     } catch (error) {
-      console.error('Failed to parse supernal.yaml:', error.message);
+      const err = error as Error;
+      console.error('Failed to parse supernal.yaml:', err.message);
       throw error;
     }
   }
@@ -44,11 +56,14 @@ function loadProjectConfig(projectRoot, options = {}) {
  * IMPORTANT: path.join does NOT handle absolute second arguments correctly!
  * path.join('/a', '/b') returns '/a/b', NOT '/b'
  * This function ensures paths are relative so path.join works correctly.
- * @param {string} configPath - Path from config (could be absolute or relative)
- * @param {string} defaultPath - Default relative path
- * @returns {string} Relative path
+ * @param configPath - Path from config (could be absolute or relative)
+ * @param defaultPath - Default relative path
+ * @returns Relative path
  */
-function normalizeConfigPath(configPath, defaultPath) {
+export function normalizeConfigPath(
+  configPath: string | undefined,
+  defaultPath: string
+): string {
   if (!configPath) return defaultPath;
 
   // If path is absolute, warn and extract just the relative portion
@@ -92,10 +107,10 @@ function normalizeConfigPath(configPath, defaultPath) {
 
 /**
  * Get documentation paths from config (supernal.yaml)
- * @param {Object} config - Configuration object from loadProjectConfig
- * @returns {Object} Paths object (always relative paths)
+ * @param config - Configuration object from loadProjectConfig
+ * @returns Paths object (always relative paths)
  */
-function getDocPaths(config) {
+export function getDocPaths(config: RawSupernalConfig | null): DocPaths {
   if (!config) {
     // No config, return defaults
     return {
@@ -158,10 +173,12 @@ function getDocPaths(config) {
 
 /**
  * Get all planning phase paths from config
- * @param {Object} config - Configuration object
- * @returns {Object} Planning phase paths
+ * @param config - Configuration object
+ * @returns Planning phase paths
  */
-function getPlanningPhasePaths(config) {
+export function getPlanningPhasePaths(
+  config: RawSupernalConfig | null
+): PlanningPhasePaths {
   if (
     config?.documentation?.planning_phases &&
     config._source === 'supernal.yaml'
@@ -181,10 +198,12 @@ function getPlanningPhasePaths(config) {
 
 /**
  * Get planning lifecycle paths from config
- * @param {Object} config - Configuration object
- * @returns {Object} Planning lifecycle paths
+ * @param config - Configuration object
+ * @returns Planning lifecycle paths
  */
-function getPlanningLifecyclePaths(config) {
+export function getPlanningLifecyclePaths(
+  config: RawSupernalConfig | null
+): PlanningLifecyclePaths {
   if (
     config?.documentation?.planning_lifecycle &&
     config._source === 'supernal.yaml'
@@ -204,10 +223,10 @@ function getPlanningLifecyclePaths(config) {
 
 /**
  * Get root whitelist from config
- * @param {Object} config - Configuration object
- * @returns {string[]} Whitelist array
+ * @param config - Configuration object
+ * @returns Whitelist array
  */
-function getRootWhitelist(config) {
+export function getRootWhitelist(config: RawSupernalConfig | null): string[] {
   if (
     config?.documentation?.root_whitelist &&
     config._source === 'supernal.yaml'
@@ -227,22 +246,22 @@ function getRootWhitelist(config) {
 
 /**
  * Get workflow name from config
- * @param {Object} config - Configuration object
- * @returns {string|null} Workflow name
+ * @param config - Configuration object
+ * @returns Workflow name
  */
-function getWorkflowName(config) {
-  if (config) {
-    return config.workflow || null;
+export function getWorkflowName(config: RawSupernalConfig | null): string | null {
+  if (config && typeof config.workflow === 'string') {
+    return config.workflow;
   }
   return null;
 }
 
 /**
  * Get project info from config
- * @param {Object} config - Configuration object
- * @returns {Object} Project info
+ * @param config - Configuration object
+ * @returns Project info
  */
-function getProjectInfo(config) {
+export function getProjectInfo(config: RawSupernalConfig | null): ProjectInfo {
   if (!config) {
     return {
       name: 'supernal-coding',
@@ -266,8 +285,10 @@ function getProjectInfo(config) {
   };
 }
 
+// CommonJS compatibility export
 module.exports = {
   loadProjectConfig,
+  normalizeConfigPath,
   getDocPaths,
   getPlanningPhasePaths,
   getPlanningLifecyclePaths,

@@ -3,34 +3,34 @@
  * Part of REQ-REN-004: Config Display & Debug Commands
  */
 
-const yaml = require('yaml');
+import yaml from 'yaml';
+
+interface YAMLOptions {
+  indent?: number;
+  lineWidth?: number;
+  [key: string]: unknown;
+}
+
+interface JSONOptions {
+  indent?: number;
+}
 
 class FormatHelper {
-  /**
-   * Extract section from object by dot path
-   * @param {Object} obj - Source object
-   * @param {string} path - Dot-notation path
-   * @returns {any} Extracted value or null
-   */
-  static extractSection(obj, path) {
-    return path.split('.').reduce((current, key) => {
-      // Handle array access
+  static extractSection(obj: Record<string, unknown>, path: string): unknown {
+    return path.split('.').reduce((current: unknown, key: string) => {
+      if (current === null || current === undefined) return undefined;
+      
       const arrayMatch = key.match(/^(\w+)\[(\d+)\]$/);
       if (arrayMatch) {
         const [, prop, index] = arrayMatch;
-        return current?.[prop]?.[parseInt(index, 10)];
+        const currentObj = current as Record<string, unknown[]>;
+        return currentObj?.[prop]?.[parseInt(index, 10)];
       }
-      return current?.[key];
+      return (current as Record<string, unknown>)?.[key];
     }, obj);
   }
 
-  /**
-   * Convert object to YAML
-   * @param {Object} obj - Object to convert
-   * @param {Object} options - YAML options
-   * @returns {string} YAML string
-   */
-  static toYAML(obj, options = {}) {
+  static toYAML(obj: unknown, options: YAMLOptions = {}): string {
     return yaml.stringify(obj, {
       indent: 2,
       lineWidth: 80,
@@ -38,16 +38,11 @@ class FormatHelper {
     });
   }
 
-  /**
-   * Convert object to JSON
-   * @param {Object} obj - Object to convert
-   * @param {Object} options - JSON options
-   * @returns {string} JSON string
-   */
-  static toJSON(obj, options = {}) {
+  static toJSON(obj: unknown, options: JSONOptions = {}): string {
     const indent = options.indent || 2;
     return JSON.stringify(obj, null, indent);
   }
 }
 
+export default FormatHelper;
 module.exports = FormatHelper;

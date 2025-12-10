@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -7,6 +8,10 @@ const path = require('node:path');
  * creates/updates files, removes implemented blocks, and handles conflicts
  */
 class DocumentationProcessor {
+  errors: any;
+  processedFiles: any;
+  warnings: any;
+  workspaceRoot: any;
   constructor(workspaceRoot = process.cwd()) {
     this.workspaceRoot = workspaceRoot;
     this.processedFiles = new Map();
