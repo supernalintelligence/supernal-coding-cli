@@ -3,6 +3,7 @@ const fs = require('node:fs').promises;
 const path = require('node:path');
 const yaml = require('js-yaml');
 const chalk = require('chalk');
+const AutoCommitConfig = require('../../../utils/auto-commit-config');
 
 /**
  * Unified Cleanup Command
@@ -649,22 +650,29 @@ class UnifiedCleanup {
       )
     );
 
-    // Suggest commit command
+    // Suggest commit command based on autoCommit config
     if (movedFiles.length > 0 || createdDirs.length > 0) {
-      console.log('');
-      console.log(chalk.blue('📝 Suggested commit:'));
+      const autoCommitConfig = new AutoCommitConfig(this.projectRoot);
+      const shouldSuggest = await autoCommitConfig.shouldSuggest('cleanup');
       
-      const allFiles = [...movedFiles, ...createdDirs.map(d => `${d}/.gitkeep`)];
-      const filesArg = allFiles.length <= 5 
-        ? allFiles.join(' ')
-        : `${allFiles.slice(0, 3).join(' ')} # ... and ${allFiles.length - 3} more`;
-      
-      const commitMsg = movedFiles.length > 0
-        ? `refactor: Organize ${movedFiles.length} file(s) via sc cleanup`
-        : `chore: Create ${createdDirs.length} missing directories`;
-      
-      console.log(chalk.cyan(`git add ${filesArg}`));
-      console.log(chalk.cyan(`git commit -m "${commitMsg}"`));
+      // Always show suggestion unless mode is 'off'
+      const mode = await autoCommitConfig.getModeForCommand('cleanup');
+      if (mode !== 'off') {
+        console.log('');
+        console.log(chalk.blue('📝 Suggested commit:'));
+        
+        const allFiles = [...movedFiles, ...createdDirs.map(d => `${d}/.gitkeep`)];
+        const filesArg = allFiles.length <= 5 
+          ? allFiles.join(' ')
+          : `${allFiles.slice(0, 3).join(' ')} # ... and ${allFiles.length - 3} more`;
+        
+        const commitMsg = movedFiles.length > 0
+          ? `refactor: Organize ${movedFiles.length} file(s) via sc cleanup`
+          : `chore: Create ${createdDirs.length} missing directories`;
+        
+        console.log(chalk.cyan(`git add ${filesArg}`));
+        console.log(chalk.cyan(`git commit -m "${commitMsg}"`));
+      }
     }
   }
 

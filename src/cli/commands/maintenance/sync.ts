@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Sync command - Synchronizes global sc installation with local repository version
  * This ensures the global `sc` command matches the version/features in the current repo
@@ -10,6 +11,7 @@ const path = require('node:path');
 const { execSync } = require('node:child_process');
 
 class SyncCommand {
+  projectRoot: any;
   constructor() {
     this.projectRoot = process.cwd();
   }

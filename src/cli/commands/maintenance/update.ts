@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Update Command - Handles self-updating the globally installed sc package
