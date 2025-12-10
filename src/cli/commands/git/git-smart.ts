@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 // git-smart.js - Intelligent Git Management for Supernal Coding
 // Part of REQ-024: Smart Git Management System
@@ -10,8 +11,11 @@ const chalk = require('chalk');
 const { getConfig } = require('../../../../../scripts/config-loader');
 const GitFeedback = require('./git-feedback');
 const { SigningManager } = require('../../../signing');
+// TODO: Add AutoCommitConfig integration when showStatus() is made async
 
 class GitSmart {
+  projectRoot: any;
+  requirementsDir: any;
   constructor() {
     this.projectRoot = process.cwd();
     const config = getConfig(this.projectRoot);

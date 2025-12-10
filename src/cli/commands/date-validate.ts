@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * SC Date Validation Command
@@ -9,8 +10,17 @@
 
 const chalk = require('chalk');
 const DateValidator = require('./validation/date-validator');
+const AutoCommitConfig = require('../../utils/auto-commit-config');
+
+// Helper to check if commit suggestions should be shown
+async function shouldShowCommitSuggestion() {
+  const autoCommitConfig = new AutoCommitConfig(process.cwd());
+  const mode = await autoCommitConfig.getModeForCommand('date-validate');
+  return mode !== 'off';
+}
 
 class DateValidateCommand {
+  validator: any;
   constructor() {
     this.validator = null;
   }
@@ -157,15 +167,17 @@ class DateValidateCommand {
       if (fixResult.fixed) {
         console.log(chalk.green(`✅ Fixed ${fixResult.count} dates`));
 
-        // Suggest git commit command for single file
-        console.log(chalk.blue('\n📝 Suggested commit:'));
-        console.log(
-          chalk.cyan(`git add "${filePath}" && git commit -m "fix: standardize ${fixResult.count} dates in ${require('node:path').basename(filePath)}
+        // Suggest git commit command for single file (respects autoCommit config)
+        if (await shouldShowCommitSuggestion()) {
+          console.log(chalk.blue('\n📝 Suggested commit:'));
+          console.log(
+            chalk.cyan(`git add "${filePath}" && git commit -m "fix: standardize ${fixResult.count} dates in ${require('node:path').basename(filePath)}
 
 - Format upgrades: ${issueBreakdown.formatUpgrade} (non-standard → ISO 8601 UTC)
 - Date corrections: ${issueBreakdown.dateCorrection} (hallucinated → actual file dates)
 - Full standardization: ${issueBreakdown.standardization} (both format + date fixes)"`)
-        );
+          );
+        }
 
         return { success: true, fixed: fixResult.count };
       } else if (fixResult.dryRun) {
@@ -412,14 +424,16 @@ class DateValidateCommand {
         );
       }
 
-      console.log(chalk.blue('\n📝 Suggested commit after fixing:'));
-      console.log(
-        chalk.cyan(`git add ${changedFiles.join(' ')} && git commit -m "fix: correct ${totalIssues} hallucinated dates to actual file dates across ${results.invalid} files
+      if (await shouldShowCommitSuggestion()) {
+        console.log(chalk.blue('\n📝 Suggested commit after fixing:'));
+        console.log(
+          chalk.cyan(`git add ${changedFiles.join(' ')} && git commit -m "fix: correct ${totalIssues} hallucinated dates to actual file dates across ${results.invalid} files
 
 - Hallucinated dates (good format): ${dateCorrections}
 - Hallucinated dates (bad format): ${fullStandardization}
 - All standardized to ISO 8601 UTC format"`)
-      );
+        );
+      }
     } else {
       console.log(chalk.green('\n✅ No hallucinated dates found!'));
     }
@@ -631,15 +645,17 @@ class DateValidateCommand {
 
           const changedFiles = fixedFiles.join(' ');
 
-          console.log(chalk.blue('\n📝 Suggested commit:'));
-          console.log(
-            chalk.cyan(`git add ${changedFiles} && git commit -m "fix: standardize ${totalFixed} dates to ISO 8601 UTC format across ${fixedFiles.length} files
+          if (await shouldShowCommitSuggestion()) {
+            console.log(chalk.blue('\n📝 Suggested commit:'));
+            console.log(
+              chalk.cyan(`git add ${changedFiles} && git commit -m "fix: standardize ${totalFixed} dates to ISO 8601 UTC format across ${fixedFiles.length} files
 
 - Format upgrades: ${issueBreakdown.formatUpgrade} (non-standard → ISO 8601 UTC)
 - Date corrections: ${issueBreakdown.dateCorrection} (hallucinated → actual file dates)
 - Full standardization: ${issueBreakdown.standardization} (both format + date fixes)
 - Eliminate timezone ambiguity for international compliance"`)
-          );
+            );
+          }
         }
       }
     }

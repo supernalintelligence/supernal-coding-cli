@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -6,6 +7,7 @@ const yaml = require('yaml');
 const chalk = require('chalk');
 const { loadProjectConfig, getDocPaths } = require('../../utils/config-loader');
 const FrontmatterValidator = require('../../utils/frontmatter-validator');
+const AutoCommitConfig = require('../../../utils/auto-commit-config');
 
 // Helper to get paths from modern config
 function getConfigPaths() {
@@ -817,21 +819,25 @@ async function main(action, options = {}) {
           }
         }
       } else if (changedFiles.length > 0) {
-        // Show suggested commit command
-        console.log(chalk.blue('\n💡 To commit these changes:'));
-        console.log(chalk.cyan(`   sc priority update --commit`));
-        console.log(chalk.gray('   Or manually:'));
-        const relativePaths = changedFiles.map((f) =>
-          path.relative(process.cwd(), f)
-        );
-        console.log(
-          chalk.gray(
-            `   git add ${relativePaths.slice(0, 3).join(' ')}${relativePaths.length > 3 ? ' ...' : ''}`
-          )
-        );
-        console.log(
-          chalk.gray(`   git commit -m "chore: Update requirement priorities"`)
-        );
+        // Show suggested commit command (respects autoCommit config)
+        const autoCommitConfig = new AutoCommitConfig(process.cwd());
+        const mode = await autoCommitConfig.getModeForCommand('priority');
+        if (mode !== 'off') {
+          console.log(chalk.blue('\n💡 To commit these changes:'));
+          console.log(chalk.cyan(`   sc priority update --commit`));
+          console.log(chalk.gray('   Or manually:'));
+          const relativePaths = changedFiles.map((f) =>
+            path.relative(process.cwd(), f)
+          );
+          console.log(
+            chalk.gray(
+              `   git add ${relativePaths.slice(0, 3).join(' ')}${relativePaths.length > 3 ? ' ...' : ''}`
+            )
+          );
+          console.log(
+            chalk.gray(`   git commit -m "chore: Update requirement priorities"`)
+          );
+        }
       }
       break;
     }
