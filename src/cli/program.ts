@@ -1155,6 +1155,40 @@ function buildProgram() {
   // ============================================================================
 
   // ============================================================================
+  // COVERAGE COMMAND - External coverage tool integration
+  // ============================================================================
+  program
+    .command('coverage [action]')
+    .description('Coverage ecosystem integration (Vitest, Jest, Codecov)')
+    .argument('[args...]', 'Action-specific arguments')
+    .option('--stack <stack>', 'Stack type (react-vite|nextjs|node|auto)')
+    .option('--tool <tool>', 'Coverage tool (vitest|jest|c8|auto)')
+    .option('--min-line <n>', 'Minimum line coverage %')
+    .option('--min-branch <n>', 'Minimum branch coverage %')
+    .option('--min-function <n>', 'Minimum function coverage %')
+    .option('--min-statement <n>', 'Minimum statement coverage %')
+    .option('--force', 'Overwrite existing config')
+    .option('--dry-run', 'Show config without writing')
+    .option('--check', 'Validate thresholds after run')
+    .option('--include <pattern>', 'Include only matching files')
+    .option('--e2e', 'Include E2E tests')
+    .option('--quiet', 'Minimal output')
+    .option('--json', 'Output as JSON')
+    .option('-v, --verbose', 'Verbose output')
+    .action(async (action, args, options) => {
+      try {
+        const { handleCoverageCommand } = require('./commands/coverage');
+        await handleCoverageCommand(action, args, options);
+      } catch (error) {
+        console.error(chalk.red(`❌ ${error.message}`));
+        if (process.env.NODE_ENV !== 'test') {
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // ============================================================================
   // HEALTH COMMAND - System health checks
   // ============================================================================
   program
