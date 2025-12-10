@@ -1,23 +1,62 @@
-// @ts-nocheck
-const chalk = require('chalk');
+import chalk from 'chalk';
 const MonitorManager = require('../../../monitor/MonitorManager');
+
+interface MonitorOptions {
+  daemon?: boolean;
+  config?: string;
+  follow?: boolean;
+  tail?: number;
+}
+
+interface StartResult {
+  foreground?: boolean;
+  pid?: number;
+  logFile?: string;
+}
+
+interface StopResult {
+  pid: number;
+  forced?: boolean;
+}
+
+interface RepoStatus {
+  path: string;
+}
+
+interface MonitorStatus {
+  running: boolean;
+  pid?: number;
+  uptime?: number;
+  repos?: (RepoStatus | string)[];
+  lastCheck?: string;
+  stats?: Record<string, unknown>;
+}
+
+interface TailStream {
+  on(event: 'line', callback: (line: string) => void): void;
+  on(event: 'error', callback: (error: Error) => void): void;
+}
 
 /**
  * Handle sc monitor commands
- * 
+ *
  * Commands:
  * - start [--daemon] - Start monitoring
  * - stop - Stop daemon
  * - status - Show status
  * - logs [--tail N] [--follow] - View logs
  */
-async function handleMonitorCommand(action, args, options) {
+async function handleMonitorCommand(
+  action: string | undefined,
+  _args: string[],
+  options: MonitorOptions
+): Promise<void> {
   const manager = new MonitorManager();
 
   try {
     switch (action) {
       case 'start': {
-        const result = await manager.start({
+        const result: StartResult = await manager.start({
           daemon: options.daemon,
           config: options.config
         });
@@ -39,7 +78,7 @@ async function handleMonitorCommand(action, args, options) {
       }
 
       case 'stop': {
-        const result = await manager.stop();
+        const result: StopResult = await manager.stop();
         console.log(chalk.green(`✅ Monitor stopped (PID: ${result.pid})`));
         if (result.forced) {
           console.log(chalk.yellow('   (forced kill)'));
@@ -48,8 +87,8 @@ async function handleMonitorCommand(action, args, options) {
       }
 
       case 'status': {
-        const status = await manager.status();
-        
+        const status: MonitorStatus = await manager.status();
+
         if (!status.running) {
           console.log(chalk.yellow('⚠️  Monitor is not running'));
           console.log();
@@ -60,7 +99,7 @@ async function handleMonitorCommand(action, args, options) {
 
         console.log(chalk.bold('\n📊 Monitor Status'));
         console.log(chalk.green(`✅ Running (PID: ${status.pid})`));
-        
+
         if (status.uptime) {
           const uptimeSeconds = Math.floor(status.uptime / 1000);
           const hours = Math.floor(uptimeSeconds / 3600);
@@ -70,8 +109,9 @@ async function handleMonitorCommand(action, args, options) {
 
         if (status.repos && status.repos.length > 0) {
           console.log(chalk.bold('\n📂 Watching Repos:'));
-          status.repos.forEach(repo => {
-            console.log(chalk.cyan(`  • ${repo.path || repo}`));
+          status.repos.forEach((repo) => {
+            const repoPath = typeof repo === 'string' ? repo : repo.path;
+            console.log(chalk.cyan(`  • ${repoPath}`));
           });
         }
 
@@ -93,11 +133,11 @@ async function handleMonitorCommand(action, args, options) {
       case 'logs': {
         if (options.follow) {
           console.log(chalk.blue('Following logs (Ctrl+C to stop)...'));
-          const tail = await manager.getLogs({ follow: true });
-          tail.on('line', (line) => {
+          const tail: TailStream = await manager.getLogs({ follow: true });
+          tail.on('line', (line: string) => {
             console.log(line);
           });
-          tail.on('error', (error) => {
+          tail.on('error', (error: Error) => {
             console.error(chalk.red(`Error: ${error.message}`));
           });
         } else {
@@ -113,17 +153,17 @@ async function handleMonitorCommand(action, args, options) {
 
       case 'restart': {
         console.log(chalk.blue('Restarting monitor...'));
-        
+
         try {
           await manager.stop();
           console.log(chalk.gray('✓ Stopped'));
-        } catch (error) {
+        } catch (_error) {
           // Ignore if not running
         }
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        const result = await manager.start({ daemon: true, config: options.config });
+        const result: StartResult = await manager.start({ daemon: true, config: options.config });
         console.log(chalk.green(`✅ Monitor restarted (PID: ${result.pid})`));
         break;
       }
@@ -161,9 +201,10 @@ async function handleMonitorCommand(action, args, options) {
         console.log();
     }
   } catch (error) {
-    console.error(chalk.red(`❌ ${error.message}`));
+    console.error(chalk.red(`❌ ${(error as Error).message}`));
     throw error;
   }
 }
 
+export { handleMonitorCommand };
 module.exports = { handleMonitorCommand };

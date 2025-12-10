@@ -1,28 +1,41 @@
-// @ts-nocheck
-const chalk = require('chalk');
-const { execSync } = require('node:child_process');
+import chalk from 'chalk';
+import { execSync } from 'node:child_process';
+import path from 'node:path';
 
-function gatherContext() {
-  const context = {
+interface Context {
+  cwd: string;
+  command: string;
+  node: string;
+  platform: string;
+  timestamp: string;
+  gitBranch?: string;
+  version: string;
+}
+
+interface SuggestOptions {
+  _?: string | string[];
+}
+
+function gatherContext(): Context {
+  const context: Context = {
     cwd: process.cwd(),
     command: process.argv.slice(2).join(' '),
     node: process.version,
     platform: process.platform,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: 'unknown'
   };
 
-  // Try to get git info safely
   try {
     context.gitBranch = execSync('git branch --show-current 2>/dev/null', {
       encoding: 'utf8'
     }).trim();
   } catch (_e) {
-    // Not in a git repo - that's fine
+    // Not in a git repo
   }
 
-  // Get supernal-coding version
   try {
-    const packagePath = require('node:path').join(
+    const packagePath = path.join(
       __dirname,
       '../../package.json'
     );
@@ -35,10 +48,9 @@ function gatherContext() {
   return context;
 }
 
-function generateGitHubUrl(title, description, type = 'feedback') {
+function generateGitHubUrl(title: string, description: string, type: string = 'feedback'): string {
   const context = gatherContext();
 
-  // Default to main repo, but users can fork and change this
   const repo = 'supernalintelligence/supernal-coding';
 
   const issueTitle = encodeURIComponent(`[${type.toUpperCase()}] ${title}`);
@@ -66,7 +78,7 @@ ${context.gitBranch ? `- **Git Branch**: ${context.gitBranch}` : ''}
   return `https://github.com/${repo}/issues/new?title=${issueTitle}&body=${encodedBody}&labels=${labels}`;
 }
 
-function showHelp() {
+function showHelp(): void {
   console.log(chalk.cyan('\n💡 Supernal Coding Suggestion System\n'));
   console.log(chalk.white('Instantly create GitHub issues with context\n'));
 
@@ -89,16 +101,15 @@ function showHelp() {
   console.log(chalk.gray('  4. Works with forks - no authentication needed'));
 }
 
-module.exports = async (action, options) => {
-  // Handle different command patterns
-  let title, type;
+async function handler(action: string | undefined, options: SuggestOptions): Promise<void> {
+  let title: string | undefined;
+  let type: string;
 
   if (action === 'help' || action === '--help') {
     showHelp();
     return;
   }
 
-  // Handle: sc suggest bug "description"
   if (action === 'bug' || action === 'feature') {
     type = action;
     title = Array.isArray(options._) ? options._[0] : options._;
@@ -112,11 +123,9 @@ module.exports = async (action, options) => {
       );
       return;
     }
-  }
-  // Handle: sc suggest "general feedback"
-  else {
+  } else {
     type = 'feedback';
-    title = action; // The action IS the title in this case
+    title = action;
 
     if (!title) {
       console.log(chalk.red('❌ Please provide your suggestion'));
@@ -126,7 +135,6 @@ module.exports = async (action, options) => {
     }
   }
 
-  // Generate the GitHub issue URL
   const githubUrl = generateGitHubUrl(title, title, type);
 
   console.log(chalk.green('\n✅ GitHub Issue Ready!'));
@@ -139,7 +147,6 @@ module.exports = async (action, options) => {
     chalk.gray('   Click to open GitHub, review the details, and submit')
   );
 
-  // Show what will be included
   console.log(chalk.yellow('\n📋 Context included:'));
   const context = gatherContext();
   console.log(chalk.gray(`   • Command: ${context.command}`));
@@ -150,4 +157,7 @@ module.exports = async (action, options) => {
   if (context.gitBranch) {
     console.log(chalk.gray(`   • Git branch: ${context.gitBranch}`));
   }
-};
+}
+
+export default handler;
+module.exports = handler;

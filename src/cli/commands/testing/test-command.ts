@@ -1,27 +1,34 @@
-// @ts-nocheck
 /**
  * Main test command module for SC CLI
  * Integrates test guidance, mapping, and execution functionality
  */
 
-const { Command } = require('commander');
+import { Command } from 'commander';
+import chalk from 'chalk';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 const TestGuidanceSystem = require('./test-guidance');
 const TestMapperCommand = require('./test-mapper');
-const chalk = require('chalk');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
 const { generateHelpText } = require('../../command-metadata');
 
+interface TestOptions {
+  watch?: boolean;
+  coverage?: boolean;
+  verbose?: boolean;
+  help?: boolean;
+}
+
 class TestCommand {
-  guidance: any;
-  mapper: any;
+  protected guidance: InstanceType<typeof TestGuidanceSystem>;
+  protected mapper: InstanceType<typeof TestMapperCommand>;
+
   constructor() {
     this.guidance = new TestGuidanceSystem();
     this.mapper = new TestMapperCommand();
   }
 
-  createCommand() {
+  createCommand(): Command {
     const command = new Command('test');
     command
       .description('Testing guidance and execution system')
@@ -33,11 +40,11 @@ class TestCommand {
         'Action to perform (guide, setup, validate, plan, run, doctor)'
       )
       .argument('[target]', 'Target for the action')
-      .action(async (action, target, options) => {
+      .action(async (action: string | undefined, target: string | undefined, options: TestOptions) => {
         try {
           await this.execute(action, target, options);
         } catch (error) {
-          console.error(chalk.red('❌ Test command failed:'), error.message);
+          console.error(chalk.red('❌ Test command failed:'), (error as Error).message);
           process.exit(1);
         }
       });
@@ -45,7 +52,7 @@ class TestCommand {
     return command;
   }
 
-  async execute(action, target, options) {
+  async execute(action: string | undefined, target: string | undefined, options: TestOptions): Promise<void> {
     if (!action || action === 'help') {
       this.showHelp();
       return;
@@ -89,11 +96,10 @@ class TestCommand {
     }
   }
 
-  async runTests(type, options) {
+  async runTests(type: string | undefined, options: TestOptions): Promise<void> {
     console.log(chalk.blue('🧪 Test Execution'));
     console.log(chalk.blue('='.repeat(40)));
 
-    // Check for TESTME.sh first (legacy compatibility)
     const testmeScript = path.join(process.cwd(), 'TESTME.sh');
     if (fs.existsSync(testmeScript)) {
       console.log(
@@ -109,7 +115,6 @@ class TestCommand {
       return;
     }
 
-    // Fallback to npm test
     console.log(
       chalk.yellow('📋 TESTME.sh not found, falling back to npm test')
     );
@@ -141,26 +146,22 @@ class TestCommand {
     }
   }
 
-  showHelp() {
-    // Use centralized help generation for DRY principle
+  showHelp(): void {
     console.log(generateHelpText('test', '🧪 Supernal Test System'));
   }
 }
 
-// Export the command function directly
-// Main handler function
-async function handleTestCommand(options) {
+async function handleTestCommand(options?: TestOptions): Promise<void> {
   const testCmd = new TestCommand();
 
-  // Handle --help flag by showing our custom help
   if (options?.help) {
     testCmd.showHelp();
     return;
   }
 
-  await testCmd.execute(undefined, undefined, options);
+  await testCmd.execute(undefined, undefined, options || {});
 }
 
+export { handleTestCommand, TestCommand };
 module.exports = { handleTestCommand };
-// Export class for direct use
 module.exports.TestCommand = TestCommand;
