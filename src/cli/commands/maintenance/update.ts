@@ -1,20 +1,55 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * Update Command - Handles self-updating the globally installed sc package
  */
 
-const chalk = require('chalk');
+import chalk from 'chalk';
 const UpgradeChecker = require('../upgrade/check-upgrade');
 
-async function handleUpdateCommand(action, options = {}) {
+interface UpdateOptions {
+  force?: boolean;
+  dryRun?: boolean;
+}
+
+interface CheckResult {
+  checked: boolean;
+  needsUpgrade: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  upgradeCommand: string;
+  isDevelopment: boolean;
+}
+
+interface UpgradeResult {
+  success: boolean;
+  result?: CheckResult;
+  message?: string;
+  commands?: string[];
+  error?: string;
+}
+
+function showHelp(): void {
+  console.log(chalk.bold('\n🔄 Supernal Coding Update Command\n'));
+  console.log('Usage: sc update [action] [options]\n');
+  console.log('Actions:');
+  console.log('  check      Check for available updates (default)');
+  console.log('  install    Install the latest version');
+  console.log('  help       Show this help message\n');
+  console.log('Options:');
+  console.log('  --force    Force update check (ignore cache)');
+  console.log('  --dry-run  Show what would be done without executing\n');
+  console.log('Examples:');
+  console.log('  sc update               # Check for updates');
+  console.log('  sc update check --force # Force check for updates');
+  console.log('  sc update install       # Install latest version');
+  console.log('');
+}
+
+async function handleUpdateCommand(action: string | undefined, options: UpdateOptions = {}): Promise<UpgradeResult> {
   const checker = new UpgradeChecker();
 
   try {
     if (action === 'check' || !action) {
-      // Check for updates
-      const result = await checker.checkForUpgrade({
+      const result: CheckResult = await checker.checkForUpgrade({
         force: options.force || false,
         silent: false
       });
@@ -48,7 +83,6 @@ async function handleUpdateCommand(action, options = {}) {
     }
 
     if (action === 'install') {
-      // Perform the actual upgrade
       console.log(chalk.blue('🔄 Starting upgrade process...'));
       const upgradeResult = await checker.performSelfUpgrade({
         dryRun: options.dryRun || false,
@@ -64,7 +98,7 @@ async function handleUpdateCommand(action, options = {}) {
         console.log(chalk.red('❌ Upgrade failed:'), upgradeResult.message);
         if (upgradeResult.commands) {
           console.log(chalk.blue('Run these commands manually:'));
-          upgradeResult.commands.forEach((cmd) => {
+          upgradeResult.commands.forEach((cmd: string) => {
             console.log(chalk.cyan(`   ${cmd}`));
           });
         }
@@ -82,26 +116,10 @@ async function handleUpdateCommand(action, options = {}) {
     showHelp();
     return { success: false };
   } catch (error) {
-    console.error(chalk.red('❌ Update failed:'), error.message);
-    return { success: false, error: error.message };
+    console.error(chalk.red('❌ Update failed:'), (error as Error).message);
+    return { success: false, error: (error as Error).message };
   }
 }
 
-function showHelp() {
-  console.log(chalk.bold('\n🔄 Supernal Coding Update Command\n'));
-  console.log('Usage: sc update [action] [options]\n');
-  console.log('Actions:');
-  console.log('  check      Check for available updates (default)');
-  console.log('  install    Install the latest version');
-  console.log('  help       Show this help message\n');
-  console.log('Options:');
-  console.log('  --force    Force update check (ignore cache)');
-  console.log('  --dry-run  Show what would be done without executing\n');
-  console.log('Examples:');
-  console.log('  sc update               # Check for updates');
-  console.log('  sc update check --force # Force check for updates');
-  console.log('  sc update install       # Install latest version');
-  console.log('');
-}
-
+export default handleUpdateCommand;
 module.exports = handleUpdateCommand;

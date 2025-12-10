@@ -1,12 +1,8 @@
-// @ts-nocheck
 /**
  * Template generators for requirement management
  */
 class RequirementTemplates {
-  /**
-   * Get default requirement template
-   */
-  static getDefaultTemplate() {
+  static getDefaultTemplate(): string {
     return `---
 id: REQ-{{id}}
 title: {{requirement-name}}
@@ -44,10 +40,7 @@ updated: {{date}}
 `;
   }
 
-  /**
-   * Create Cucumber steps template
-   */
-  static createStepsTemplate(reqId) {
+  static createStepsTemplate(reqId: string): string {
     return `const { Given, When, Then } = require('@cucumber/cucumber');
 
 // REQ-${reqId} Step Definitions
@@ -72,10 +65,7 @@ Then('I should see the expected result', function () {
 `;
   }
 
-  /**
-   * Create unit test template
-   */
-  static createUnitTestTemplate(reqId) {
+  static createUnitTestTemplate(reqId: string): string {
     return `// REQ-${reqId} Unit Tests
 // Generated on ${new Date().toISOString().split('T')[0]}
 
@@ -103,10 +93,7 @@ describe('REQ-${reqId} Unit Tests', () => {
 `;
   }
 
-  /**
-   * Create E2E test template
-   */
-  static createE2ETestTemplate(reqId) {
+  static createE2ETestTemplate(reqId: string): string {
     return `// REQ-${reqId} End-to-End Tests
 // Generated on ${new Date().toISOString().split('T')[0]}
 
@@ -134,4 +121,5 @@ test.describe('REQ-${reqId} E2E Tests', () => {
   }
 }
 
+export default RequirementTemplates;
 module.exports = RequirementTemplates;

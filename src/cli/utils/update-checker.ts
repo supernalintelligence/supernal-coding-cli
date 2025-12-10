@@ -1,23 +1,29 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
-const chalk = require('chalk');
+interface UpdateInfo {
+  updateAvailable: boolean;
+  type?: string;
+  currentVersion?: string;
+  latestVersion?: string;
+  updateCommand?: string;
+  error?: string;
+}
 
 class UpdateChecker {
-  currentVersion: any;
-  isLocalDev: any;
-  packageJsonPath: any;
+  protected packageJsonPath: string | null;
+  protected currentVersion: string;
+  protected isLocalDev: boolean;
+
   constructor() {
     this.packageJsonPath = this.findPackageJson();
     this.currentVersion = this.getCurrentVersion();
     this.isLocalDev = this.isLocalDevelopment();
   }
 
-  findPackageJson() {
-    // Start from the CLI directory and work up
+  findPackageJson(): string | null {
     let dir = __dirname;
     for (let i = 0; i < 5; i++) {
       const packagePath = path.join(dir, 'package.json');
@@ -29,7 +35,7 @@ class UpdateChecker {
     return null;
   }
 
-  getCurrentVersion() {
+  getCurrentVersion(): string {
     if (!this.packageJsonPath) return '0.0.0';
     try {
       const pkg = JSON.parse(fs.readFileSync(this.packageJsonPath, 'utf8'));
@@ -39,12 +45,10 @@ class UpdateChecker {
     }
   }
 
-  isLocalDevelopment() {
-    // Check if we're in a git repository with supernal-code development
+  isLocalDevelopment(): boolean {
     try {
       const gitDir = path.join(process.cwd(), '.git');
       if (fs.existsSync(gitDir)) {
-        // Check if this is the supernal-code repo
         const packagePath = path.join(
           process.cwd(),
           'supernal-code-package',
@@ -58,7 +62,7 @@ class UpdateChecker {
     }
   }
 
-  getLatestGitCommit() {
+  getLatestGitCommit(): string {
     try {
       const commit = execSync('git rev-parse HEAD', {
         encoding: 'utf8',
@@ -71,9 +75,8 @@ class UpdateChecker {
     }
   }
 
-  getInstalledCommit() {
+  getInstalledCommit(): string {
     try {
-      // For npm link installations, check the symlink target
       const scPath = execSync('which sc', {
         encoding: 'utf8',
         stdio: 'pipe'
@@ -92,17 +95,15 @@ class UpdateChecker {
     }
   }
 
-  checkForUpdates() {
+  checkForUpdates(): UpdateInfo {
     if (!this.isLocalDev) {
-      // For published packages, check npm registry (future implementation)
       return this.checkNpmUpdates();
     } else {
-      // For local development, check git commits
       return this.checkGitUpdates();
     }
   }
 
-  checkGitUpdates() {
+  checkGitUpdates(): UpdateInfo {
     try {
       const latestCommit = this.getLatestGitCommit();
       const installedCommit = this.getInstalledCommit();
@@ -123,17 +124,15 @@ class UpdateChecker {
 
       return { updateAvailable: false };
     } catch (error) {
-      return { updateAvailable: false, error: error.message };
+      return { updateAvailable: false, error: (error as Error).message };
     }
   }
 
-  checkNpmUpdates() {
-    // Future: Check npm registry for published package updates
-    // For now, return no updates available
+  checkNpmUpdates(): UpdateInfo {
     return { updateAvailable: false };
   }
 
-  displayUpdateNotice(updateInfo) {
+  displayUpdateNotice(updateInfo: UpdateInfo): void {
     if (!updateInfo.updateAvailable) return;
 
     console.log(chalk.yellow('\n⚠️  UPDATE AVAILABLE'));
@@ -147,18 +146,18 @@ class UpdateChecker {
       console.log(chalk.cyan('💡 Run the following to update:'));
       console.log(chalk.white('   cd supernal-code-package && npm link'));
     }
-    console.log(''); // Empty line for spacing
+    console.log('');
   }
 
-  async checkAndNotify() {
+  async checkAndNotify(): Promise<void> {
     try {
       const updateInfo = this.checkForUpdates();
       this.displayUpdateNotice(updateInfo);
     } catch (_error) {
-      // Silently fail - don't interrupt the user's workflow
-      // console.error('Update check failed:', error.message);
+      // Silently fail
     }
   }
 }
 
+export default UpdateChecker;
 module.exports = UpdateChecker;

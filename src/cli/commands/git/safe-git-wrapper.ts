@@ -1,48 +1,37 @@
-#!/usr/bin/env node
-// @ts-nocheck
+/**
+ * safe-git-wrapper.js - Git command wrapper with workflow protection
+ * Part of enhanced workflow guard system
+ */
 
-// safe-git-wrapper.js - Git command wrapper with workflow protection
-// Part of enhanced workflow guard system
-
-const { execSync, spawn } = require('node:child_process');
-const _path = require('node:path');
-const chalk = require('chalk');
+import { spawn, ChildProcess } from 'node:child_process';
+import chalk from 'chalk';
 
 class SafeGitWrapper {
-  projectRoot: any;
-  verbose: any;
+  protected projectRoot: string;
+  protected verbose: boolean;
+
   constructor() {
     this.projectRoot = process.cwd();
     this.verbose =
       process.argv.includes('--verbose') || process.env.SC_VERBOSE === 'true';
   }
 
-  /**
-   * Main wrapper for git commands
-   */
-  async executeGitCommand(args) {
+  async executeGitCommand(args: string[]): Promise<void> {
     const command = args[0];
     const gitArgs = args.slice(1);
 
-    // Intercept 'git add' commands
     if (command === 'add') {
       return this.handleGitAdd(gitArgs);
     }
 
-    // For other git commands, pass through directly
     return this.passThrough(['git', command, ...gitArgs]);
   }
 
-  /**
-   * Handle git add with workflow protection
-   */
-  async handleGitAdd(args) {
+  async handleGitAdd(args: string[]): Promise<void> {
     try {
-      // Check if --force flag is present
       const hasForce = args.includes('--force') || args.includes('-f');
 
       if (hasForce) {
-        // Remove --force flag and pass to real git
         const cleanArgs = args.filter(
           (arg) => arg !== '--force' && arg !== '-f'
         );
@@ -54,47 +43,39 @@ class SafeGitWrapper {
         return this.passThrough(['git', 'add', ...cleanArgs]);
       }
 
-      // Run pre-add validation
       const WorkflowGuard = require('../development/workflow-guard');
       const guard = new WorkflowGuard({
         projectRoot: this.projectRoot,
         verbose: this.verbose
       });
 
-      // Set the files to be added for the guard
       process.argv = ['node', 'workflow-guard.js', 'pre-add', ...args];
 
       try {
         await guard.execute('pre-add');
-
-        // If validation passes, execute real git add
         return this.passThrough(['git', 'add', ...args]);
       } catch (error) {
-        // Validation failed, exit with error
         console.error(chalk.red('❌ Git add blocked by workflow guard'));
         if (this.verbose) {
-          console.error(error.message);
+          console.error((error as Error).message);
         }
         process.exit(1);
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error in git add wrapper:'), error.message);
+      console.error(chalk.red('❌ Error in git add wrapper:'), (error as Error).message);
       process.exit(1);
     }
   }
 
-  /**
-   * Pass command through to real git
-   */
-  passThrough(command) {
+  passThrough(command: string[]): void {
     try {
-      const result = spawn(command[0], command.slice(1), {
+      const result: ChildProcess = spawn(command[0], command.slice(1), {
         stdio: 'inherit',
         cwd: this.projectRoot
       });
 
       result.on('close', (code) => {
-        process.exit(code);
+        process.exit(code ?? 0);
       });
 
       result.on('error', (error) => {
@@ -104,15 +85,14 @@ class SafeGitWrapper {
     } catch (error) {
       console.error(
         chalk.red('❌ Failed to execute git command:'),
-        error.message
+        (error as Error).message
       );
       process.exit(1);
     }
   }
 }
 
-// CLI interface
-async function main() {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
@@ -125,7 +105,6 @@ async function main() {
   await wrapper.executeGitCommand(args);
 }
 
-// Execute if called directly
 if (require.main === module) {
   main().catch((error) => {
     console.error(chalk.red('❌ Safe git wrapper error:'), error.message);
@@ -133,4 +112,5 @@ if (require.main === module) {
   });
 }
 
+export { SafeGitWrapper };
 module.exports = { SafeGitWrapper };

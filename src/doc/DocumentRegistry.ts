@@ -1,27 +1,56 @@
-// @ts-nocheck
-const fs = require('node:fs');
-const path = require('node:path');
-const yaml = require('yaml');
-const glob = require('glob');
-const chalk = require('chalk');
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'yaml';
+import glob from 'glob';
+import chalk from 'chalk';
+import { minimatch } from 'minimatch';
+
+interface ControlledPaths {
+  required?: string[];
+  tracked?: string[];
+  [key: string]: string[] | undefined;
+}
+
+interface RegistrySettings {
+  chg_threshold?: number;
+}
+
+interface RegistryData {
+  version?: string;
+  controlled?: ControlledPaths;
+  settings?: RegistrySettings;
+}
+
+interface RegistryStats {
+  requiredCount: number;
+  trackedCount: number;
+  totalPatterns: number;
+}
+
+interface CheckResult {
+  isControlled: boolean;
+  level?: string;
+  requiresSigned?: boolean;
+}
 
 class DocumentRegistry {
-  registryPath: any;
+  protected registryPath: string;
+
   constructor() {
     this.registryPath = '.supernal/document-registry.yaml';
   }
 
-  exists() {
+  exists(): boolean {
     return fs.existsSync(this.registryPath);
   }
 
-  load() {
+  load(): RegistryData | null {
     if (!this.exists()) return null;
     const content = fs.readFileSync(this.registryPath, 'utf8');
     return yaml.parse(content);
   }
 
-  save(registry) {
+  save(registry: RegistryData): void {
     const dir = path.dirname(this.registryPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -29,7 +58,7 @@ class DocumentRegistry {
     fs.writeFileSync(this.registryPath, yaml.stringify(registry), 'utf8');
   }
 
-  list() {
+  list(): void {
     const registry = this.load();
     if (!registry) {
       console.log(
@@ -64,39 +93,38 @@ class DocumentRegistry {
     }
   }
 
-  check(file) {
+  check(file: string): CheckResult {
     const registry = this.load();
     if (!registry) {
       console.log(chalk.yellow('No document registry'));
-      return null;
+      return { isControlled: false };
     }
 
-    const { minimatch } = require('minimatch');
     const required = registry.controlled?.required || [];
     const tracked = registry.controlled?.tracked || [];
 
     if (required.some((p) => minimatch(file, p))) {
       console.log(chalk.green(`✓ Controlled (required: signed commits)`));
-      return 'required';
+      return { isControlled: true, level: 'required', requiresSigned: true };
     }
 
     if (tracked.some((p) => minimatch(file, p))) {
       console.log(chalk.blue(`ℹ️  Tracked (changes logged)`));
-      return 'tracked';
+      return { isControlled: true, level: 'tracked', requiresSigned: false };
     }
 
     console.log(chalk.gray('Not controlled'));
-    return null;
+    return { isControlled: false };
   }
 
-  add(pattern, level = 'tracked') {
+  add(pattern: string, level: string = 'tracked'): void {
     const registry = this.load() || this.getDefaultRegistry();
 
     if (!registry.controlled) registry.controlled = {};
     if (!registry.controlled[level]) registry.controlled[level] = [];
 
-    if (!registry.controlled[level].includes(pattern)) {
-      registry.controlled[level].push(pattern);
+    if (!registry.controlled[level]!.includes(pattern)) {
+      registry.controlled[level]!.push(pattern);
       this.save(registry);
       console.log(chalk.green(`✓ Added "${pattern}" to ${level} paths`));
     } else {
@@ -104,7 +132,7 @@ class DocumentRegistry {
     }
   }
 
-  init() {
+  init(): void {
     if (this.exists()) {
       console.log(chalk.yellow('Registry already exists'));
       return;
@@ -119,7 +147,7 @@ class DocumentRegistry {
     console.log(chalk.gray('   sc doc registry add ...  # Add patterns'));
   }
 
-  getDefaultRegistry() {
+  getDefaultRegistry(): RegistryData {
     return {
       version: '1.0.0',
       controlled: {
@@ -140,11 +168,11 @@ class DocumentRegistry {
     };
   }
 
-  stats() {
+  stats(): RegistryStats {
     const registry = this.load();
     if (!registry) {
       console.log(chalk.yellow('No document registry'));
-      return;
+      return { requiredCount: 0, trackedCount: 0, totalPatterns: 0 };
     }
 
     console.log(chalk.bold('\n📊 Registry Statistics\n'));
@@ -167,7 +195,14 @@ class DocumentRegistry {
     console.log(
       chalk.bold(`\nTotal: ${totalRequired} required, ${totalTracked} tracked`)
     );
+
+    return {
+      requiredCount: (registry.controlled?.required || []).length,
+      trackedCount: (registry.controlled?.tracked || []).length,
+      totalPatterns: totalRequired + totalTracked
+    };
   }
 }
 
+export default DocumentRegistry;
 module.exports = DocumentRegistry;

@@ -1,146 +1,118 @@
-// @ts-nocheck
-const fs = require('node:fs').promises;
-const path = require('node:path');
-const yaml = require('yaml');
-const { WorkflowState } = require('./state');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import yaml from 'yaml';
+import { WorkflowState } from './state';
+
+interface StateData {
+  workflow: string;
+  currentPhase: string;
+  startedAt: string;
+  phaseHistory?: unknown[];
+  [key: string]: unknown;
+}
 
 /**
  * StateStore - Persist and load workflow state
  */
 class StateStore {
-  backupDir: any;
-  projectRoot: any;
-  stateDir: any;
-  stateFile: any;
-  constructor(projectRoot) {
+  protected projectRoot: string;
+  protected stateDir: string;
+  protected stateFile: string;
+  protected backupDir: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.stateDir = path.join(projectRoot, '.supernal');
     this.stateFile = path.join(this.stateDir, 'workflow-state.yaml');
     this.backupDir = path.join(this.stateDir, 'state-backups');
   }
 
-  /**
-   * Load state from file
-   * @returns {Promise<WorkflowState>}
-   */
-  async load() {
+  async load(): Promise<WorkflowState> {
     try {
       const content = await fs.readFile(this.stateFile, 'utf8');
       const data = yaml.parse(content);
       return WorkflowState.fromJSON(data);
     } catch (error) {
-      if (error.code === 'ENOENT') {
-        // File doesn't exist - return empty state
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return new WorkflowState();
       }
-      throw new Error(`Failed to load workflow state: ${error.message}`);
+      throw new Error(`Failed to load workflow state: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Save state to file
-   * @param {WorkflowState} state
-   */
-  async save(state) {
+  async save(state: WorkflowState): Promise<void> {
     try {
-      // Ensure directory exists
       await fs.mkdir(this.stateDir, { recursive: true });
 
-      // Serialize and write
       const content = yaml.stringify(state.toJSON(), {
         defaultStringType: 'QUOTE_DOUBLE'
       });
 
       await fs.writeFile(this.stateFile, content, 'utf8');
     } catch (error) {
-      throw new Error(`Failed to save workflow state: ${error.message}`);
+      throw new Error(`Failed to save workflow state: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Create state backup
-   * @returns {Promise<string>} Backup ID (timestamp)
-   */
-  async backup() {
+  async backup(): Promise<string> {
     try {
-      // Ensure state file exists
       await fs.access(this.stateFile);
 
-      // Create backup directory
       await fs.mkdir(this.backupDir, { recursive: true });
 
-      // Generate backup filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupFile = path.join(this.backupDir, `state-${timestamp}.yaml`);
 
-      // Copy current state to backup
       await fs.copyFile(this.stateFile, backupFile);
 
       return timestamp;
     } catch (error) {
-      if (error.code === 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new Error('No state file to backup');
       }
-      throw new Error(`Failed to create state backup: ${error.message}`);
+      throw new Error(`Failed to create state backup: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Restore from backup
-   * @param {string} backupId - Timestamp ID of backup
-   */
-  async restore(backupId) {
+  async restore(backupId: string): Promise<void> {
     try {
       const backupFile = path.join(this.backupDir, `state-${backupId}.yaml`);
 
-      // Check backup exists
       await fs.access(backupFile);
 
-      // Copy backup to current state
       await fs.copyFile(backupFile, this.stateFile);
     } catch (error) {
-      if (error.code === 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new Error(`Backup ${backupId} not found`);
       }
-      throw new Error(`Failed to restore state backup: ${error.message}`);
+      throw new Error(`Failed to restore state backup: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * List available backups
-   * @returns {Promise<Array<string>>} Array of backup IDs
-   */
-  async listBackups() {
+  async listBackups(): Promise<string[]> {
     try {
       const files = await fs.readdir(this.backupDir);
       return files
         .filter((f) => f.startsWith('state-') && f.endsWith('.yaml'))
         .map((f) => f.replace('state-', '').replace('.yaml', ''))
         .sort()
-        .reverse(); // Most recent first
+        .reverse();
     } catch (error) {
-      if (error.code === 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return [];
       }
-      throw new Error(`Failed to list backups: ${error.message}`);
+      throw new Error(`Failed to list backups: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Validate state structure
-   * @param {Object} state
-   * @returns {boolean}
-   */
-  validate(state) {
+  validate(state: StateData | null): boolean {
     if (!state) return false;
 
-    // Required fields
-    const required = ['workflow', 'currentPhase', 'startedAt'];
+    const required: Array<keyof StateData> = ['workflow', 'currentPhase', 'startedAt'];
     for (const field of required) {
       if (!state[field]) return false;
     }
 
-    // phaseHistory must be array
     if (state.phaseHistory && !Array.isArray(state.phaseHistory)) {
       return false;
     }
@@ -148,11 +120,7 @@ class StateStore {
     return true;
   }
 
-  /**
-   * Check if state file exists
-   * @returns {Promise<boolean>}
-   */
-  async exists() {
+  async exists(): Promise<boolean> {
     try {
       await fs.access(this.stateFile);
       return true;
@@ -161,18 +129,16 @@ class StateStore {
     }
   }
 
-  /**
-   * Delete state file
-   */
-  async delete() {
+  async delete(): Promise<void> {
     try {
       await fs.unlink(this.stateFile);
     } catch (error) {
-      if (error.code !== 'ENOENT') {
-        throw new Error(`Failed to delete state file: ${error.message}`);
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw new Error(`Failed to delete state file: ${(error as Error).message}`);
       }
     }
   }
 }
 
+export { StateStore };
 module.exports = { StateStore };

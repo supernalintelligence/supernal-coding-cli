@@ -1,30 +1,57 @@
-// @ts-nocheck
 /**
  * Plugin Registry
- * 
+ *
  * Auto-discovers and manages plugins for the `sc connect` command.
  * Plugins are discovered from subdirectories of lib/plugins/.
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 const { validatePlugin } = require('./base');
 
+interface PluginCapabilities {
+  auth?: string[];
+  browse?: boolean;
+  import?: boolean;
+  export?: boolean;
+  sync?: boolean;
+  webhook?: boolean;
+}
+
+interface Plugin {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  capabilities: PluginCapabilities;
+  _path?: string;
+}
+
+interface PluginInfo {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  capabilities: PluginCapabilities;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
 class PluginRegistry {
-  initialized: any;
-  plugins: any;
-  pluginsDir: any;
+  protected plugins: Map<string, Plugin>;
+  protected pluginsDir: string;
+  protected initialized: boolean;
+
   constructor() {
     this.plugins = new Map();
     this.pluginsDir = __dirname;
     this.initialized = false;
   }
 
-  /**
-   * Auto-discover plugins from the plugins directory
-   * Each subdirectory with an index.js is treated as a plugin
-   */
-  discover() {
+  discover(): Map<string, Plugin> {
     if (this.initialized) {
       return this.plugins;
     }
@@ -32,7 +59,6 @@ class PluginRegistry {
     const entries = fs.readdirSync(this.pluginsDir, { withFileTypes: true });
 
     for (const entry of entries) {
-      // Skip non-directories and internal files
       if (!entry.isDirectory()) continue;
       if (entry.name.startsWith('_')) continue;
       if (entry.name === 'node_modules') continue;
@@ -40,12 +66,11 @@ class PluginRegistry {
       const pluginPath = path.join(this.pluginsDir, entry.name);
       const indexPath = path.join(pluginPath, 'index.js');
 
-      // Check if plugin has an index.js
       if (!fs.existsSync(indexPath)) continue;
 
       try {
         const plugin = require(indexPath);
-        const validation = validatePlugin(plugin);
+        const validation: ValidationResult = validatePlugin(plugin);
 
         if (validation.valid) {
           this.plugins.set(plugin.id, {
@@ -59,12 +84,11 @@ class PluginRegistry {
           );
         }
       } catch (err) {
-        // Only warn if it looks like a real plugin (has package.json or other plugin files)
         const hasPackageJson = fs.existsSync(path.join(pluginPath, 'package.json'));
         const hasCommands = fs.existsSync(path.join(pluginPath, 'commands'));
-        
+
         if (hasPackageJson || hasCommands) {
-          console.warn(`Failed to load plugin from "${entry.name}":`, err.message);
+          console.warn(`Failed to load plugin from "${entry.name}":`, (err as Error).message);
         }
       }
     }
@@ -73,33 +97,19 @@ class PluginRegistry {
     return this.plugins;
   }
 
-  /**
-   * Get a plugin by ID
-   * @param {string} id - Plugin ID
-   * @returns {Object|undefined}
-   */
-  get(id) {
+  get(id: string): Plugin | undefined {
     this.discover();
     return this.plugins.get(id);
   }
 
-  /**
-   * Check if a plugin exists
-   * @param {string} id - Plugin ID
-   * @returns {boolean}
-   */
-  has(id) {
+  has(id: string): boolean {
     this.discover();
     return this.plugins.has(id);
   }
 
-  /**
-   * List all discovered plugins
-   * @returns {Object[]}
-   */
-  list() {
+  list(): PluginInfo[] {
     this.discover();
-    return Array.from(this.plugins.values()).map(plugin => ({
+    return Array.from(this.plugins.values()).map((plugin) => ({
       id: plugin.id,
       name: plugin.name,
       description: plugin.description,
@@ -108,39 +118,28 @@ class PluginRegistry {
     }));
   }
 
-  /**
-   * Get plugin IDs
-   * @returns {string[]}
-   */
-  ids() {
+  ids(): string[] {
     this.discover();
     return Array.from(this.plugins.keys());
   }
 
-  /**
-   * Get plugins that support a specific capability
-   * @param {string} capability - Capability name (browse, import, sync, etc.)
-   * @returns {Object[]}
-   */
-  withCapability(capability) {
+  withCapability(capability: keyof PluginCapabilities): Plugin[] {
     this.discover();
     return Array.from(this.plugins.values()).filter(
-      plugin => plugin.capabilities && plugin.capabilities[capability]
+      (plugin) => plugin.capabilities && plugin.capabilities[capability]
     );
   }
 
-  /**
-   * Reset the registry (useful for testing)
-   */
-  reset() {
+  reset(): void {
     this.plugins.clear();
     this.initialized = false;
   }
 }
 
-// Export singleton instance
 const registry = new PluginRegistry();
+
+export default registry;
+export { PluginRegistry };
 
 module.exports = registry;
 module.exports.PluginRegistry = PluginRegistry;
-

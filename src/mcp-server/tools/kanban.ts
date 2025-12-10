@@ -1,18 +1,47 @@
-// @ts-nocheck
 /**
  * Kanban Manager for MCP Server
  *
  * Handles kanban board operations via MCP tools
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
+import fs from 'fs-extra';
+import path from 'node:path';
+
+interface TaskMeta {
+  [key: string]: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  board: string;
+  path: string;
+  preview: string;
+  [key: string]: unknown;
+}
+
+interface TaskLocation {
+  board: string;
+  path: string;
+  file: string;
+}
+
+interface MoveResult {
+  success: boolean;
+  taskId: string;
+  from: string;
+  to: string;
+  newPath: string;
+}
+
+type BoardName = 'BRAINSTORM' | 'PLANNING' | 'TODO' | 'DOING' | 'BLOCKED' | 'DONE' | 'HANDOFFS';
 
 class KanbanManager {
-  boards: any;
-  kanbanDir: any;
-  projectRoot: any;
-  constructor(projectRoot) {
+  protected projectRoot: string;
+  protected kanbanDir: string;
+  protected boards: BoardName[];
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.kanbanDir = path.join(projectRoot, 'supernal-coding', 'kanban');
     this.boards = [
@@ -26,12 +55,9 @@ class KanbanManager {
     ];
   }
 
-  /**
-   * List tasks from kanban boards
-   */
-  async list(board = null) {
+  async list(board: string | null = null): Promise<Record<string, Task[]> | Task[]> {
     const boards = board ? [board] : this.boards;
-    const tasks = {};
+    const tasks: Record<string, Task[]> = {};
 
     for (const boardName of boards) {
       const boardPath = path.join(this.kanbanDir, boardName);
@@ -52,22 +78,15 @@ class KanbanManager {
     return board ? tasks[board] : tasks;
   }
 
-  /**
-   * Get all boards with their tasks
-   */
-  async getAllBoards() {
-    return await this.list();
+  async getAllBoards(): Promise<Record<string, Task[]>> {
+    return await this.list() as Record<string, Task[]>;
   }
 
-  /**
-   * Move task to different board
-   */
-  async move(taskId, toBoard) {
+  async move(taskId: string, toBoard: BoardName): Promise<MoveResult> {
     if (!this.boards.includes(toBoard)) {
       throw new Error(`Invalid board: ${toBoard}`);
     }
 
-    // Find current location
     const currentLocation = await this.findTask(taskId);
     if (!currentLocation) {
       throw new Error(`Task ${taskId} not found`);
@@ -77,7 +96,6 @@ class KanbanManager {
     const fileName = path.basename(taskPath);
     const newPath = path.join(this.kanbanDir, toBoard, fileName);
 
-    // Move file
     await fs.move(taskPath, newPath);
 
     return {
@@ -89,10 +107,7 @@ class KanbanManager {
     };
   }
 
-  /**
-   * Find task across all boards
-   */
-  async findTask(taskId) {
+  async findTask(taskId: string): Promise<TaskLocation | null> {
     for (const board of this.boards) {
       const boardPath = path.join(this.kanbanDir, board);
 
@@ -114,20 +129,15 @@ class KanbanManager {
     return null;
   }
 
-  /**
-   * Parse task markdown file
-   */
-  async parseTask(taskPath, board) {
+  async parseTask(taskPath: string, board: string): Promise<Task> {
     const fileName = path.basename(taskPath, '.md');
     const content = await fs.readFile(taskPath, 'utf8');
 
-    // Extract title (first heading)
     const titleMatch = content.match(/^#\s+(.+)$/m);
     const title = titleMatch ? titleMatch[1] : fileName;
 
-    // Extract metadata if present
     const metaMatch = content.match(/^---\n([\s\S]+?)\n---/);
-    const meta = metaMatch ? this.parseMetadata(metaMatch[1]) : {};
+    const meta: TaskMeta = metaMatch ? this.parseMetadata(metaMatch[1]) : {};
 
     return {
       id: fileName,
@@ -139,11 +149,8 @@ class KanbanManager {
     };
   }
 
-  /**
-   * Parse metadata from task file
-   */
-  parseMetadata(metaString) {
-    const meta = {};
+  parseMetadata(metaString: string): TaskMeta {
+    const meta: TaskMeta = {};
     const lines = metaString.split('\n');
 
     for (const line of lines) {
@@ -157,4 +164,5 @@ class KanbanManager {
   }
 }
 
+export default KanbanManager;
 module.exports = KanbanManager;

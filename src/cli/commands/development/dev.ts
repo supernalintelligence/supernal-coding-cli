@@ -1,11 +1,7 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
 
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
-
-// Colors for output
 const colors = {
   red: '\x1b[31m',
   green: '\x1b[32m',
@@ -17,13 +13,20 @@ const colors = {
   reset: '\x1b[0m'
 };
 
+interface DevToolsOptions {
+  maxRatio?: string;
+  outputFile?: string;
+  [key: string]: string | undefined;
+}
+
 class DevTools {
-  scriptsDir: any;
+  protected scriptsDir: string;
+
   constructor() {
     this.scriptsDir = path.join(__dirname, 'dev-scripts');
   }
 
-  async findExcessiveLogs(options = {}) {
+  async findExcessiveLogs(options: DevToolsOptions = {}): Promise<void> {
     const {
       maxRatio = '0.05',
       outputFile = 'logs/excessive-console-logs.txt'
@@ -61,7 +64,7 @@ class DevTools {
     }
   }
 
-  showHelp() {
+  showHelp(): void {
     console.log(
       `${colors.bold}Supernal Coding Development Tools${colors.reset}`
     );
@@ -88,17 +91,15 @@ class DevTools {
   }
 }
 
-// CLI function
-async function runCommand(args, devTools) {
+async function runCommand(args: string[], devTools: DevTools): Promise<void> {
   if (args.length === 0) {
     devTools.showHelp();
     process.exit(0);
   }
 
   const command = args[0];
-  const options = {};
+  const options: DevToolsOptions = {};
 
-  // Parse command line options
   for (let i = 1; i < args.length; i += 2) {
     if (args[i].startsWith('--')) {
       const key = args[i].substring(2).replace(/-/g, '');
@@ -138,7 +139,6 @@ async function runCommand(args, devTools) {
   }
 }
 
-// Handle command line execution
 if (require.main === module) {
   const args = process.argv.slice(2);
   const devTools = new DevTools();
@@ -149,4 +149,5 @@ if (require.main === module) {
   });
 }
 
+export default DevTools;
 module.exports = DevTools;

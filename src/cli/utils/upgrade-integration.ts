@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Upgrade Integration - Automatic upgrade checking for sc commands
  * Integrates with all sc commands to provide upgrade notifications
@@ -6,9 +5,32 @@
 
 const UpgradeChecker = require('../commands/upgrade/check-upgrade');
 
+interface CheckResult {
+  checked: boolean;
+  needsUpgrade: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  upgradeCommand: string;
+}
+
+interface CriticalCheckResult {
+  shouldContinue: boolean;
+  reason?: string;
+  message?: string;
+  upgradeCommand?: string;
+}
+
+interface CachedUpdateStatus {
+  needsUpdate: boolean;
+  message?: string;
+  upgradeCommand?: string;
+  isCritical?: boolean;
+}
+
 class UpgradeIntegration {
-  checker: any;
-  skipUpgradeCheck: any;
+  protected checker: typeof UpgradeChecker;
+  protected skipUpgradeCheck: boolean;
+
   constructor() {
     this.checker = new UpgradeChecker();
     this.skipUpgradeCheck =
@@ -16,33 +38,25 @@ class UpgradeIntegration {
       process.env.SC_SKIP_UPGRADE_CHECK === 'true';
   }
 
-  /**
-   * Perform background upgrade check with minimal interruption
-   */
-  async performBackgroundCheck() {
+  async performBackgroundCheck(): Promise<void> {
     if (this.skipUpgradeCheck) {
       return;
     }
 
     try {
-      // Only check if enough time has passed (24 hours by default)
-      const result = await this.checker.checkForUpgrade({ silent: true });
+      const result: CheckResult = await this.checker.checkForUpgrade({ silent: true });
 
       if (result.needsUpgrade) {
-        // Show upgrade notification after command completes
         setTimeout(() => {
           this.showUpgradeNotification(result);
         }, 100);
       }
     } catch (_error) {
-      // Silently ignore upgrade check errors to not interfere with main command
+      // Silently ignore upgrade check errors
     }
   }
 
-  /**
-   * Display upgrade notification for all users
-   */
-  showUpgradeNotification(checkResult) {
+  showUpgradeNotification(checkResult: CheckResult): void {
     if (!checkResult.checked || !checkResult.needsUpgrade) {
       return;
     }
@@ -62,34 +76,23 @@ class UpgradeIntegration {
     console.log(`${'═'.repeat(60)}\n`);
   }
 
-  /**
-   * Check if we're running in development mode (internal development)
-   */
-  isDevelopmentMode() {
+  isDevelopmentMode(): boolean {
     return this.checker.getInstallationMethod() === 'development';
   }
 
-  /**
-   * Initialize upgrade integration for a command
-   */
-  async initializeForCommand(_commandName) {
-    // Start background upgrade check (non-blocking)
+  async initializeForCommand(_commandName: string): Promise<void> {
     this.performBackgroundCheck().catch(() => {
       // Silently ignore errors
     });
   }
 
-  /**
-   * Check for critical updates that should block execution
-   * Now also caches results for fast subsequent checks
-   */
-  async checkCriticalUpdates() {
+  async checkCriticalUpdates(): Promise<CriticalCheckResult> {
     if (this.skipUpgradeCheck) {
       return { shouldContinue: true };
     }
 
     try {
-      const result = await this.checker.checkForUpgrade({
+      const result: CheckResult = await this.checker.checkForUpgrade({
         force: false,
         silent: true
       });
@@ -98,7 +101,6 @@ class UpgradeIntegration {
         const currentMajor = parseInt(result.currentVersion.split('.')[0], 10);
         const latestMajor = parseInt(result.latestVersion.split('.')[0], 10);
 
-        // Cache the update status
         this.checker.cacheUpdateStatus({
           needsUpdate: true,
           message: `Update available: v${result.currentVersion} → v${result.latestVersion}`,
@@ -106,7 +108,6 @@ class UpgradeIntegration {
           isCritical: latestMajor > currentMajor
         });
 
-        // Block execution for major version differences
         if (latestMajor > currentMajor) {
           return {
             shouldContinue: false,
@@ -116,21 +117,16 @@ class UpgradeIntegration {
           };
         }
       } else {
-        // Clear cache if no update needed
         this.checker.cacheUpdateStatus({ needsUpdate: false });
       }
 
       return { shouldContinue: true };
     } catch (_error) {
-      // Don't block execution on upgrade check errors
       return { shouldContinue: true };
     }
   }
 
-  /**
-   * Get cached update status (fast path - no network call)
-   */
-  getCachedUpdateStatus() {
+  getCachedUpdateStatus(): CachedUpdateStatus | null {
     try {
       return this.checker.getCachedUpdateStatus();
     } catch (_error) {
@@ -139,4 +135,5 @@ class UpgradeIntegration {
   }
 }
 
+export default UpgradeIntegration;
 module.exports = UpgradeIntegration;
