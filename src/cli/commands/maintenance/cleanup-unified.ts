@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('node:fs').promises;
 const path = require('node:path');
 const yaml = require('js-yaml');
@@ -16,6 +17,10 @@ const chalk = require('chalk');
  */
 
 class UnifiedCleanup {
+  config: any;
+  issues: any;
+  manifest: any;
+  projectRoot: any;
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
     this.config = null;
@@ -611,6 +616,8 @@ class UnifiedCleanup {
     console.log('');
 
     let fixed = 0;
+    const movedFiles = [];
+    const createdDirs = [];
 
     // Move root violations
     for (const issue of this.issues.rootViolations) {
@@ -621,6 +628,7 @@ class UnifiedCleanup {
 
       await fs.rename(source, target);
       console.log(chalk.green(`✓ Moved ${issue.file} → ${issue.suggestion}`));
+      movedFiles.push(issue.suggestion);
       fixed++;
     }
 
@@ -629,6 +637,7 @@ class UnifiedCleanup {
       const dir = path.join(this.projectRoot, issue.directory);
       await fs.mkdir(dir, { recursive: true });
       console.log(chalk.green(`✓ Created ${issue.directory}`));
+      createdDirs.push(issue.directory);
       fixed++;
     }
 
@@ -639,6 +648,24 @@ class UnifiedCleanup {
         '⚠️  Naming violations and broken links require manual review'
       )
     );
+
+    // Suggest commit command
+    if (movedFiles.length > 0 || createdDirs.length > 0) {
+      console.log('');
+      console.log(chalk.blue('📝 Suggested commit:'));
+      
+      const allFiles = [...movedFiles, ...createdDirs.map(d => `${d}/.gitkeep`)];
+      const filesArg = allFiles.length <= 5 
+        ? allFiles.join(' ')
+        : `${allFiles.slice(0, 3).join(' ')} # ... and ${allFiles.length - 3} more`;
+      
+      const commitMsg = movedFiles.length > 0
+        ? `refactor: Organize ${movedFiles.length} file(s) via sc cleanup`
+        : `chore: Create ${createdDirs.length} missing directories`;
+      
+      console.log(chalk.cyan(`git add ${filesArg}`));
+      console.log(chalk.cyan(`git commit -m "${commitMsg}"`));
+    }
   }
 
   async showQueueStatus() {
