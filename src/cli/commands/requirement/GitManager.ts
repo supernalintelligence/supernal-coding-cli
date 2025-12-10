@@ -1,7 +1,6 @@
-// @ts-nocheck
-const fs = require('fs-extra');
-const chalk = require('chalk');
-const { execSync } = require('node:child_process');
+import fs from 'fs-extra';
+import chalk from 'chalk';
+import { execSync } from 'node:child_process';
 const RequirementHelpers = require('./utils/helpers');
 const {
   extractFrontmatter,
@@ -10,19 +9,23 @@ const {
 } = require('./utils/parsers');
 const { SigningManager } = require('../../../signing');
 
-/**
- * Handles Git integration for requirements
- */
+interface RequirementManagerInterface {
+  projectRoot: string;
+  findRequirementById(reqId: string): Promise<string | null>;
+}
+
+interface StartWorkOptions {
+  // placeholder for future options
+}
+
 class GitManager {
-  requirementManager: any;
-  constructor(requirementManager) {
+  protected requirementManager: RequirementManagerInterface;
+
+  constructor(requirementManager: RequirementManagerInterface) {
     this.requirementManager = requirementManager;
   }
 
-  /**
-   * Start work on a requirement (create branch, update status)
-   */
-  async startWork(reqId) {
+  async startWork(reqId: string): Promise<void> {
     try {
       const reqFile = await this.requirementManager.findRequirementById(reqId);
       if (!reqFile) {
@@ -31,17 +34,14 @@ class GitManager {
 
       const content = await fs.readFile(reqFile, 'utf8');
 
-      // Extract requirement title for branch name
       const titleMatch = content.match(/title: (.+)/);
       const title = titleMatch ? titleMatch[1] : 'unknown-requirement';
       const kebabName = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-      // Create git branch - use normalized ID to avoid double prefixes
       const normalizedId = RequirementHelpers.normalizeReqId(reqId);
       const branchName = `feature/req-${normalizedId}-${kebabName}`;
 
       try {
-        // Check if we're on main and have uncommitted changes
         const currentBranch = execSync('git branch --show-current', {
           encoding: 'utf8'
         }).trim();
@@ -57,14 +57,12 @@ class GitManager {
             )
           );
 
-          // Auto-commit requirement to main
           await this.autoCommitRequirement(
             reqId,
             'Started work on requirement'
           );
         }
 
-        // Create and switch to feature branch
         execSync(`git checkout -b ${branchName}`, {
           cwd: this.requirementManager.projectRoot,
           stdio: 'pipe'
@@ -73,7 +71,6 @@ class GitManager {
           chalk.green(`✅ Created and switched to branch: ${branchName}`)
         );
 
-        // Update requirement with branch info
         const frontmatter = extractFrontmatter(content);
         frontmatter.branch = branchName;
         frontmatter.status = 'In Progress';
@@ -109,7 +106,7 @@ class GitManager {
         );
         console.log(chalk.yellow(`5. When complete: sc git-smart merge`));
       } catch (gitError) {
-        console.log(chalk.red(`❌ Git error: ${gitError.message}`));
+        console.log(chalk.red(`❌ Git error: ${(gitError as Error).message}`));
         console.log(
           chalk.yellow(
             `💡 Make sure you're in a git repository and have no uncommitted changes`
@@ -117,22 +114,18 @@ class GitManager {
         );
       }
     } catch (error) {
-      console.error(chalk.red(`❌ Error starting work: ${error.message}`));
+      console.error(chalk.red(`❌ Error starting work: ${(error as Error).message}`));
       throw error;
     }
   }
 
-  /**
-   * Smart workflow automation - combines multiple steps
-   */
-  async smartStartWork(reqId, _options = {}) {
+  async smartStartWork(reqId: string, _options: StartWorkOptions = {}): Promise<void> {
     try {
       console.log(
         chalk.blue.bold(`🚀 Smart Workflow: Starting work on ${reqId}`)
       );
       console.log(chalk.blue('='.repeat(50)));
 
-      // 1. Auto-commit any requirement changes to main
       const currentBranch = execSync('git branch --show-current', {
         encoding: 'utf8'
       }).trim();
@@ -146,7 +139,6 @@ class GitManager {
         );
       }
 
-      // 2. Start work (creates branch, updates requirement)
       console.log(
         chalk.blue(
           '🌿 Step 2: Creating feature branch and updating requirement...'
@@ -154,7 +146,6 @@ class GitManager {
       );
       await this.startWork(reqId);
 
-      // 3. Auto-commit the updated requirement with branch info
       if (this.hasUncommittedChanges()) {
         console.log(
           chalk.blue('💾 Step 3: Committing requirement status update...')
@@ -174,15 +165,12 @@ class GitManager {
         chalk.green.bold('\n🎉 Smart workflow complete! Ready to implement.')
       );
     } catch (error) {
-      console.error(chalk.red(`❌ Smart workflow failed: ${error.message}`));
+      console.error(chalk.red(`❌ Smart workflow failed: ${(error as Error).message}`));
       throw error;
     }
   }
 
-  /**
-   * Check for uncommitted git changes
-   */
-  hasUncommittedChanges() {
+  hasUncommittedChanges(): boolean {
     try {
       const result = execSync('git status --porcelain', { encoding: 'utf8' });
       return result.trim().length > 0;
@@ -191,21 +179,16 @@ class GitManager {
     }
   }
 
-  /**
-   * Auto-commit requirement changes to main branch
-   */
-  async autoCommitRequirement(reqId, message) {
+  async autoCommitRequirement(reqId: string, message: string): Promise<void> {
     try {
       const normalizedId = RequirementHelpers.normalizeReqId(reqId);
       const reqFile = await this.requirementManager.findRequirementById(reqId);
 
       if (reqFile) {
-        // Add only the requirement file
         execSync(`git add "${reqFile}"`, {
           cwd: this.requirementManager.projectRoot
         });
 
-        // Commit with proper REQ format, agent signing, and [SC] tag
         const commitMessage = `[SC] REQ-${normalizedId}: ${message}`;
         const signingManager = new SigningManager(this.requirementManager.projectRoot);
         const signingFlags = signingManager.getSigningFlags({ isAgentCommit: true });
@@ -219,11 +202,12 @@ class GitManager {
       }
     } catch (error) {
       console.log(
-        chalk.yellow(`⚠️  Could not auto-commit requirement: ${error.message}`)
+        chalk.yellow(`⚠️  Could not auto-commit requirement: ${(error as Error).message}`)
       );
       throw error;
     }
   }
 }
 
+export default GitManager;
 module.exports = GitManager;

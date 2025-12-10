@@ -1,37 +1,33 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * Fix Template Links to Use Repo-Relative Paths
- *
- * Converts relative template links like:
- *   ../../templates/docs/architecture/pattern.template.md
- *
- * To repo-relative paths:
- *   /templates/docs/architecture/pattern.template.md
- *
- * This makes links stable when files move around.
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface FixerOptions {
+  dryRun?: boolean;
+}
+
+interface FixResult {
+  fixed: number;
+  filesModified: string[];
+}
 
 class TemplateLinkFixer {
-  dryRun: any;
-  filesModified: any;
-  fixed: any;
-  projectRoot: any;
-  constructor(options = {}) {
+  protected projectRoot: string;
+  protected dryRun: boolean;
+  protected fixed: number;
+  protected filesModified: Set<string>;
+
+  constructor(options: FixerOptions = {}) {
     this.projectRoot = process.cwd();
     this.dryRun = options.dryRun || false;
     this.fixed = 0;
     this.filesModified = new Set();
   }
 
-  /**
-   * Main execution
-   */
-  async run() {
+  async run(): Promise<FixResult> {
     console.log('🔗 Fixing template links to use repo-relative paths\n');
 
     const docsDir = path.join(this.projectRoot, 'docs');
@@ -51,11 +47,8 @@ class TemplateLinkFixer {
     };
   }
 
-  /**
-   * Find all markdown files
-   */
-  findMarkdownFiles(dir) {
-    const files = [];
+  findMarkdownFiles(dir: string): string[] {
+    const files: string[] = [];
 
     if (!fs.existsSync(dir)) {
       return files;
@@ -79,13 +72,9 @@ class TemplateLinkFixer {
     return files;
   }
 
-  /**
-   * Fix template links in a file
-   */
-  async fixFile(filePath) {
+  async fixFile(filePath: string): Promise<void> {
     const content = fs.readFileSync(filePath, 'utf8');
 
-    // Pattern to match markdown links with relative paths to templates
     const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
 
     let modified = false;
@@ -96,32 +85,25 @@ class TemplateLinkFixer {
     for (const match of matches) {
       const [fullMatch, linkText, linkPath] = match;
 
-      // Skip if not a relative path to templates
       if (!linkPath.includes('templates/')) {
         continue;
       }
 
-      // Skip if already repo-relative (starts with /)
       if (linkPath.startsWith('/')) {
         continue;
       }
 
-      // Skip external links
       if (linkPath.startsWith('http://') || linkPath.startsWith('https://')) {
         continue;
       }
 
-      // Extract the templates/ portion and everything after it
-      // e.g., "../../templates/docs/architecture/pattern.md" -> "templates/docs/architecture/pattern.md"
       const templatesIndex = linkPath.indexOf('templates/');
       if (templatesIndex === -1) continue;
 
       const templatesPath = linkPath.substring(templatesIndex);
 
-      // Create repo-relative path
       const repoRelativePath = `/${templatesPath}`;
 
-      // Create the new link
       const newLink = `[${linkText}](${repoRelativePath})`;
 
       if (this.dryRun) {
@@ -130,23 +112,18 @@ class TemplateLinkFixer {
         console.log(`   NEW: ${newLink}\n`);
       }
 
-      // Replace in content
       newContent = newContent.replace(fullMatch, newLink);
       modified = true;
       this.fixed++;
     }
 
-    // Write back if modified and not dry-run
     if (modified && !this.dryRun) {
       fs.writeFileSync(filePath, newContent, 'utf8');
       this.filesModified.add(path.relative(this.projectRoot, filePath));
     }
   }
 
-  /**
-   * Print summary
-   */
-  printSummary() {
+  printSummary(): void {
     console.log(`\n${'='.repeat(50)}`);
     console.log('📊 SUMMARY');
     console.log(`${'='.repeat(50)}\n`);
@@ -173,10 +150,9 @@ class TemplateLinkFixer {
   }
 }
 
-// Export for programmatic use
+export default TemplateLinkFixer;
 module.exports = TemplateLinkFixer;
 
-// CLI execution
 if (require.main === module) {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');

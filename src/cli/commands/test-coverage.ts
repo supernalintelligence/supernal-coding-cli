@@ -1,19 +1,48 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
-const fs = require('fs-extra');
-const path = require('node:path');
-const chalk = require('chalk');
-const { execSync } = require('node:child_process');
+import fs from 'fs-extra';
+import path from 'node:path';
+import chalk from 'chalk';
 
 /**
  * Test Coverage Manager for Requirement-to-Test Traceability
  * Implements REQ-038: Comprehensive Requirement-to-Test Traceability System
  */
+
+interface Criterion {
+  id: string;
+  text: string;
+  testable: boolean;
+  hasTest: boolean;
+}
+
+interface CoverageAnalysis {
+  reqId: string;
+  totalCriteria: number;
+  testedCriteria: number;
+  coveragePercentage: number;
+  criteria: Criterion[];
+  testDir: string | null;
+  testFiles: string[];
+}
+
+interface CoverageSummary {
+  totalRequirements: number;
+  totalCriteria: number;
+  totalTestedCriteria: number;
+  overallCoverage: number;
+  fullyTestedRequirements: number;
+}
+
+interface CoverageReport {
+  summary: CoverageSummary;
+  requirements: CoverageAnalysis[];
+  timestamp: string;
+}
+
 class TestCoverageManager {
-  projectRoot: any;
-  requirementsDir: any;
-  testsDir: any;
+  readonly projectRoot: string;
+  readonly requirementsDir: string;
+  readonly testsDir: string;
+
   constructor() {
     this.projectRoot = process.cwd();
     this.requirementsDir = path.join(
@@ -26,11 +55,9 @@ class TestCoverageManager {
 
   /**
    * Parse acceptance criteria from requirement file
-   * @param {string} requirementContent - Content of requirement file
-   * @returns {Array} Array of acceptance criteria objects
    */
-  parseAcceptanceCriteria(requirementContent) {
-    const criteria = [];
+  parseAcceptanceCriteria(requirementContent: string): Criterion[] {
+    const criteria: Criterion[] = [];
 
     // Look for acceptance criteria after Gherkin scenarios
     const sections = requirementContent.split('## ');
@@ -73,7 +100,7 @@ class TestCoverageManager {
             id: `ac-${criteriaId.toString().padStart(2, '0')}`,
             text: text,
             testable: this.isTestable(text),
-            hasTest: false, // Will be determined later
+            hasTest: false // Will be determined later
           });
           criteriaId++;
         }
@@ -85,10 +112,8 @@ class TestCoverageManager {
 
   /**
    * Determine if a criteria is testable
-   * @param {string} text - Criteria text
-   * @returns {boolean} Whether the criteria appears testable
    */
-  isTestable(text) {
+  isTestable(text: string): boolean {
     const testableIndicators = [
       'should',
       'must',
@@ -110,7 +135,7 @@ class TestCoverageManager {
       'shows',
       'hides',
       'enables',
-      'disables',
+      'disables'
     ];
 
     const lowerText = text.toLowerCase();
@@ -121,10 +146,8 @@ class TestCoverageManager {
 
   /**
    * Analyze test coverage for a specific requirement
-   * @param {string} reqId - Requirement ID (e.g., "038")
-   * @returns {Object} Coverage analysis results
    */
-  async analyzeCoverage(reqId) {
+  async analyzeCoverage(reqId: string): Promise<CoverageAnalysis> {
     const reqIdPadded = reqId.toString().padStart(3, '0');
 
     // Find requirement file
@@ -141,7 +164,7 @@ class TestCoverageManager {
     const testDir = path.join(this.testsDir, `req-${reqIdPadded}`);
     const hasTestDir = await fs.pathExists(testDir);
 
-    let testFiles = [];
+    let testFiles: string[] = [];
     if (hasTestDir) {
       testFiles = await fs.readdir(testDir);
     }
@@ -168,24 +191,23 @@ class TestCoverageManager {
       coveragePercentage: Math.round(coveragePercentage * 100) / 100,
       criteria,
       testDir: hasTestDir ? testDir : null,
-      testFiles,
+      testFiles
     };
   }
 
   /**
    * Check if a specific criterion has a test
-   * @param {Object} criterion - Acceptance criteria object
-   * @param {Array} testFiles - List of test files
-   * @param {string} testDir - Test directory path
-   * @returns {boolean} Whether the criterion has a test
    */
-  checkCriterionHasTest(criterion, testFiles, testDir) {
+  checkCriterionHasTest(
+    criterion: Criterion,
+    testFiles: string[],
+    testDir: string
+  ): boolean {
     // Look for test files that might cover this criterion
     const criterionId = criterion.id;
     const keywords = this.extractKeywords(criterion.text);
 
     // Check for dedicated criterion test file
-    const _dedicatedTestFile = `${criterionId}-*.test.js`;
     if (testFiles.some((file) => file.includes(criterionId))) {
       return true;
     }
@@ -219,10 +241,8 @@ class TestCoverageManager {
 
   /**
    * Extract key testable words from criteria text
-   * @param {string} text - Criteria text
-   * @returns {Array} Array of keywords
    */
-  extractKeywords(text) {
+  extractKeywords(text: string): string[] {
     // Extract meaningful words, excluding common words
     const words = text
       .toLowerCase()
@@ -240,7 +260,7 @@ class TestCoverageManager {
             'given',
             'that',
             'this',
-            'with',
+            'with'
           ].includes(word)
       );
 
@@ -249,16 +269,14 @@ class TestCoverageManager {
 
   /**
    * Find requirement file by ID
-   * @param {string} reqIdPadded - Padded requirement ID
-   * @returns {string|null} Path to requirement file
    */
-  async findRequirementFile(reqIdPadded) {
+  async findRequirementFile(reqIdPadded: string): Promise<string | null> {
     const categories = [
       'core',
       'infrastructure',
       'workflow',
       'testing',
-      'integration',
+      'integration'
     ];
 
     for (const category of categories) {
@@ -281,13 +299,12 @@ class TestCoverageManager {
 
   /**
    * Generate comprehensive coverage report
-   * @returns {Object} Full project coverage report
    */
-  async generateCoverageReport() {
-    console.log(chalk.blue('🔍 Analyzing requirement-to-test coverage...'));
+  async generateCoverageReport(): Promise<CoverageReport> {
+    console.log(chalk.blue('[i] Analyzing requirement-to-test coverage...'));
 
     const requirements = await this.findAllRequirements();
-    const results = [];
+    const results: CoverageAnalysis[] = [];
 
     for (const reqPath of requirements) {
       const reqId = this.extractReqIdFromPath(reqPath);
@@ -296,7 +313,8 @@ class TestCoverageManager {
           const coverage = await this.analyzeCoverage(reqId);
           results.push(coverage);
         } catch (error) {
-          console.warn(chalk.yellow(`⚠️ Skipping ${reqId}: ${error.message}`));
+          const err = error as Error;
+          console.warn(chalk.yellow(`[!] Skipping ${reqId}: ${err.message}`));
         }
       }
     }
@@ -319,19 +337,18 @@ class TestCoverageManager {
         overallCoverage: Math.round(overallCoverage * 100) / 100,
         fullyTestedRequirements: results.filter(
           (r) => r.coveragePercentage === 100
-        ).length,
+        ).length
       },
       requirements: results,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     };
   }
 
   /**
    * Find all requirement files
-   * @returns {Array} Array of requirement file paths
    */
-  async findAllRequirements() {
-    const requirements = [];
+  async findAllRequirements(): Promise<string[]> {
+    const requirements: string[] = [];
     const categories = ['core', 'infrastructure', 'workflow', 'testing'];
 
     for (const category of categories) {
@@ -353,10 +370,8 @@ class TestCoverageManager {
 
   /**
    * Extract requirement ID from file path
-   * @param {string} filePath - Path to requirement file
-   * @returns {string|null} Requirement ID
    */
-  extractReqIdFromPath(filePath) {
+  extractReqIdFromPath(filePath: string): string | null {
     const filename = path.basename(filePath);
     const match = filename.match(/req-(\d{3})/);
     return match ? match[1] : null;
@@ -364,26 +379,25 @@ class TestCoverageManager {
 
   /**
    * Display coverage analysis results
-   * @param {Object} coverage - Coverage analysis results
    */
-  displayCoverageResults(coverage) {
-    console.log(chalk.blue(`\n📊 Coverage Analysis: ${coverage.reqId}`));
-    console.log(chalk.blue('─'.repeat(50)));
+  displayCoverageResults(coverage: CoverageAnalysis): void {
+    console.log(chalk.blue(`\n[i] Coverage Analysis: ${coverage.reqId}`));
+    console.log(chalk.blue('-'.repeat(50)));
 
     console.log(
-      `📈 Overall Coverage: ${this.getColoredPercentage(coverage.coveragePercentage)}%`
+      `[i] Overall Coverage: ${this.getColoredPercentage(coverage.coveragePercentage)}%`
     );
-    console.log(`📋 Total Criteria: ${coverage.totalCriteria}`);
-    console.log(`✅ Tested Criteria: ${coverage.testedCriteria}`);
+    console.log(`[i] Total Criteria: ${coverage.totalCriteria}`);
+    console.log(`[OK] Tested Criteria: ${coverage.testedCriteria}`);
     console.log(
-      `❌ Untested Criteria: ${coverage.totalCriteria - coverage.testedCriteria}`
+      `[X] Untested Criteria: ${coverage.totalCriteria - coverage.testedCriteria}`
     );
 
     if (coverage.criteria.length > 0) {
-      console.log(chalk.blue('\n📝 Acceptance Criteria Details:'));
+      console.log(chalk.blue('\n[i] Acceptance Criteria Details:'));
 
       coverage.criteria.forEach((criterion, _index) => {
-        const status = criterion.hasTest ? chalk.green('✅') : chalk.red('❌');
+        const status = criterion.hasTest ? chalk.green('[OK]') : chalk.red('[X]');
         const testable = criterion.testable
           ? ''
           : chalk.yellow(' (may not be testable)');
@@ -394,13 +408,13 @@ class TestCoverageManager {
     }
 
     if (coverage.testDir) {
-      console.log(chalk.blue(`\n📁 Test Directory: ${coverage.testDir}`));
-      console.log(chalk.blue(`📝 Test Files: ${coverage.testFiles.length}`));
+      console.log(chalk.blue(`\n[i] Test Directory: ${coverage.testDir}`));
+      console.log(chalk.blue(`[i] Test Files: ${coverage.testFiles.length}`));
     } else {
-      console.log(chalk.red('\n📁 No test directory found'));
+      console.log(chalk.red('\n[i] No test directory found'));
       console.log(
         chalk.yellow(
-          `💡 Run: sc req generate-tests ${coverage.reqId.replace('REQ-', '')}`
+          `[i] Run: sc req generate-tests ${coverage.reqId.replace('REQ-', '')}`
         )
       );
     }
@@ -408,36 +422,33 @@ class TestCoverageManager {
 
   /**
    * Get colored percentage based on coverage level
-   * @param {number} percentage - Coverage percentage
-   * @returns {string} Colored percentage string
    */
-  getColoredPercentage(percentage) {
-    if (percentage >= 90) return chalk.green(percentage);
-    if (percentage >= 70) return chalk.yellow(percentage);
-    return chalk.red(percentage);
+  getColoredPercentage(percentage: number): string {
+    if (percentage >= 90) return chalk.green(String(percentage));
+    if (percentage >= 70) return chalk.yellow(String(percentage));
+    return chalk.red(String(percentage));
   }
 
   /**
    * Display full coverage report
-   * @param {Object} report - Full coverage report
    */
-  displayCoverageReport(report) {
-    console.log(chalk.blue('\n📊 PROJECT-WIDE COVERAGE REPORT'));
-    console.log(chalk.blue('═'.repeat(60)));
+  displayCoverageReport(report: CoverageReport): void {
+    console.log(chalk.blue('\n[i] PROJECT-WIDE COVERAGE REPORT'));
+    console.log(chalk.blue('='.repeat(60)));
 
     const { summary } = report;
     console.log(
-      `📈 Overall Coverage: ${this.getColoredPercentage(summary.overallCoverage)}%`
+      `[i] Overall Coverage: ${this.getColoredPercentage(summary.overallCoverage)}%`
     );
-    console.log(`📋 Total Requirements: ${summary.totalRequirements}`);
-    console.log(`📝 Total Acceptance Criteria: ${summary.totalCriteria}`);
-    console.log(`✅ Tested Criteria: ${summary.totalTestedCriteria}`);
+    console.log(`[i] Total Requirements: ${summary.totalRequirements}`);
+    console.log(`[i] Total Acceptance Criteria: ${summary.totalCriteria}`);
+    console.log(`[OK] Tested Criteria: ${summary.totalTestedCriteria}`);
     console.log(
-      `🎯 Fully Tested Requirements: ${summary.fullyTestedRequirements}/${summary.totalRequirements}`
+      `[>] Fully Tested Requirements: ${summary.fullyTestedRequirements}/${summary.totalRequirements}`
     );
 
-    console.log(chalk.blue('\n📋 REQUIREMENTS BREAKDOWN:'));
-    console.log(chalk.blue('─'.repeat(60)));
+    console.log(chalk.blue('\n[i] REQUIREMENTS BREAKDOWN:'));
+    console.log(chalk.blue('-'.repeat(60)));
 
     // Sort by coverage percentage (worst first)
     const sortedReqs = report.requirements.sort(
@@ -448,10 +459,10 @@ class TestCoverageManager {
       const coverage = this.getColoredPercentage(req.coveragePercentage);
       const status =
         req.coveragePercentage === 100
-          ? '🎯'
+          ? '[>]'
           : req.coveragePercentage >= 70
-            ? '⚠️'
-            : '❌';
+            ? '[!]'
+            : '[X]';
       console.log(
         `  ${status} ${req.reqId}: ${coverage}% (${req.testedCriteria}/${req.totalCriteria})`
       );
@@ -462,11 +473,11 @@ class TestCoverageManager {
       (req) => req.coveragePercentage < 100
     );
     if (untestedReqs.length > 0) {
-      console.log(chalk.yellow('\n🔧 ACTION ITEMS:'));
+      console.log(chalk.yellow('\n[>] ACTION ITEMS:'));
       untestedReqs.slice(0, 5).forEach((req) => {
         console.log(
           chalk.yellow(
-            `  • Complete testing for ${req.reqId} (${req.coveragePercentage}% coverage)`
+            `  * Complete testing for ${req.reqId} (${req.coveragePercentage}% coverage)`
           )
         );
       });
@@ -474,7 +485,7 @@ class TestCoverageManager {
   }
 }
 
-module.exports = TestCoverageManager;
+export default TestCoverageManager;
 
 // CLI interface
 if (require.main === module) {
@@ -487,7 +498,7 @@ if (require.main === module) {
     case 'analyze':
       if (!reqId) {
         console.error(
-          chalk.red('❌ Please provide requirement ID: sc test analyze 038')
+          chalk.red('[X] Please provide requirement ID: sc test analyze 038')
         );
         process.exit(1);
       }
@@ -495,7 +506,7 @@ if (require.main === module) {
         .analyzeCoverage(reqId)
         .then((coverage) => manager.displayCoverageResults(coverage))
         .catch((error) => {
-          console.error(chalk.red('❌ Error:', error.message));
+          console.error(chalk.red('[X] Error:', error.message));
           process.exit(1);
         });
       break;
@@ -505,13 +516,13 @@ if (require.main === module) {
         .generateCoverageReport()
         .then((report) => manager.displayCoverageReport(report))
         .catch((error) => {
-          console.error(chalk.red('❌ Error:', error.message));
+          console.error(chalk.red('[X] Error:', error.message));
           process.exit(1);
         });
       break;
 
     default:
-      console.log(chalk.blue('📊 Test Coverage Manager (REQ-038)'));
+      console.log(chalk.blue('[i] Test Coverage Manager (REQ-038)'));
       console.log(chalk.blue('Usage:'));
       console.log(
         '  sc test-coverage analyze 038   # Analyze specific requirement'

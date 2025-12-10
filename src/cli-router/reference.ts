@@ -1,13 +1,32 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { Command } from 'commander';
+import { glob } from 'glob';
+import fs from 'fs-extra';
+import path from 'node:path';
+import matter from 'gray-matter';
+import chalk from 'chalk';
 
-const program = require('commander');
 const LinkChecker = require('../cli/commands/docs/validate-links');
-const glob = require('glob');
-const fs = require('fs-extra');
-const path = require('node:path');
-const matter = require('gray-matter');
-const chalk = require('chalk');
+
+const program = new Command();
+
+interface BrokenLink {
+  file: string;
+  field: string;
+  type?: string;
+  message?: string;
+  suggestion?: string;
+  error?: string;
+  warning?: string;
+  expected?: string;
+  current?: string;
+  severity?: string;
+}
+
+interface DirectRef {
+  doc: string;
+  field: string;
+  version: string | null;
+}
 
 program
   .name('sc reference')
@@ -17,10 +36,10 @@ program
   .command('validate [file]')
   .description('Validate path@version references')
   .option('--all', 'Validate all documents')
-  .action(async (file, options) => {
+  .action(async (file: string | undefined, options: { all?: boolean }) => {
     const checker = new LinkChecker();
 
-    const files = options.all ? glob.sync('docs/**/*.md') : [file];
+    const files = options.all ? glob.sync('docs/**/*.md') : (file ? [file] : []);
 
     console.log(chalk.cyan(`\n🔍 Validating ${files.length} files...\n`));
 
@@ -37,7 +56,7 @@ program
       chalk.red(`\n❌ Found ${checker.brokenLinks.length} issues:\n`)
     );
 
-    for (const issue of checker.brokenLinks) {
+    for (const issue of checker.brokenLinks as BrokenLink[]) {
       console.log(chalk.yellow(`File: ${issue.file}`));
       console.log(`  Field: ${issue.field}`);
 
@@ -63,7 +82,7 @@ program
 program
   .command('check [file]')
   .description('Check version mismatches only')
-  .action(async (file) => {
+  .action(async (file: string) => {
     if (!fs.existsSync(file)) {
       console.error(chalk.red(`File not found: ${file}`));
       process.exit(1);
@@ -84,13 +103,13 @@ program
     let found = false;
 
     for (const field of fields) {
-      if (!fm[field]) continue;
+      if (!(fm as Record<string, any>)[field]) continue;
 
-      let refs = fm[field];
+      let refs = (fm as Record<string, any>)[field];
       if (typeof refs === 'string') refs = [refs];
       if (!Array.isArray(refs)) continue;
 
-      for (const ref of refs) {
+      for (const ref of refs as string[]) {
         const atIndex = ref.lastIndexOf('@');
         if (atIndex === -1) continue;
 
@@ -104,7 +123,6 @@ program
         const targetMatch = targetContent.match(/^---\s*\n([\s\S]*?)\n---/);
         if (!targetMatch) continue;
 
-        // Simple version extraction
         const versionMatch = targetMatch[1].match(
           /version:\s*["']?([^"'\n]+)["']?/
         );
@@ -136,10 +154,10 @@ program
   .command('impact <file>')
   .description('Show what depends on this file')
   .option('--cascade', 'Show cascade impact')
-  .action(async (file, options) => {
+  .action(async (file: string, options: { cascade?: boolean }) => {
     const allDocs = glob.sync('docs/**/*.md');
-    const directRefs = [];
-    const cascadeRefs = new Map();
+    const directRefs: DirectRef[] = [];
+    const cascadeRefs = new Map<string, Array<{ via: string; field: string }>>();
 
     console.log(chalk.cyan(`\n📊 Impact Analysis: ${file}\n`));
 
@@ -156,13 +174,13 @@ program
       ];
 
       for (const field of fields) {
-        if (!fm[field]) continue;
+        if (!(fm as Record<string, any>)[field]) continue;
 
-        let refs = fm[field];
+        let refs = (fm as Record<string, any>)[field];
         if (typeof refs === 'string') refs = [refs];
         if (!Array.isArray(refs)) continue;
 
-        for (const ref of refs) {
+        for (const ref of refs as string[]) {
           const atIndex = ref.lastIndexOf('@');
           const refPath = atIndex === -1 ? ref : ref.substring(0, atIndex);
           const version = atIndex === -1 ? null : ref.substring(atIndex + 1);
@@ -193,7 +211,6 @@ program
       console.log(chalk.bold('Cascade Impact:'));
 
       for (const { doc } of directRefs) {
-        // Find what depends on this direct ref
         for (const cascadeDoc of allDocs) {
           const content = await fs.readFile(cascadeDoc, 'utf8');
           const { data: fm } = matter(content);
@@ -207,13 +224,13 @@ program
           ];
 
           for (const field of fields) {
-            if (!fm[field]) continue;
+            if (!(fm as Record<string, any>)[field]) continue;
 
-            let refs = fm[field];
+            let refs = (fm as Record<string, any>)[field];
             if (typeof refs === 'string') refs = [refs];
             if (!Array.isArray(refs)) continue;
 
-            for (const ref of refs) {
+            for (const ref of refs as string[]) {
               const atIndex = ref.lastIndexOf('@');
               const refPath = atIndex === -1 ? ref : ref.substring(0, atIndex);
 
@@ -228,7 +245,7 @@ program
                 if (!cascadeRefs.has(cascadeDoc)) {
                   cascadeRefs.set(cascadeDoc, []);
                 }
-                cascadeRefs.get(cascadeDoc).push({ via: doc, field });
+                cascadeRefs.get(cascadeDoc)!.push({ via: doc, field });
               }
             }
           }
@@ -254,7 +271,7 @@ program
   .description('Update a reference version in a document')
   .requiredOption('--path <path>', 'Path to update')
   .requiredOption('--to-version <version>', 'New version')
-  .action(async (file, options) => {
+  .action(async (file: string, options: { path: string; toVersion: string }) => {
     if (!fs.existsSync(file)) {
       console.error(chalk.red(`File not found: ${file}`));
       process.exit(1);
@@ -274,10 +291,10 @@ program
     let updated = false;
 
     for (const field of fields) {
-      if (!fm[field]) continue;
+      if (!(fm as Record<string, any>)[field]) continue;
 
-      if (Array.isArray(fm[field])) {
-        fm[field] = fm[field].map((ref) => {
+      if (Array.isArray((fm as Record<string, any>)[field])) {
+        (fm as Record<string, any>)[field] = ((fm as Record<string, any>)[field] as string[]).map((ref) => {
           const atIndex = ref.lastIndexOf('@');
           const refPath = atIndex === -1 ? ref : ref.substring(0, atIndex);
 
@@ -295,7 +312,7 @@ program
       process.exit(1);
     }
 
-    fm.updated = new Date().toISOString().split('T')[0];
+    (fm as Record<string, any>).updated = new Date().toISOString().split('T')[0];
 
     const updatedContent = matter.stringify(body, fm);
     await fs.writeFile(file, updatedContent);
@@ -305,3 +322,5 @@ program
   });
 
 program.parse(process.argv);
+
+export default program;

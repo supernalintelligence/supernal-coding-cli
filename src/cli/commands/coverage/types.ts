@@ -169,6 +169,7 @@ export interface CoverageRunOptions {
   check?: boolean;
   include?: string;
   e2e?: boolean;
+  quick?: boolean;
   quiet?: boolean;
   verbose?: boolean;
 }

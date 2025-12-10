@@ -1,11 +1,7 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
 
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
-
-// Colors for output
 const colors = {
   red: '\x1b[31m',
   green: '\x1b[32m',
@@ -18,19 +14,19 @@ const colors = {
 };
 
 class KanbanWrapper {
-  priorityScript: any;
-  scriptsDir: any;
-  unifiedScript: any;
+  protected scriptsDir: string;
+  protected unifiedScript: string;
+  protected priorityScript: string;
+
   constructor() {
     this.scriptsDir = path.join(__dirname, 'kanban-scripts');
     this.unifiedScript = path.join(this.scriptsDir, 'kanban-unified.sh');
     this.priorityScript = path.join(this.scriptsDir, 'kanban-priority.sh');
 
-    // Ensure scripts are executable
     this.ensureExecutable();
   }
 
-  ensureExecutable() {
+  ensureExecutable(): void {
     try {
       if (fs.existsSync(this.unifiedScript)) {
         execSync(`chmod +x "${this.unifiedScript}"`);
@@ -45,8 +41,7 @@ class KanbanWrapper {
     }
   }
 
-  // Execute kanban-unified.sh with arguments
-  runUnifiedCommand(args) {
+  runUnifiedCommand(args: string[]): void {
     try {
       if (!fs.existsSync(this.unifiedScript)) {
         console.error(
@@ -61,14 +56,13 @@ class KanbanWrapper {
         cwd: process.cwd()
       });
     } catch (error) {
-      if (error.status !== 0) {
-        process.exit(error.status);
+      if ((error as { status: number }).status !== 0) {
+        process.exit((error as { status: number }).status);
       }
     }
   }
 
-  // Execute kanban-priority.sh with arguments
-  runPriorityCommand(args) {
+  runPriorityCommand(args: string[]): void {
     try {
       if (!fs.existsSync(this.priorityScript)) {
         console.error(
@@ -83,14 +77,13 @@ class KanbanWrapper {
         cwd: process.cwd()
       });
     } catch (error) {
-      if (error.status !== 0) {
-        process.exit(error.status);
+      if ((error as { status: number }).status !== 0) {
+        process.exit((error as { status: number }).status);
       }
     }
   }
 
-  // Route commands to appropriate scripts
-  execute(args) {
+  execute(args: string[]): void {
     if (args.length === 0) {
       this.showHelp();
       return;
@@ -99,17 +92,15 @@ class KanbanWrapper {
     const command = args[0];
     const remainingArgs = args.slice(1);
 
-    // Priority-specific commands go to kanban-priority.sh
     if (command === 'priority') {
       this.runPriorityCommand(remainingArgs);
       return;
     }
 
-    // All other commands go to kanban-unified.sh
     this.runUnifiedCommand(args);
   }
 
-  showHelp() {
+  showHelp(): void {
     console.log(`${colors.bold}Supernal Coding - Kanban System${colors.reset}`);
     console.log('===================================');
     console.log('');
@@ -186,8 +177,7 @@ class KanbanWrapper {
   }
 }
 
-// CLI Interface
-function main() {
+function main(): void {
   const args = process.argv.slice(2);
   const kanban = new KanbanWrapper();
   kanban.execute(args);
@@ -197,4 +187,5 @@ if (require.main === module) {
   main();
 }
 
+export default KanbanWrapper;
 module.exports = KanbanWrapper;

@@ -1,12 +1,39 @@
-// @ts-nocheck
-const chalk = require('chalk');
+import chalk from 'chalk';
 const WorkflowStateTracker = require('./workflow/state-tracker');
+
+interface WorkflowState {
+  state: string;
+  recommendedActions: Array<{ command: string; description: string }>;
+  activeRequirement?: string | null;
+  expectedBranch?: string;
+  requirements: string[];
+}
+
+interface Deviation {
+  severity: string;
+  type: string;
+  description: string;
+  suggestion?: string;
+}
+
+interface InitOptions {
+  [key: string]: boolean;
+}
+
+interface ListPendingOptions {
+  type?: string;
+  path?: string;
+  count?: boolean;
+  json?: boolean;
+  group?: boolean;
+}
 
 /**
  * Workflow state management commands
  */
 class WorkflowManager {
-  tracker: any;
+  readonly tracker: InstanceType<typeof WorkflowStateTracker>;
+
   constructor() {
     this.tracker = new WorkflowStateTracker();
   }
@@ -14,24 +41,25 @@ class WorkflowManager {
   /**
    * Show current workflow status
    */
-  async status() {
+  async status(): Promise<void> {
     await this.tracker.showStatus();
   }
 
   /**
    * Initialize workflow tracking (called after sc init)
    */
-  async init(initOptions = {}) {
-    console.log(chalk.blue('🎯 Initializing workflow state tracking...'));
+  async init(initOptions: InitOptions = {}): Promise<void> {
+    console.log(chalk.blue('[>] Initializing workflow state tracking...'));
 
-    const state = await this.tracker.initializeState(initOptions);
+    const state: WorkflowState | null =
+      await this.tracker.initializeState(initOptions);
 
     if (state) {
-      console.log(chalk.green('✅ Workflow state tracking initialized'));
+      console.log(chalk.green('[OK] Workflow state tracking initialized'));
 
       // Show immediate next steps
       console.log(
-        chalk.blue('\n🚀 Ready to Start! Here are your immediate next steps:')
+        chalk.blue('\n[>] Ready to Start! Here are your immediate next steps:')
       );
 
       if (state.recommendedActions.length > 0) {
@@ -43,28 +71,28 @@ class WorkflowManager {
 
       console.log(
         chalk.yellow(
-          `\n💡 View full status anytime: ${chalk.cyan('sc workflow status')}`
+          `\n[i] View full status anytime: ${chalk.cyan('sc workflow status')}`
         )
       );
     } else {
-      console.log(chalk.red('❌ Failed to initialize workflow tracking'));
+      console.log(chalk.red('[X] Failed to initialize workflow tracking'));
     }
   }
 
   /**
    * Mark a step as completed
    */
-  async complete(action, newState = null) {
-    const state = await this.tracker.loadState();
+  async complete(action: string, newState: string | null = null): Promise<void> {
+    const state: WorkflowState | null = await this.tracker.loadState();
     if (!state) {
       console.log(
-        chalk.yellow('⚠️  No workflow state found. Run `sc init` first.')
+        chalk.yellow('[!] No workflow state found. Run `sc init` first.')
       );
       return;
     }
 
     await this.tracker.updateState(newState || state.state, action);
-    console.log(chalk.green(`✅ Marked "${action}" as completed`));
+    console.log(chalk.green(`[OK] Marked "${action}" as completed`));
 
     // Show updated status
     await this.tracker.showStatus();
@@ -73,47 +101,51 @@ class WorkflowManager {
   /**
    * Report a deviation or issue
    */
-  async reportDeviation(type, description, severity = 'warning') {
+  async reportDeviation(
+    type: string,
+    description: string,
+    severity: string = 'warning'
+  ): Promise<void> {
     await this.tracker.updateState(null, null, {
       type,
       description,
       severity
     });
 
-    console.log(chalk.yellow(`⚠️  Deviation reported: ${description}`));
+    console.log(chalk.yellow(`[!] Deviation reported: ${description}`));
   }
 
   /**
    * Check for and report workflow deviations
    */
-  async check() {
-    console.log(chalk.blue('🔍 Checking workflow for deviations...'));
+  async check(): Promise<void> {
+    console.log(chalk.blue('[i] Checking workflow for deviations...'));
 
-    const deviations = await this.tracker.checkDeviations();
+    const deviations: Deviation[] = await this.tracker.checkDeviations();
 
     if (deviations.length === 0) {
       console.log(
-        chalk.green('✅ No deviations detected. Workflow is on track!')
+        chalk.green('[OK] No deviations detected. Workflow is on track!')
       );
       return;
     }
 
     console.log(
-      chalk.yellow(`\n⚠️  Found ${deviations.length} potential issue(s):`)
+      chalk.yellow(`\n[!] Found ${deviations.length} potential issue(s):`)
     );
 
     deviations.forEach((dev, i) => {
       const icon =
         dev.severity === 'warning'
-          ? '⚠️'
+          ? '[!]'
           : dev.severity === 'error'
-            ? '❌'
-            : 'ℹ️';
+            ? '[X]'
+            : '[i]';
       console.log(chalk.yellow(`\n   ${i + 1}. ${icon} ${dev.type}`));
       console.log(chalk.gray(`      ${dev.description}`));
 
       if (dev.suggestion) {
-        console.log(chalk.cyan(`      💡 Suggestion: ${dev.suggestion}`));
+        console.log(chalk.cyan(`      [i] Suggestion: ${dev.suggestion}`));
       }
     });
   }
@@ -121,27 +153,27 @@ class WorkflowManager {
   /**
    * Start working on a requirement (integrates with req start-work)
    */
-  async startRequirement(reqId) {
+  async startRequirement(reqId: string): Promise<void> {
     await this.tracker.updateState('FEATURE_BRANCH', 'start_feature_branch');
 
-    const state = await this.tracker.loadState();
+    const state: WorkflowState | null = await this.tracker.loadState();
     if (state) {
       state.activeRequirement = reqId;
       state.expectedBranch = `feature/req-${reqId}`;
       await this.tracker.saveState(state);
     }
 
-    console.log(chalk.green(`🌿 Started working on requirement ${reqId}`));
-    console.log(chalk.blue('💡 Your workflow state has been updated'));
+    console.log(chalk.green(`[>] Started working on requirement ${reqId}`));
+    console.log(chalk.blue('[i] Your workflow state has been updated'));
   }
 
   /**
    * Mark requirement as completed (integrates with smart merge)
    */
-  async completeRequirement(reqId) {
+  async completeRequirement(reqId: string): Promise<void> {
     await this.tracker.updateState('COMPLETED', 'smart_merge_workflow');
 
-    const state = await this.tracker.loadState();
+    const state: WorkflowState | null = await this.tracker.loadState();
     if (state) {
       state.activeRequirement = null;
       state.expectedBranch = 'main';
@@ -153,16 +185,16 @@ class WorkflowManager {
       await this.tracker.saveState(state);
     }
 
-    console.log(chalk.green(`🎉 Requirement ${reqId} completed and merged!`));
+    console.log(chalk.green(`[>] Requirement ${reqId} completed and merged!`));
     await this.tracker.showStatus();
   }
 
   /**
    * Reset workflow state (for debugging/recovery)
    */
-  async reset() {
-    const fs = require('fs-extra');
-    const path = require('node:path');
+  async reset(): Promise<void> {
+    const fs = await import('fs-extra');
+    const path = await import('node:path');
 
     const stateFile = path.join(
       process.cwd(),
@@ -172,57 +204,57 @@ class WorkflowManager {
 
     if (await fs.pathExists(stateFile)) {
       await fs.remove(stateFile);
-      console.log(chalk.green('✅ Workflow state reset'));
+      console.log(chalk.green('[OK] Workflow state reset'));
     } else {
-      console.log(chalk.yellow('⚠️  No workflow state to reset'));
+      console.log(chalk.yellow('[!] No workflow state to reset'));
     }
   }
 
   /**
    * Show detailed workflow guide
    */
-  async guide() {
-    console.log(chalk.blue.bold('\n📖 Supernal Coding Workflow Guide'));
+  async guide(): Promise<void> {
+    console.log(chalk.blue.bold('\n[i] Supernal Coding Workflow Guide'));
     console.log(chalk.blue('='.repeat(50)));
 
-    console.log(chalk.green('\n🏁 Phase 1: Initialize'));
+    console.log(chalk.green('\n[1] Phase 1: Initialize'));
     console.log('   1. Run `sc init` to set up your project');
     console.log('   2. Choose your equipment pack (minimal/standard/full)');
     console.log('   3. Workflow state tracking begins automatically');
 
-    console.log(chalk.green('\n📋 Phase 2: Plan'));
+    console.log(chalk.green('\n[2] Phase 2: Plan'));
     console.log('   1. Create requirements: `sc requirement new "Feature"`');
     console.log('   2. Set up kanban workflow: `sc kanban workflow new`');
     console.log('   3. Validate setup: `sc workflow check`');
 
-    console.log(chalk.green('\n🌿 Phase 3: Develop'));
+    console.log(chalk.green('\n[3] Phase 3: Develop'));
     console.log('   1. Start work: `sc req start-work 001`');
     console.log('   2. Make your changes');
     console.log('   3. Validate: `sc req validate 001`');
 
-    console.log(chalk.green('\n🔄 Phase 4: Integrate'));
+    console.log(chalk.green('\n[4] Phase 4: Integrate'));
     console.log('   1. Smart merge: `sc git-smart merge --auto-push`');
     console.log('   2. Workflow auto-updates to COMPLETED');
     console.log('   3. Start next requirement or iterate');
 
-    console.log(chalk.blue('\n💡 Workflow Commands:'));
-    console.log('   • `sc workflow status` - Show current state');
-    console.log('   • `sc workflow check` - Check for deviations');
-    console.log('   • `sc workflow guide` - Show this guide');
-    console.log('   • `sc workflow reset` - Reset state (debugging)');
+    console.log(chalk.blue('\n[i] Workflow Commands:'));
+    console.log('   * `sc workflow status` - Show current state');
+    console.log('   * `sc workflow check` - Check for deviations');
+    console.log('   * `sc workflow guide` - Show this guide');
+    console.log('   * `sc workflow reset` - Reset state (debugging)');
 
-    console.log(chalk.yellow('\n⚠️  The system tracks deviations like:'));
-    console.log('   • Working on wrong branch');
-    console.log('   • Untracked requirements');
-    console.log('   • Uncommitted changes');
-    console.log('   • Merge conflicts');
+    console.log(chalk.yellow('\n[!] The system tracks deviations like:'));
+    console.log('   * Working on wrong branch');
+    console.log('   * Untracked requirements');
+    console.log('   * Uncommitted changes');
+    console.log('   * Merge conflicts');
   }
 }
 
 /**
  * CLI interface
  */
-async function handleWorkflowCommand(...args) {
+async function handleWorkflowCommand(...args: string[]): Promise<void> {
   const manager = new WorkflowManager();
   const subCommand = args[0] || 'status';
 
@@ -247,7 +279,7 @@ async function handleWorkflowCommand(...args) {
         const newState = args[2];
         if (!action) {
           console.log(
-            chalk.red('❌ Usage: sc workflow complete <action> [new_state]')
+            chalk.red('[X] Usage: sc workflow complete <action> [new_state]')
           );
           return;
         }
@@ -258,7 +290,7 @@ async function handleWorkflowCommand(...args) {
       case 'start-req': {
         const reqId = args[1];
         if (!reqId) {
-          console.log(chalk.red('❌ Usage: sc workflow start-req <req_id>'));
+          console.log(chalk.red('[X] Usage: sc workflow start-req <req_id>'));
           return;
         }
         await manager.startRequirement(reqId);
@@ -268,7 +300,7 @@ async function handleWorkflowCommand(...args) {
       case 'complete-req': {
         const completedReqId = args[1];
         if (!completedReqId) {
-          console.log(chalk.red('❌ Usage: sc workflow complete-req <req_id>'));
+          console.log(chalk.red('[X] Usage: sc workflow complete-req <req_id>'));
           return;
         }
         await manager.completeRequirement(completedReqId);
@@ -285,7 +317,9 @@ async function handleWorkflowCommand(...args) {
 
       case 'list-pending': {
         // REQ-105: List documents needing approval
-        const PendingApprovalScanner = require('../../workflow/PendingApprovalScanner');
+        const PendingApprovalScanner = (
+          await import('../../workflow/PendingApprovalScanner')
+        ).default;
         const scanner = new PendingApprovalScanner();
         const options = parseListPendingOptions(args.slice(1));
         await scanner.display(options);
@@ -297,20 +331,21 @@ async function handleWorkflowCommand(...args) {
         break;
 
       default:
-        console.log(chalk.red(`❌ Unknown workflow command: ${subCommand}`));
+        console.log(chalk.red(`[X] Unknown workflow command: ${subCommand}`));
         showWorkflowHelp();
         break;
     }
   } catch (error) {
-    console.error(chalk.red(`❌ Workflow error: ${error.message}`));
+    const err = error as Error;
+    console.error(chalk.red(`[X] Workflow error: ${err.message}`));
     if (process.env.DEBUG) {
-      console.error(error.stack);
+      console.error(err.stack);
     }
   }
 }
 
-function parseInitOptions(args) {
-  const options = {};
+function parseInitOptions(args: string[]): InitOptions {
+  const options: InitOptions = {};
 
   // Parse simple boolean flags
   args.forEach((arg) => {
@@ -323,8 +358,8 @@ function parseInitOptions(args) {
   return options;
 }
 
-function parseListPendingOptions(args) {
-  const options = {};
+function parseListPendingOptions(args: string[]): ListPendingOptions {
+  const options: ListPendingOptions = {};
 
   args.forEach((arg, index) => {
     if (arg === '--type' && args[index + 1]) {
@@ -343,8 +378,8 @@ function parseListPendingOptions(args) {
   return options;
 }
 
-function showWorkflowHelp() {
-  console.log(chalk.blue('\n📖 Workflow Commands:'));
+function showWorkflowHelp(): void {
+  console.log(chalk.blue('\n[i] Workflow Commands:'));
   console.log('   status              Show current workflow state');
   console.log('   check               Check for workflow deviations');
   console.log('   complete <action>   Mark an action as completed');
@@ -365,7 +400,4 @@ function showWorkflowHelp() {
   console.log('   --group             Group by document type');
 }
 
-module.exports = {
-  WorkflowManager,
-  handleWorkflowCommand
-};
+export { WorkflowManager, handleWorkflowCommand };

@@ -1,19 +1,74 @@
-// @ts-nocheck
-const _chalk = require('chalk');
-const fs = require('fs-extra');
-const path = require('node:path');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'node:path';
+import os from 'node:os';
+
+interface FileInfo {
+  name: string;
+  path: string;
+  relativePath: string;
+}
+
+interface Conflict {
+  type: string;
+  path: string;
+  description: string;
+  severity: 'warning' | 'error';
+  canOverwrite: boolean;
+  details?: string[];
+}
+
+interface ConflictResult {
+  hasConflicts: boolean;
+  conflicts: Conflict[];
+  warnings: Conflict[];
+  errors: Conflict[];
+}
+
+interface ActiveFeatures {
+  [key: string]: boolean | unknown;
+}
+
+interface MergeAction {
+  type: string;
+  description: string;
+  path?: string;
+  details?: MergeAnalysisDetails | Conflict;
+}
+
+interface MergeAnalysisDetails {
+  canMerge: boolean;
+  reason?: string;
+  newFiles: FileInfo[];
+  existingFiles: FileInfo[];
+  warnings: string[];
+  conflicts?: string[];
+  conflictingFiles?: FileInfo[];
+  functionalConflicts?: string[];
+  conflictingRules?: string[];
+  description?: string;
+  existingPackage?: Record<string, unknown>;
+  action?: string;
+}
+
+interface MergeAnalysisResult {
+  canMerge: boolean;
+  mergeActions: MergeAction[];
+  warnings: string[];
+  blockingConflicts: { type: string; description: string; path?: string }[];
+}
 
 /**
  * Get directory contents recursively
- * @param {string} dirPath - Directory path
- * @returns {Promise<Array>} Array of file objects with name and path
+ * @param dirPath - Directory path
+ * @returns Array of file objects with name and path
  */
-async function getDirectoryContentsRecursive(dirPath) {
+async function getDirectoryContentsRecursive(dirPath: string): Promise<FileInfo[]> {
   if (!(await fs.pathExists(dirPath))) {
     return [];
   }
 
-  const files = [];
+  const files: FileInfo[] = [];
   const items = await fs.readdir(dirPath);
 
   for (const item of items) {
@@ -37,12 +92,12 @@ async function getDirectoryContentsRecursive(dirPath) {
 
 /**
  * Detect installation conflicts with existing files and directories
- * @param {string} targetDir - Target installation directory
- * @param {Object} activeFeatures - Active features configuration
- * @returns {Promise<Object>} Conflict detection results
+ * @param targetDir - Target installation directory
+ * @param activeFeatures - Active features configuration
+ * @returns Conflict detection results
  */
-async function detectInstallationConflicts(targetDir, _activeFeatures) {
-  const conflicts = [];
+async function detectInstallationConflicts(targetDir: string, _activeFeatures: ActiveFeatures): Promise<ConflictResult> {
+  const conflicts: Conflict[] = [];
 
   // Check for existing MCP configuration
   const mcpConfigPath = path.join(targetDir, '.cursor/mcp.json');
@@ -74,7 +129,6 @@ async function detectInstallationConflicts(targetDir, _activeFeatures) {
 
   // Check for global MCP configuration conflicts
   try {
-    const os = require('node:os');
     const globalMcpPath = path.join(os.homedir(), '.cursor/mcp.json');
     if (await fs.pathExists(globalMcpPath)) {
       const globalMcp = await fs.readJSON(globalMcpPath);
@@ -179,13 +233,13 @@ async function detectInstallationConflicts(targetDir, _activeFeatures) {
 
 /**
  * Analyze merge compatibility for conflicts
- * @param {string} targetDir - Target directory
- * @param {Array} conflicts - Array of conflicts
- * @param {Object} activeFeatures - Active features
- * @returns {Promise<Object>} Merge analysis results
+ * @param targetDir - Target directory
+ * @param conflicts - Array of conflicts
+ * @param activeFeatures - Active features
+ * @returns Merge analysis results
  */
-async function analyzeMergeCompatibility(targetDir, conflicts, activeFeatures) {
-  const analysis = {
+async function analyzeMergeCompatibility(targetDir: string, conflicts: Conflict[], activeFeatures: ActiveFeatures): Promise<MergeAnalysisResult> {
+  const analysis: MergeAnalysisResult = {
     canMerge: true,
     mergeActions: [],
     warnings: [],
@@ -217,7 +271,7 @@ async function analyzeMergeCompatibility(targetDir, conflicts, activeFeatures) {
           } else {
             analysis.blockingConflicts.push({
               type: 'Scripts Conflict',
-              description: scriptsAnalysis.reason,
+              description: scriptsAnalysis.reason || 'Unknown conflict',
               path: conflictPath,
             });
             analysis.canMerge = false;
@@ -237,7 +291,7 @@ async function analyzeMergeCompatibility(targetDir, conflicts, activeFeatures) {
           } else {
             analysis.blockingConflicts.push({
               type: 'Templates Conflict',
-              description: templatesAnalysis.reason,
+              description: templatesAnalysis.reason || 'Unknown conflict',
               path: conflictPath,
             });
             analysis.canMerge = false;
@@ -257,14 +311,14 @@ async function analyzeMergeCompatibility(targetDir, conflicts, activeFeatures) {
         if (configAnalysis.canMerge) {
           analysis.mergeActions.push({
             type: 'Configuration Merge',
-            description: configAnalysis.description,
+            description: configAnalysis.description || 'Configuration can be merged',
             details: configAnalysis,
           });
           analysis.warnings.push(...configAnalysis.warnings);
         } else {
           analysis.blockingConflicts.push({
             type: 'Configuration Conflict',
-            description: configAnalysis.reason,
+            description: configAnalysis.reason || 'Unknown conflict',
             path: conflictPath,
           });
           analysis.canMerge = false;
@@ -279,7 +333,7 @@ async function analyzeMergeCompatibility(targetDir, conflicts, activeFeatures) {
         );
         analysis.mergeActions.push({
           type: 'Cursor Rules Merge',
-          description: rulesAnalysis.description,
+          description: rulesAnalysis.description || 'Cursor rules can be merged',
           details: rulesAnalysis,
         });
         analysis.warnings.push(...rulesAnalysis.warnings);
@@ -304,14 +358,14 @@ async function analyzeMergeCompatibility(targetDir, conflicts, activeFeatures) {
 
 /**
  * Analyze scripts directory merge compatibility
- * @param {string} existingScriptsDir - Existing scripts directory
- * @param {string} sourceScriptsDir - Source scripts directory
- * @returns {Promise<Object>} Scripts merge analysis
+ * @param existingScriptsDir - Existing scripts directory
+ * @param sourceScriptsDir - Source scripts directory
+ * @returns Scripts merge analysis
  */
 async function analyzeScriptsDirectoryMerge(
-  existingScriptsDir,
-  sourceScriptsDir
-) {
+  existingScriptsDir: string,
+  sourceScriptsDir: string | null
+): Promise<MergeAnalysisDetails> {
   if (!sourceScriptsDir || !(await fs.pathExists(sourceScriptsDir))) {
     return {
       canMerge: true,
@@ -344,7 +398,8 @@ async function analyzeScriptsDirectoryMerge(
       conflictingFiles,
       functionalConflicts,
       existingFiles,
-      sourceFiles,
+      newFiles: sourceFiles,
+      warnings: [],
     };
   }
 
@@ -370,14 +425,14 @@ async function analyzeScriptsDirectoryMerge(
 
 /**
  * Analyze templates directory merge compatibility
- * @param {string} existingTemplatesDir - Existing templates directory
- * @param {string} sourceTemplatesDir - Source templates directory
- * @returns {Promise<Object>} Templates merge analysis
+ * @param existingTemplatesDir - Existing templates directory
+ * @param sourceTemplatesDir - Source templates directory
+ * @returns Templates merge analysis
  */
 async function analyzeTemplatesDirectoryMerge(
-  existingTemplatesDir,
-  sourceTemplatesDir
-) {
+  existingTemplatesDir: string,
+  sourceTemplatesDir: string | null
+): Promise<MergeAnalysisDetails> {
   if (!sourceTemplatesDir || !(await fs.pathExists(sourceTemplatesDir))) {
     return {
       canMerge: true,
@@ -404,7 +459,8 @@ async function analyzeTemplatesDirectoryMerge(
       conflicts: conflictingFiles.map((f) => f.name),
       conflictingFiles,
       existingFiles,
-      sourceFiles,
+      newFiles: sourceFiles,
+      warnings: [],
     };
   }
 
@@ -419,10 +475,10 @@ async function analyzeTemplatesDirectoryMerge(
 
 /**
  * Analyze configuration file merge compatibility
- * @param {string} configPath - Configuration file path
- * @returns {Promise<Object>} Configuration merge analysis
+ * @param configPath - Configuration file path
+ * @returns Configuration merge analysis
  */
-async function analyzeConfigurationMerge(configPath) {
+async function analyzeConfigurationMerge(configPath: string): Promise<MergeAnalysisDetails> {
   const fileName = path.basename(configPath);
 
   switch (fileName) {
@@ -431,7 +487,7 @@ async function analyzeConfigurationMerge(configPath) {
       if (await fs.pathExists(configPath)) {
         try {
           const pkg = await fs.readJson(configPath);
-          const warnings = [];
+          const warnings: string[] = [];
 
           if (pkg.scripts) {
             warnings.push(
@@ -447,11 +503,17 @@ async function analyzeConfigurationMerge(configPath) {
             description: 'package.json can be merged safely',
             warnings,
             existingPackage: pkg,
+            newFiles: [],
+            existingFiles: [],
           };
         } catch (error) {
+          const err = error as Error;
           return {
             canMerge: false,
-            reason: `Invalid package.json format: ${error.message}`,
+            reason: `Invalid package.json format: ${err.message}`,
+            newFiles: [],
+            existingFiles: [],
+            warnings: [],
           };
         }
       }
@@ -468,6 +530,8 @@ async function analyzeConfigurationMerge(configPath) {
           'Installation will continue to add missing directories and templates',
         ],
         action: 'preserve',
+        newFiles: [],
+        existingFiles: [],
       };
 
     default:
@@ -475,6 +539,8 @@ async function analyzeConfigurationMerge(configPath) {
         canMerge: true,
         description: `Configuration file ${fileName} can be overwritten`,
         warnings: [`Existing ${fileName} will be backed up`],
+        newFiles: [],
+        existingFiles: [],
       };
   }
 
@@ -482,22 +548,26 @@ async function analyzeConfigurationMerge(configPath) {
     canMerge: true,
     description: 'Configuration can be merged',
     warnings: [],
+    newFiles: [],
+    existingFiles: [],
   };
 }
 
 /**
  * Analyze cursor rules merge compatibility
- * @param {string} cursorRulesPath - Cursor rules directory path
- * @param {Object} activeFeatures - Active features
- * @returns {Promise<Object>} Cursor rules merge analysis
+ * @param cursorRulesPath - Cursor rules directory path
+ * @param activeFeatures - Active features
+ * @returns Cursor rules merge analysis
  */
-async function analyzeCursorRulesMerge(cursorRulesPath, _activeFeatures) {
+async function analyzeCursorRulesMerge(cursorRulesPath: string, _activeFeatures: ActiveFeatures): Promise<MergeAnalysisDetails> {
   if (!(await fs.pathExists(cursorRulesPath))) {
     return {
       canMerge: true,
       description: 'Cursor rules directory will be created',
       conflictingRules: [],
       warnings: [],
+      newFiles: [],
+      existingFiles: [],
     };
   }
 
@@ -528,18 +598,20 @@ async function analyzeCursorRulesMerge(cursorRulesPath, _activeFeatures) {
       conflictingRules.length > 0
         ? [`Existing rules will be preserved: ${conflictingRules.join(', ')}`]
         : [],
+    newFiles: [],
+    existingFiles: [],
   };
 }
 
 /**
  * Detect functional conflicts between existing and new files
- * @param {Array} existingFiles - Array of existing file objects
- * @param {Array} sourceFiles - Array of source file objects
- * @returns {Array} Array of functional conflict descriptions
+ * @param existingFiles - Array of existing file objects
+ * @param sourceFiles - Array of source file objects
+ * @returns Array of functional conflict descriptions
  */
-function detectFunctionalConflicts(existingFiles, sourceFiles) {
+function detectFunctionalConflicts(existingFiles: FileInfo[], sourceFiles: FileInfo[]): string[] {
   // Simple heuristic: look for scripts with similar purposes based on names
-  const functionalPatterns = {
+  const functionalPatterns: Record<string, RegExp> = {
     test: /test|spec/i,
     build: /build|compile/i,
     deploy: /deploy|publish/i,
@@ -547,8 +619,8 @@ function detectFunctionalConflicts(existingFiles, sourceFiles) {
     validation: /validate|check|verify/i,
   };
 
-  const conflicts = [];
-  const existingCategories = new Set();
+  const conflicts: string[] = [];
+  const existingCategories = new Set<string>();
 
   // Categorize existing files
   existingFiles.forEach((file) => {
@@ -574,10 +646,10 @@ function detectFunctionalConflicts(existingFiles, sourceFiles) {
 /**
  * Resolve path to project root templates/scripts
  * This uses the SAME logic as docs-structure.js and other install modules
- * @param {string} subpath - Subpath within project (e.g., 'templates', 'scripts')
- * @returns {Promise<string|null>} Resolved path or null
+ * @param subpath - Subpath within project (e.g., 'templates', 'scripts')
+ * @returns Resolved path or null
  */
-async function resolveProjectResourcePath(subpath) {
+async function resolveProjectResourcePath(subpath: string): Promise<string | null> {
   // Standard path resolution from supernal-code-package/lib/cli/commands/setup/init
   // Going up to project root: init/ -> setup/ -> commands/ -> cli/ -> lib/ -> supernal-code-package/ -> PROJECT_ROOT
   const possiblePaths = [
@@ -597,19 +669,32 @@ async function resolveProjectResourcePath(subpath) {
 
 /**
  * Find source templates directory
- * @returns {Promise<string|null>} Path to templates directory or null
+ * @returns Path to templates directory or null
  */
-async function findSourceTemplatesDir() {
+async function findSourceTemplatesDir(): Promise<string | null> {
   return resolveProjectResourcePath('templates');
 }
 
 /**
  * Find source scripts directory
- * @returns {Promise<string|null>} Path to scripts directory or null
+ * @returns Path to scripts directory or null
  */
-async function findSourceScriptsDir() {
+async function findSourceScriptsDir(): Promise<string | null> {
   return resolveProjectResourcePath('scripts');
 }
+
+export {
+  detectInstallationConflicts,
+  analyzeMergeCompatibility,
+  analyzeScriptsDirectoryMerge,
+  analyzeTemplatesDirectoryMerge,
+  analyzeConfigurationMerge,
+  analyzeCursorRulesMerge,
+  detectFunctionalConflicts,
+  findSourceTemplatesDir,
+  findSourceScriptsDir,
+  getDirectoryContentsRecursive,
+};
 
 module.exports = {
   detectInstallationConflicts,

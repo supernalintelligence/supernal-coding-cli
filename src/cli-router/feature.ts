@@ -1,9 +1,50 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { Command } from 'commander';
+import chalk from 'chalk';
 
-const { Command } = require('commander');
 const FeatureManager = require('../feature/FeatureManager');
-const chalk = require('chalk');
+
+interface Feature {
+  name: string;
+  description?: string;
+  requirements: string[];
+  status: string;
+  created: string;
+  owner?: string;
+  recentCommits?: Array<{ hash: string; message: string }>;
+}
+
+interface AddOptions {
+  description?: string;
+  requirements?: string;
+  owner?: string;
+}
+
+interface ListOptions {
+  status?: string;
+}
+
+interface CommitsOptions {
+  limit?: string;
+}
+
+interface Statistics {
+  active: number;
+  completed: number;
+  byStatus: Record<string, number>;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  hasTag: boolean;
+  featureName?: string;
+  message?: string;
+  availableFeatures?: string[];
+}
+
+interface Commit {
+  hash: string;
+  message: string;
+}
 
 const program = new Command();
 
@@ -12,9 +53,6 @@ program
   .description('Manage feature registry for feature-based commits')
   .version('1.0.0');
 
-/**
- * Add new feature
- */
 program
   .command('add <name>')
   .description('Add a new feature to registry')
@@ -24,16 +62,16 @@ program
     'Comma-separated requirement IDs (e.g., REQ-042,REQ-043)'
   )
   .option('--owner <email>', 'Feature owner email')
-  .action(async (name, options) => {
+  .action(async (name: string, options: AddOptions) => {
     try {
       const manager = new FeatureManager();
-      const feature = await manager.addFeature(name, {
+      const feature: Feature = await manager.addFeature(name, {
         description: options.description,
         requirements: options.requirements,
         owner: options.owner
       });
 
-      console.log(chalk.green('✅ Feature added:'), name);
+      console.log(chalk.green('[OK] Feature added:'), name);
       console.log(
         chalk.gray(`   Description: ${feature.description || '(none)'}`)
       );
@@ -49,14 +87,11 @@ program
         chalk.gray(`   git commit -m "[FEATURE:${name}] REQ-XXX: Description"`)
       );
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * List features
- */
 program
   .command('list')
   .description('List features')
@@ -64,10 +99,10 @@ program
     '--status <status>',
     'Filter by status (in-progress, blocked, paused)'
   )
-  .action(async (options) => {
+  .action(async (options: ListOptions) => {
     try {
       const manager = new FeatureManager();
-      const features = await manager.listFeatures({ status: options.status });
+      const features: Feature[] = await manager.listFeatures({ status: options.status });
 
       if (features.length === 0) {
         console.log(chalk.yellow('No features found'));
@@ -75,7 +110,7 @@ program
       }
 
       console.log(chalk.bold('\nActive Features:'));
-      console.log(chalk.gray('─'.repeat(80)));
+      console.log(chalk.gray('-'.repeat(80)));
 
       for (const feature of features) {
         console.log(chalk.cyan.bold(feature.name));
@@ -98,33 +133,29 @@ program
         console.log();
       }
 
-      // Show statistics
-      const stats = await manager.getStatistics();
-      console.log(chalk.gray('─'.repeat(80)));
+      const stats: Statistics = await manager.getStatistics();
+      console.log(chalk.gray('-'.repeat(80)));
       console.log(
         chalk.cyan(
           `Total active: ${stats.active} | Completed: ${stats.completed}`
         )
       );
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Show feature details
- */
 program
   .command('show <name>')
   .description('Show feature details and recent commits')
-  .action(async (name) => {
+  .action(async (name: string) => {
     try {
       const manager = new FeatureManager();
-      const feature = await manager.showFeature(name);
+      const feature: Feature = await manager.showFeature(name);
 
       console.log(chalk.bold('\nFeature Details:'));
-      console.log(chalk.gray('─'.repeat(80)));
+      console.log(chalk.gray('-'.repeat(80)));
       console.log(chalk.cyan.bold('Name:'), feature.name);
       console.log(chalk.cyan('Description:'), feature.description || '(none)');
       console.log(
@@ -139,7 +170,7 @@ program
 
       if (feature.recentCommits && feature.recentCommits.length > 0) {
         console.log(chalk.bold('\nRecent Commits:'));
-        console.log(chalk.gray('─'.repeat(80)));
+        console.log(chalk.gray('-'.repeat(80)));
         for (const commit of feature.recentCommits) {
           console.log(chalk.gray(`  ${commit.hash}`), commit.message);
         }
@@ -150,23 +181,20 @@ program
       console.log(chalk.gray('\nView all commits:'));
       console.log(chalk.gray(`  git log --grep="[FEATURE:${name}]"`));
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * View feature commits
- */
 program
   .command('commits <name>')
   .description('View commits for a feature')
   .option('--limit <number>', 'Limit number of commits', '20')
-  .action(async (name, options) => {
+  .action(async (name: string, options: CommitsOptions) => {
     try {
       const manager = new FeatureManager();
-      const commits = await manager.getFeatureCommits(name, {
-        limit: parseInt(options.limit, 10)
+      const commits: Commit[] = await manager.getFeatureCommits(name, {
+        limit: parseInt(options.limit || '20', 10)
       });
 
       if (commits.length === 0) {
@@ -179,7 +207,7 @@ program
       }
 
       console.log(chalk.bold(`\nCommits for feature: ${name}`));
-      console.log(chalk.gray('─'.repeat(80)));
+      console.log(chalk.gray('-'.repeat(80)));
 
       for (const commit of commits) {
         console.log(chalk.cyan(commit.hash), commit.message);
@@ -187,23 +215,20 @@ program
 
       console.log(chalk.gray('\nTotal commits:'), commits.length);
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Complete feature
- */
 program
   .command('complete <name>')
   .description('Mark feature as complete (move to completed)')
-  .action(async (name) => {
+  .action(async (name: string) => {
     try {
       const manager = new FeatureManager();
-      const feature = await manager.completeFeature(name);
+      const feature: Feature = await manager.completeFeature(name);
 
-      console.log(chalk.green('✅ Feature completed:'), name);
+      console.log(chalk.green('[OK] Feature completed:'), name);
       console.log(
         chalk.gray(`   Description: ${feature.description || '(none)'}`)
       );
@@ -212,55 +237,49 @@ program
           `   Requirements: ${feature.requirements.join(', ') || '(none)'}`
         )
       );
-      console.log(chalk.gray(`   Status: ${feature.status} → completed`));
+      console.log(chalk.gray(`   Status: ${feature.status} -> completed`));
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Remove feature
- */
 program
   .command('remove <name>')
   .description('Remove a feature from registry')
-  .action(async (name) => {
+  .action(async (name: string) => {
     try {
       const manager = new FeatureManager();
       await manager.removeFeature(name);
 
-      console.log(chalk.green('✅ Feature removed:'), name);
+      console.log(chalk.green('[OK] Feature removed:'), name);
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Validate commit message
- */
 program
   .command('validate-commit <message>')
   .description('Validate a commit message has valid feature tag')
-  .action(async (message) => {
+  .action(async (message: string) => {
     try {
       const manager = new FeatureManager();
-      const result = await manager.validateCommitFeatureTag(message);
+      const result: ValidationResult = await manager.validateCommitFeatureTag(message);
 
       if (result.valid) {
-        console.log(chalk.green('✅ Valid feature tag:'), result.featureName);
+        console.log(chalk.green('[OK] Valid feature tag:'), result.featureName);
       } else {
         if (!result.hasTag) {
-          console.log(chalk.yellow('⚠️'), result.message);
+          console.log(chalk.yellow('[WARN]'), result.message);
           console.log(chalk.gray('\nRecommended format:'));
           console.log(
             chalk.gray('  [FEATURE:feature-name] REQ-XXX: Description')
           );
         } else {
-          console.log(chalk.red('❌'), result.message);
+          console.log(chalk.red('[ERROR]'), result.message);
           console.log(chalk.gray('\nAvailable features:'));
-          for (const feature of result.availableFeatures) {
+          for (const feature of result.availableFeatures || []) {
             console.log(chalk.gray(`  - ${feature}`));
           }
           console.log(chalk.gray('\nAdd feature:'));
@@ -273,24 +292,21 @@ program
         process.exit(1);
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Show statistics
- */
 program
   .command('stats')
   .description('Show feature statistics')
   .action(async () => {
     try {
       const manager = new FeatureManager();
-      const stats = await manager.getStatistics();
+      const stats: Statistics = await manager.getStatistics();
 
       console.log(chalk.bold('\nFeature Statistics:'));
-      console.log(chalk.gray('─'.repeat(80)));
+      console.log(chalk.gray('-'.repeat(80)));
       console.log(chalk.cyan(`Active features: ${stats.active}`));
       console.log(chalk.green(`Completed features: ${stats.completed}`));
 
@@ -301,9 +317,11 @@ program
         }
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('[ERROR]'), (error as Error).message);
       process.exit(1);
     }
   });
 
 program.parse(process.argv);
+
+export default program;

@@ -1,19 +1,67 @@
-// @ts-nocheck
 /**
  * Requirements Manager for MCP Server
  *
  * Handles requirement operations via MCP tools
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
-const yaml = require('yaml');
+import fs from 'fs-extra';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import yaml from 'yaml';
+
+interface RequirementFilters {
+  status?: string;
+  epic?: string;
+  priority?: string;
+  category?: string;
+}
+
+interface RequirementSummary {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  epic: string;
+  category: string;
+  path: string;
+}
+
+interface RequirementFull extends RequirementSummary {
+  content: string;
+  scenarios: string | null;
+  hasScenarios: boolean;
+}
+
+interface ParsedRequirement {
+  id?: string;
+  title?: string;
+  status?: string;
+  priority?: string;
+  epic?: string;
+  scenarios: string | null;
+  hasScenarios: boolean;
+  [key: string]: unknown;
+}
+
+interface ValidateResult {
+  success: boolean;
+  output: string;
+  error?: string;
+  id: string;
+}
+
+interface CreateRequirementData {
+  title: string;
+  epic?: string;
+  priority?: string;
+  category?: string;
+}
 
 class RequirementsManager {
-  projectRoot: any;
-  requirementsDir: any;
-  constructor(projectRoot) {
+  protected projectRoot: string;
+  protected requirementsDir: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.requirementsDir = path.join(
       projectRoot,
@@ -22,11 +70,8 @@ class RequirementsManager {
     );
   }
 
-  /**
-   * List all requirements with optional filtering
-   */
-  async list(filters = {}) {
-    const requirements = [];
+  async list(filters: RequirementFilters = {}): Promise<RequirementSummary[]> {
+    const requirements: RequirementSummary[] = [];
     const categories = await this.getCategories();
 
     for (const category of categories) {
@@ -39,18 +84,17 @@ class RequirementsManager {
         const reqPath = path.join(categoryPath, file);
         const req = await this.parseRequirement(reqPath);
 
-        // Apply filters
         if (filters.status && req.status !== filters.status) continue;
         if (filters.epic && req.epic !== filters.epic) continue;
         if (filters.priority && req.priority !== filters.priority) continue;
         if (filters.category && category !== filters.category) continue;
 
         requirements.push({
-          id: req.id,
-          title: req.title,
-          status: req.status,
-          priority: req.priority,
-          epic: req.epic,
+          id: req.id || '',
+          title: req.title || '',
+          status: req.status || '',
+          priority: req.priority || '',
+          epic: req.epic || '',
           category,
           path: reqPath
         });
@@ -60,10 +104,7 @@ class RequirementsManager {
     return requirements;
   }
 
-  /**
-   * Read a specific requirement
-   */
-  async read(id) {
+  async read(id: string): Promise<RequirementFull> {
     const reqPath = await this.findRequirement(id);
     if (!reqPath) {
       throw new Error(`Requirement ${id} not found`);
@@ -73,16 +114,20 @@ class RequirementsManager {
     const parsed = await this.parseRequirement(reqPath);
 
     return {
-      ...parsed,
+      id: parsed.id || '',
+      title: parsed.title || '',
+      status: parsed.status || '',
+      priority: parsed.priority || '',
+      epic: parsed.epic || '',
+      category: path.basename(path.dirname(reqPath)),
       content,
-      path: reqPath
+      path: reqPath,
+      scenarios: parsed.scenarios,
+      hasScenarios: parsed.hasScenarios
     };
   }
 
-  /**
-   * Validate a requirement
-   */
-  async validate(id) {
+  async validate(id: string): Promise<ValidateResult> {
     try {
       const result = execSync(`sc req validate ${id}`, {
         cwd: this.projectRoot,
@@ -95,19 +140,17 @@ class RequirementsManager {
         id
       };
     } catch (error) {
+      const err = error as { stdout?: string; stderr?: string; message: string };
       return {
         success: false,
-        output: error.stdout || error.message,
-        error: error.stderr,
+        output: err.stdout || err.message,
+        error: err.stderr,
         id
       };
     }
   }
 
-  /**
-   * Create a new requirement
-   */
-  async create(data) {
+  async create(data: CreateRequirementData): Promise<RequirementFull | { success: boolean; output: string }> {
     const args = [
       'req',
       'new',
@@ -125,7 +168,6 @@ class RequirementsManager {
         encoding: 'utf8'
       });
 
-      // Extract requirement ID from output
       const match = result.match(/REQ-\d+/);
       if (match) {
         return await this.read(match[0]);
@@ -136,14 +178,11 @@ class RequirementsManager {
         output: result
       };
     } catch (error) {
-      throw new Error(`Failed to create requirement: ${error.message}`);
+      throw new Error(`Failed to create requirement: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Get list of requirement categories
-   */
-  async getCategories() {
+  async getCategories(): Promise<string[]> {
     const categories = await fs.readdir(this.requirementsDir);
     return categories.filter((name) => {
       const stat = fs.statSync(path.join(this.requirementsDir, name));
@@ -151,10 +190,7 @@ class RequirementsManager {
     });
   }
 
-  /**
-   * Find requirement file by ID
-   */
-  async findRequirement(id) {
+  async findRequirement(id: string): Promise<string | null> {
     const categories = await this.getCategories();
 
     for (const category of categories) {
@@ -171,13 +207,9 @@ class RequirementsManager {
     return null;
   }
 
-  /**
-   * Parse requirement markdown file
-   */
-  async parseRequirement(filePath) {
+  async parseRequirement(filePath: string): Promise<ParsedRequirement> {
     const content = await fs.readFile(filePath, 'utf8');
 
-    // Extract YAML frontmatter
     const frontmatterMatch = content.match(/^---\n([\s\S]+?)\n---/);
     if (!frontmatterMatch) {
       throw new Error('Invalid requirement format: missing frontmatter');
@@ -185,7 +217,6 @@ class RequirementsManager {
 
     const frontmatter = yaml.parse(frontmatterMatch[1]);
 
-    // Extract Gherkin scenarios
     const gherkinMatch = content.match(/```gherkin\n([\s\S]+?)```/);
     const scenarios = gherkinMatch ? gherkinMatch[1] : null;
 
@@ -197,4 +228,5 @@ class RequirementsManager {
   }
 }
 
+export default RequirementsManager;
 module.exports = RequirementsManager;

@@ -1,34 +1,44 @@
-// @ts-nocheck
 /**
  * Auto-Commit Configuration Manager
  * Reads and manages auto-commit settings from supernal.yaml
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const yaml = require('js-yaml');
+import fs from 'fs-extra';
+import path from 'node:path';
+import yaml from 'js-yaml';
+
+type CommitMode = 'auto' | 'prompt' | 'suggest' | 'off';
+
+interface AutoCommitSettings {
+  enabled: boolean;
+  mode: CommitMode;
+  maxFiles: number;
+  maxSize: string;
+  commands: Record<string, CommitMode>;
+}
+
+interface CommitOptions {
+  commit?: boolean;
+  noCommit?: boolean;
+}
 
 class AutoCommitConfig {
-  config: any;
-  projectRoot: any;
-  constructor(projectRoot = process.cwd()) {
+  protected projectRoot: string;
+  protected config: AutoCommitSettings | null;
+
+  constructor(projectRoot: string = process.cwd()) {
     this.projectRoot = projectRoot;
     this.config = null;
   }
 
-  /**
-   * Load configuration from supernal.yaml
-   * @returns {Object} Auto-commit configuration
-   */
-  async load() {
+  async load(): Promise<AutoCommitSettings> {
     if (this.config) return this.config;
 
     const configPath = path.join(this.projectRoot, 'supernal.yaml');
 
-    // Default configuration
-    const defaults = {
+    const defaults: AutoCommitSettings = {
       enabled: false,
-      mode: 'suggest', // auto|prompt|suggest|off
+      mode: 'suggest',
       maxFiles: 10,
       maxSize: '1MB',
       commands: {}
@@ -37,10 +47,10 @@ class AutoCommitConfig {
     try {
       if (await fs.pathExists(configPath)) {
         const fileContent = await fs.readFile(configPath, 'utf-8');
-        const fullConfig = yaml.load(fileContent);
+        const fullConfig = yaml.load(fileContent) as { autoCommit?: Partial<AutoCommitSettings> };
 
         if (fullConfig?.autoCommit) {
-          this.config = { ...defaults, ...fullConfig.autoCommit };
+          this.config = { ...defaults, ...fullConfig.autoCommit } as AutoCommitSettings;
         } else {
           this.config = defaults;
         }
@@ -49,7 +59,7 @@ class AutoCommitConfig {
       }
     } catch (error) {
       console.warn(
-        `Warning: Could not load auto-commit config: ${error.message}`
+        `Warning: Could not load auto-commit config: ${(error as Error).message}`
       );
       this.config = defaults;
     }
@@ -57,20 +67,13 @@ class AutoCommitConfig {
     return this.config;
   }
 
-  /**
-   * Get mode for a specific command
-   * @param {string} commandName - e.g., 'feature.validate', 'docs.process'
-   * @returns {string} Mode: auto|prompt|suggest|off
-   */
-  async getModeForCommand(commandName) {
+  async getModeForCommand(commandName: string): Promise<CommitMode> {
     const config = await this.load();
 
-    // Check command-specific override
     if (config.commands?.[commandName]) {
       return config.commands[commandName];
     }
 
-    // Check wildcard patterns
     if (config.commands) {
       const parts = commandName.split('.');
       for (let i = parts.length - 1; i >= 0; i--) {
@@ -81,67 +84,42 @@ class AutoCommitConfig {
       }
     }
 
-    // Return global default
     return config.enabled ? config.mode : 'off';
   }
 
-  /**
-   * Check if auto-commit should happen for a command
-   * @param {string} commandName - e.g., 'feature.validate'
-   * @param {Object} options - CLI options (e.g., { commit: true, noCommit: false })
-   * @returns {Promise<boolean>} Should auto-commit
-   */
-  async shouldAutoCommit(commandName, options = {}) {
-    // CLI flag overrides
+  async shouldAutoCommit(commandName: string, options: CommitOptions = {}): Promise<boolean> {
     if (options.commit === true) return true;
     if (options.noCommit === true) return false;
 
-    // Check configuration
     const mode = await this.getModeForCommand(commandName);
     return mode === 'auto';
   }
 
-  /**
-   * Check if should prompt user for commit
-   * @param {string} commandName
-   * @param {Object} options
-   * @returns {Promise<boolean>}
-   */
-  async shouldPrompt(commandName, options = {}) {
+  async shouldPrompt(commandName: string, options: CommitOptions = {}): Promise<boolean> {
     if (options.commit || options.noCommit) return false;
 
     const mode = await this.getModeForCommand(commandName);
     return mode === 'prompt';
   }
 
-  /**
-   * Check if should suggest commit command
-   * @param {string} commandName
-   * @param {Object} options
-   * @returns {Promise<boolean>}
-   */
-  async shouldSuggest(commandName, options = {}) {
+  async shouldSuggest(commandName: string, options: CommitOptions = {}): Promise<boolean> {
     if (options.commit || options.noCommit) return false;
 
     const mode = await this.getModeForCommand(commandName);
     return mode === 'suggest';
   }
 
-  /**
-   * Get file size limit in bytes
-   * @returns {Promise<number>}
-   */
-  async getMaxSize() {
+  async getMaxSize(): Promise<number> {
     const config = await this.load();
     const sizeStr = config.maxSize || '1MB';
 
     const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(KB|MB|GB)?$/i);
-    if (!match) return 1024 * 1024; // Default 1MB
+    if (!match) return 1024 * 1024;
 
     const value = parseFloat(match[1]);
     const unit = (match[2] || 'MB').toUpperCase();
 
-    const multipliers = {
+    const multipliers: Record<string, number> = {
       KB: 1024,
       MB: 1024 * 1024,
       GB: 1024 * 1024 * 1024
@@ -150,31 +128,23 @@ class AutoCommitConfig {
     return value * (multipliers[unit] || multipliers.MB);
   }
 
-  /**
-   * Get max files limit
-   * @returns {Promise<number>}
-   */
-  async getMaxFiles() {
+  async getMaxFiles(): Promise<number> {
     const config = await this.load();
     return config.maxFiles || 10;
   }
 
-  /**
-   * Save configuration to supernal.yaml
-   * @param {Object} autoCommitConfig - New auto-commit config
-   */
-  async save(autoCommitConfig) {
+  async save(autoCommitConfig: AutoCommitSettings): Promise<void> {
     const configPath = path.join(this.projectRoot, 'supernal.yaml');
 
-    let fullConfig = {};
+    let fullConfig: Record<string, unknown> = {};
 
     try {
       if (await fs.pathExists(configPath)) {
         const fileContent = await fs.readFile(configPath, 'utf-8');
-        fullConfig = yaml.load(fileContent) || {};
+        fullConfig = (yaml.load(fileContent) as Record<string, unknown>) || {};
       }
     } catch (error) {
-      console.warn(`Warning: Could not load existing config: ${error.message}`);
+      console.warn(`Warning: Could not load existing config: ${(error as Error).message}`);
     }
 
     fullConfig.autoCommit = autoCommitConfig;
@@ -186,15 +156,10 @@ class AutoCommitConfig {
     });
 
     await fs.writeFile(configPath, yamlStr, 'utf-8');
-    this.config = null; // Reset cache
+    this.config = null;
   }
 
-  /**
-   * Set mode for a specific command
-   * @param {string} commandName
-   * @param {string} mode - auto|prompt|suggest|off
-   */
-  async setCommandMode(commandName, mode) {
+  async setCommandMode(commandName: string, mode: CommitMode): Promise<void> {
     const config = await this.load();
 
     if (!config.commands) {
@@ -205,11 +170,7 @@ class AutoCommitConfig {
     await this.save(config);
   }
 
-  /**
-   * Set global mode
-   * @param {string} mode - auto|prompt|suggest|off
-   */
-  async setGlobalMode(mode) {
+  async setGlobalMode(mode: CommitMode): Promise<void> {
     const config = await this.load();
     config.enabled = mode !== 'off';
     config.mode = mode;
@@ -217,4 +178,5 @@ class AutoCommitConfig {
   }
 }
 
+export default AutoCommitConfig;
 module.exports = AutoCommitConfig;

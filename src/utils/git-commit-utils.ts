@@ -1,16 +1,33 @@
-// @ts-nocheck
-const { execSync } = require('node:child_process');
-const chalk = require('chalk');
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
+
 const { SigningManager } = require('../signing');
 
-/**
- * Git utilities for safe committing with stash/unstash
- */
+interface SafeCommitOptions {
+  files: string[];
+  message: string;
+  dryRun?: boolean;
+  auto?: boolean;
+}
 
-/**
- * Check if there are uncommitted changes
- */
-function hasUncommittedChanges() {
+interface SafeCommitResult {
+  success: boolean;
+  message: string;
+  commitHash: string | null;
+  stashCreated: boolean;
+  stashPopped: boolean;
+}
+
+interface FeatureFix {
+  feature: string;
+  fixes: string[];
+}
+
+interface FeatureInfo {
+  path: string;
+}
+
+function hasUncommittedChanges(): boolean {
   try {
     const status = execSync('git status --porcelain', { encoding: 'utf-8' });
     return status.trim().length > 0;
@@ -19,10 +36,7 @@ function hasUncommittedChanges() {
   }
 }
 
-/**
- * Check if there are staged changes
- */
-function hasStagedChanges() {
+function hasStagedChanges(): boolean {
   try {
     const status = execSync('git diff --cached --name-only', {
       encoding: 'utf-8'
@@ -33,10 +47,7 @@ function hasStagedChanges() {
   }
 }
 
-/**
- * Get list of modified files
- */
-function getModifiedFiles() {
+function getModifiedFiles(): string[] {
   try {
     const files = execSync('git status --porcelain', { encoding: 'utf-8' });
     return files
@@ -46,29 +57,22 @@ function getModifiedFiles() {
         const match = line.match(/^..\s+(.+)$/);
         return match ? match[1] : null;
       })
-      .filter(Boolean);
+      .filter((f): f is string => f !== null);
   } catch (_error) {
     return [];
   }
 }
 
-/**
- * Stash changes excluding specific files
- * @param {string[]} keepFiles - Files to keep unstashed
- * @returns {boolean} - True if stash was created
- */
-function stashExcept(keepFiles = []) {
+function stashExcept(keepFiles: string[] = []): boolean {
   try {
     if (!hasUncommittedChanges()) {
       return false;
     }
 
-    // Stage the files we want to keep
     if (keepFiles.length > 0) {
       execSync(`git add ${keepFiles.join(' ')}`, { encoding: 'utf-8' });
     }
 
-    // Stash everything except staged files
     const result = execSync(
       'git stash push --keep-index -m "Auto-stash for safe commit"',
       {
@@ -78,38 +82,28 @@ function stashExcept(keepFiles = []) {
 
     return result.includes('Saved working directory');
   } catch (error) {
-    console.error(chalk.red(`Failed to stash: ${error.message}`));
+    console.error(chalk.red(`Failed to stash: ${(error as Error).message}`));
     return false;
   }
 }
 
-/**
- * Pop the most recent stash
- */
-function popStash() {
+function popStash(): boolean {
   try {
     execSync('git stash pop', { encoding: 'utf-8' });
     return true;
   } catch (error) {
     console.error(
-      chalk.yellow(`Warning: Could not pop stash: ${error.message}`)
+      chalk.yellow(`Warning: Could not pop stash: ${(error as Error).message}`)
     );
     console.error(chalk.yellow('You may need to manually run: git stash pop'));
     return false;
   }
 }
 
-/**
- * Safely commit specific files with automatic stash/unstash
- * @param {Object} options
- * @param {string[]} options.files - Files to commit
- * @param {string} options.message - Commit message
- * @param {boolean} options.dryRun - If true, only show what would be committed
- * @param {boolean} options.auto - If true, commit without prompting
- * @returns {Object} - Result with success, message, and commit hash
- */
-async function safeCommit({ files, message, dryRun = false, auto = false }) {
-  const result = {
+async function safeCommit(options: SafeCommitOptions): Promise<SafeCommitResult> {
+  const { files, message, dryRun = false, auto = false } = options;
+  
+  const result: SafeCommitResult = {
     success: false,
     message: '',
     commitHash: null,
@@ -118,7 +112,6 @@ async function safeCommit({ files, message, dryRun = false, auto = false }) {
   };
 
   try {
-    // Validate inputs
     if (!files || files.length === 0) {
       result.message = 'No files specified for commit';
       return result;
@@ -129,7 +122,6 @@ async function safeCommit({ files, message, dryRun = false, auto = false }) {
       return result;
     }
 
-    // Check if files exist and are modified
     const modifiedFiles = getModifiedFiles();
     const filesToCommit = files.filter((file) =>
       modifiedFiles.some(
@@ -142,27 +134,22 @@ async function safeCommit({ files, message, dryRun = false, auto = false }) {
       return result;
     }
 
-    // Dry run - show what would be committed
     if (dryRun) {
       result.message = 'Dry run - would commit:\n';
-      result.message += filesToCommit.map((f) => `  • ${f}`).join('\n');
+      result.message += filesToCommit.map((f) => `  - ${f}`).join('\n');
       result.message += `\n\nMessage: ${message}`;
       result.success = true;
       return result;
     }
 
-    // Interactive mode - ask for confirmation
     if (!auto) {
-      console.log(chalk.blue('\n📝 Proposed commit:\n'));
+      console.log(chalk.blue('\nProposed commit:\n'));
       console.log(chalk.gray('Files:'));
       filesToCommit.forEach((file) => {
-        console.log(chalk.gray(`  • ${file}`));
+        console.log(chalk.gray(`  - ${file}`));
       });
       console.log(chalk.gray(`\nMessage: ${message}\n`));
 
-      // For now, we'll commit automatically in auto mode
-      // In interactive mode, this would prompt the user
-      // We can add readline later if needed
       if (!auto) {
         result.message =
           'Interactive mode not yet implemented. Use --auto flag';
@@ -170,24 +157,20 @@ async function safeCommit({ files, message, dryRun = false, auto = false }) {
       }
     }
 
-    // Stash other changes
     const otherFiles = modifiedFiles.filter((f) => !filesToCommit.includes(f));
 
     if (otherFiles.length > 0) {
       console.log(
-        chalk.yellow(`\n⚡ Stashing ${otherFiles.length} unrelated file(s)...`)
+        chalk.yellow(`\nStashing ${otherFiles.length} unrelated file(s)...`)
       );
       result.stashCreated = stashExcept(filesToCommit);
     }
 
-    // Stage and commit the specific files
     execSync(`git add ${filesToCommit.join(' ')}`, { encoding: 'utf-8' });
     
-    // Get signing flags (agent commits are unsigned by default)
     const signingManager = new SigningManager(process.cwd());
     const signingFlags = signingManager.getSigningFlags({ isAgentCommit: auto });
     
-    // Add [SC] tag ONLY for agent-initiated commits
     let finalMessage = message;
     if (auto && !message.startsWith('[SC]')) {
       finalMessage = `[SC] ${message}`;
@@ -195,14 +178,12 @@ async function safeCommit({ files, message, dryRun = false, auto = false }) {
     
     execSync(`git commit ${signingFlags} -m "${finalMessage}"`, { encoding: 'utf-8' });
 
-    // Get commit hash
     result.commitHash = execSync('git rev-parse HEAD', {
       encoding: 'utf-8'
     }).trim();
 
-    // Pop stash if we created one
     if (result.stashCreated) {
-      console.log(chalk.yellow('\n⚡ Restoring stashed changes...'));
+      console.log(chalk.yellow('\nRestoring stashed changes...'));
       result.stashPopped = popStash();
     }
 
@@ -211,12 +192,11 @@ async function safeCommit({ files, message, dryRun = false, auto = false }) {
 
     return result;
   } catch (error) {
-    result.message = `Commit failed: ${error.message}`;
+    result.message = `Commit failed: ${(error as Error).message}`;
 
-    // Try to restore stash on error
     if (result.stashCreated && !result.stashPopped) {
       console.log(
-        chalk.yellow('\n⚡ Attempting to restore stash after error...')
+        chalk.yellow('\nAttempting to restore stash after error...')
       );
       popStash();
     }
@@ -225,12 +205,7 @@ async function safeCommit({ files, message, dryRun = false, auto = false }) {
   }
 }
 
-/**
- * Generate a commit message for fixed features
- * @param {Array} fixes - Array of {feature, fixes[]} objects
- * @returns {string} - Commit message
- */
-function generateFixCommitMessage(fixes) {
+function generateFixCommitMessage(fixes: FeatureFix[]): string {
   if (fixes.length === 0) {
     return 'chore: Fix feature validation issues';
   }
@@ -250,14 +225,20 @@ function generateFixCommitMessage(fixes) {
   return message + details;
 }
 
-/**
- * Get files that would be committed for feature fixes
- * @param {Array} features - Array of feature objects with path
- * @returns {string[]} - Array of file paths
- */
-function getFeatureFiles(features) {
+function getFeatureFiles(features: FeatureInfo[]): string[] {
   return features.map((f) => `${f.path}/README.md`);
 }
+
+export {
+  hasUncommittedChanges,
+  hasStagedChanges,
+  getModifiedFiles,
+  stashExcept,
+  popStash,
+  safeCommit,
+  generateFixCommitMessage,
+  getFeatureFiles
+};
 
 module.exports = {
   hasUncommittedChanges,

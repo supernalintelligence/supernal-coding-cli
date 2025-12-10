@@ -1,30 +1,89 @@
-// @ts-nocheck
 /**
  * Customization Detector - Identifies user modifications to SC templates/rules
  * Used by upgrade and sync systems to preserve user customizations
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const crypto = require('node:crypto');
-const glob = require('glob');
+import fs from 'fs-extra';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { glob } from 'glob';
+
+interface CustomizationTracking {
+  originalHash: string | null;
+  currentHash: string | null;
+  modified: boolean;
+  scManaged?: boolean;
+  userCreated?: boolean;
+  trackedSince: string;
+}
+
+interface CustomizationsData {
+  version: string;
+  created: string;
+  updated: string;
+  trackedFiles: Record<string, CustomizationTracking>;
+  preservePatterns: string[];
+}
+
+interface Customization {
+  path: string;
+  type: string;
+  original?: boolean;
+  originalHash?: string | null;
+  currentHash?: string | null;
+  pattern?: string;
+}
+
+interface Customizations {
+  modified: Customization[];
+  userCreated: Customization[];
+  untracked: Customization[];
+  preserved: Customization[];
+}
+
+interface CustomizationInfo {
+  tracked: boolean;
+  customized: boolean;
+  reason?: string;
+  userCreated?: boolean;
+  modified?: boolean;
+  originalHash?: string | null;
+  currentHash?: string | null;
+  trackedSince?: string;
+}
+
+interface CustomizationReport {
+  summary: {
+    totalModified: number;
+    totalUserCreated: number;
+    totalPreserved: number;
+    totalUntracked: number;
+  };
+  details: Customizations;
+  recommendations: Array<{
+    type: string;
+    message: string;
+  }>;
+}
+
+interface CustomizationDetectorOptions {
+  verbose?: boolean;
+}
 
 class CustomizationDetector {
-  customizationsFile: any;
-  projectRoot: any;
-  scDir: any;
-  verbose: any;
-  constructor(projectRoot, options = {}) {
+  protected customizationsFile: string;
+  protected projectRoot: string;
+  protected scDir: string;
+  protected verbose: boolean;
+
+  constructor(projectRoot: string, options: CustomizationDetectorOptions = {}) {
     this.projectRoot = projectRoot;
     this.scDir = path.join(projectRoot, '.supernal-coding');
     this.customizationsFile = path.join(this.scDir, 'customizations.json');
     this.verbose = options.verbose || false;
   }
 
-  /**
-   * Initialize customization tracking
-   */
-  async initialize() {
+  async initialize(): Promise<void> {
     await fs.ensureDir(this.scDir);
 
     if (!(await fs.pathExists(this.customizationsFile))) {
@@ -32,11 +91,8 @@ class CustomizationDetector {
     }
   }
 
-  /**
-   * Create initial customizations tracking file
-   */
-  async createCustomizationsFile() {
-    const initialData = {
+  async createCustomizationsFile(): Promise<void> {
+    const initialData: CustomizationsData = {
       version: '1.0.0',
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
@@ -51,28 +107,19 @@ class CustomizationDetector {
     await fs.writeJson(this.customizationsFile, initialData, { spaces: 2 });
   }
 
-  /**
-   * Load customizations data
-   */
-  async load() {
+  async load(): Promise<CustomizationsData> {
     if (!(await fs.pathExists(this.customizationsFile))) {
       await this.initialize();
     }
     return await fs.readJson(this.customizationsFile);
   }
 
-  /**
-   * Save customizations data
-   */
-  async save(data) {
+  async save(data: CustomizationsData): Promise<void> {
     data.updated = new Date().toISOString();
     await fs.writeJson(this.customizationsFile, data, { spaces: 2 });
   }
 
-  /**
-   * Track a file's baseline (original) state
-   */
-  async trackFile(filePath, originalContent) {
+  async trackFile(filePath: string, originalContent: string): Promise<void> {
     const data = await this.load();
     const relativePath = path.relative(this.projectRoot, filePath);
 
@@ -87,15 +134,11 @@ class CustomizationDetector {
     await this.save(data);
   }
 
-  /**
-   * Update tracking for a file
-   */
-  async updateTracking(filePath) {
+  async updateTracking(filePath: string): Promise<void> {
     const data = await this.load();
     const relativePath = path.relative(this.projectRoot, filePath);
 
     if (!data.trackedFiles[relativePath]) {
-      // File not tracked - mark as user-created
       const currentContent = await fs.readFile(filePath, 'utf8');
       data.trackedFiles[relativePath] = {
         originalHash: null,
@@ -105,7 +148,6 @@ class CustomizationDetector {
         trackedSince: new Date().toISOString()
       };
     } else {
-      // Update current hash
       const currentContent = await fs.readFile(filePath, 'utf8');
       const currentHash = this.hashContent(currentContent);
       const tracking = data.trackedFiles[relativePath];
@@ -117,24 +159,19 @@ class CustomizationDetector {
     await this.save(data);
   }
 
-  /**
-   * Detect all customizations in tracked files
-   */
-  async detectCustomizations() {
+  async detectCustomizations(): Promise<Customizations> {
     const data = await this.load();
-    const customizations = {
+    const customizations: Customizations = {
       modified: [],
       userCreated: [],
       untracked: [],
       preserved: []
     };
 
-    // Check tracked files
     for (const [relativePath, tracking] of Object.entries(data.trackedFiles)) {
       const fullPath = path.join(this.projectRoot, relativePath);
 
       if (!(await fs.pathExists(fullPath))) {
-        // File was deleted
         customizations.modified.push({
           path: relativePath,
           type: 'deleted',
@@ -161,7 +198,6 @@ class CustomizationDetector {
       }
     }
 
-    // Check for files matching preserve patterns
     for (const pattern of data.preservePatterns) {
       const matches = glob.sync(pattern, { cwd: this.projectRoot });
       matches.forEach((match) => {
@@ -175,7 +211,6 @@ class CustomizationDetector {
       });
     }
 
-    // Scan for untracked SC files
     const scFiles = await this.findSCFiles();
     scFiles.forEach((file) => {
       const relativePath = path.relative(this.projectRoot, file);
@@ -190,10 +225,7 @@ class CustomizationDetector {
     return customizations;
   }
 
-  /**
-   * Find all SC-managed files
-   */
-  async findSCFiles() {
+  async findSCFiles(): Promise<string[]> {
     const scPatterns = [
       '.cursor/rules/**/*.mdc',
       'templates/**/*.md',
@@ -201,7 +233,7 @@ class CustomizationDetector {
       '.supernal-coding/**/*'
     ];
 
-    const files = [];
+    const files: string[] = [];
     for (const pattern of scPatterns) {
       const matches = glob.sync(pattern, {
         cwd: this.projectRoot,
@@ -214,16 +246,12 @@ class CustomizationDetector {
     return files;
   }
 
-  /**
-   * Check if a file has been customized
-   */
-  async isCustomized(filePath) {
+  async isCustomized(filePath: string): Promise<boolean> {
     const data = await this.load();
     const relativePath = path.relative(this.projectRoot, filePath);
     const tracking = data.trackedFiles[relativePath];
 
     if (!tracking) {
-      // Not tracked - check if matches preserve pattern
       return this.matchesPreservePattern(relativePath, data.preservePatterns);
     }
 
@@ -231,9 +259,8 @@ class CustomizationDetector {
       return true;
     }
 
-    // Check if content changed
     if (!(await fs.pathExists(filePath))) {
-      return true; // Deleted = customization
+      return true;
     }
 
     const currentContent = await fs.readFile(filePath, 'utf8');
@@ -242,10 +269,7 @@ class CustomizationDetector {
     return tracking.originalHash !== currentHash;
   }
 
-  /**
-   * Check if file matches any preserve pattern
-   */
-  matchesPreservePattern(filePath, patterns) {
+  matchesPreservePattern(filePath: string, patterns: string[]): boolean {
     return patterns.some((pattern) => {
       const matcher = new RegExp(
         `^${pattern.replace(/\*/g, '.*').replace(/\?/g, '.')}$`
@@ -254,10 +278,7 @@ class CustomizationDetector {
     });
   }
 
-  /**
-   * Get customization info for a file
-   */
-  async getCustomizationInfo(filePath) {
+  async getCustomizationInfo(filePath: string): Promise<CustomizationInfo> {
     const data = await this.load();
     const relativePath = path.relative(this.projectRoot, filePath);
     const tracking = data.trackedFiles[relativePath];
@@ -286,13 +307,10 @@ class CustomizationDetector {
     };
   }
 
-  /**
-   * Generate customization report
-   */
-  async generateReport() {
+  async generateReport(): Promise<CustomizationReport> {
     const customizations = await this.detectCustomizations();
 
-    const report = {
+    const report: CustomizationReport = {
       summary: {
         totalModified: customizations.modified.length,
         totalUserCreated: customizations.userCreated.length,
@@ -303,7 +321,6 @@ class CustomizationDetector {
       recommendations: []
     };
 
-    // Add recommendations
     if (customizations.modified.length > 0) {
       report.recommendations.push({
         type: 'warning',
@@ -321,22 +338,15 @@ class CustomizationDetector {
     return report;
   }
 
-  /**
-   * Hash content for comparison
-   */
-  hashContent(content) {
+  hashContent(content: string | null): string | null {
     if (!content) return null;
 
-    // Normalize line endings for consistent hashing
     const normalized = content.replace(/\r\n/g, '\n');
 
     return crypto.createHash('sha256').update(normalized).digest('hex');
   }
 
-  /**
-   * Sync tracking with current state
-   */
-  async syncTracking() {
+  async syncTracking(): Promise<{ tracked: number; updated: number }> {
     const scFiles = await this.findSCFiles();
     let tracked = 0;
     let updated = 0;
@@ -346,12 +356,10 @@ class CustomizationDetector {
       const data = await this.load();
 
       if (!data.trackedFiles[relativePath]) {
-        // Start tracking this file
         const content = await fs.readFile(file, 'utf8');
         await this.trackFile(file, content);
         tracked++;
       } else {
-        // Update existing tracking
         await this.updateTracking(file);
         updated++;
       }
@@ -360,10 +368,7 @@ class CustomizationDetector {
     return { tracked, updated };
   }
 
-  /**
-   * Mark file as SC-managed (original)
-   */
-  async markAsOriginal(filePath) {
+  async markAsOriginal(filePath: string): Promise<void> {
     const data = await this.load();
     const relativePath = path.relative(this.projectRoot, filePath);
     const content = await fs.readFile(filePath, 'utf8');
@@ -380,10 +385,7 @@ class CustomizationDetector {
     await this.save(data);
   }
 
-  /**
-   * Add preserve pattern
-   */
-  async addPreservePattern(pattern) {
+  async addPreservePattern(pattern: string): Promise<void> {
     const data = await this.load();
     if (!data.preservePatterns.includes(pattern)) {
       data.preservePatterns.push(pattern);
@@ -392,4 +394,5 @@ class CustomizationDetector {
   }
 }
 
+export default CustomizationDetector;
 module.exports = CustomizationDetector;

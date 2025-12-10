@@ -1,36 +1,47 @@
-// @ts-nocheck
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const path = require('node:path');
-const {
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'node:path';
+import {
   loadProjectConfig,
   getDocPaths
-} = require('../../../utils/config-loader');
-const TemplateResolver = require('../../../../utils/template-resolver');
-const {
+} from '../../../utils/config-loader';
+import TemplateResolver from '../../../../utils/template-resolver';
+import {
   replaceTemplateVariables,
   getProjectName,
   getGitVersion
-} = require('./templates');
+} from './templates';
+
+interface CopyOptions {
+  overwrite?: boolean;
+  dryRun?: boolean;
+  complianceFrameworks?: string[];
+}
+
+interface TemplateReplacements {
+  TEMPLATE_VERSION: string;
+  PROJECT_NAME: string;
+  [key: string]: string;
+}
 
 /**
  * Copy templates with variable replacement
- * @param {string} sourceDir - Source template directory
- * @param {string} targetDir - Target directory
- * @param {string} projectRoot - Project root for getting replacements
- * @param {Object} options - Copy options
+ * @param sourceDir - Source template directory
+ * @param targetDir - Target directory
+ * @param projectRoot - Project root for getting replacements
+ * @param options - Copy options
  */
 async function copyWithVariableReplacement(
-  sourceDir,
-  targetDir,
-  projectRoot,
-  options = {}
-) {
+  sourceDir: string,
+  targetDir: string,
+  projectRoot: string,
+  options: CopyOptions = {}
+): Promise<void> {
   // Get template variable values
   const templateVersion = getGitVersion(sourceDir);
   const projectName = await getProjectName(projectRoot);
 
-  const replacements = {
+  const replacements: TemplateReplacements = {
     TEMPLATE_VERSION: templateVersion,
     PROJECT_NAME: projectName
   };
@@ -42,11 +53,11 @@ async function copyWithVariableReplacement(
  * Recursively copy templates with variable replacement
  */
 async function copyTemplatesRecursive(
-  sourceDir,
-  targetDir,
-  replacements,
-  options
-) {
+  sourceDir: string,
+  targetDir: string,
+  replacements: TemplateReplacements,
+  options: CopyOptions
+): Promise<void> {
   await fs.ensureDir(targetDir);
 
   const items = await fs.readdir(sourceDir, { withFileTypes: true });
@@ -83,10 +94,10 @@ async function copyTemplatesRecursive(
 /**
  * Create kanban directory structure safely (only if not exists)
  * Uses supernal.yaml for configuration
- * @param {string} targetDir - Target installation directory
- * @param {Object} options - Installation options
+ * @param targetDir - Target installation directory
+ * @param options - Installation options
  */
-async function createKanbanStructureSafe(targetDir, _options = {}) {
+async function createKanbanStructureSafe(targetDir: string, _options: CopyOptions = {}): Promise<void> {
   // Load configuration from supernal.yaml (silent during init)
   const config = loadProjectConfig(targetDir, { silent: true });
   const paths = getDocPaths(config);
@@ -99,7 +110,7 @@ async function createKanbanStructureSafe(targetDir, _options = {}) {
     if (existingFiles.length > 0) {
       console.log(
         chalk.yellow(
-          `   ⚠️  Kanban directory already exists with content (${existingFiles.length} items)`
+          `   [WARN] Kanban directory already exists with content (${existingFiles.length} items)`
         )
       );
       console.log(
@@ -124,7 +135,7 @@ async function createKanbanStructureSafe(targetDir, _options = {}) {
 
   console.log(
     chalk.blue(
-      `   📁 Creating kanban directories in ${path.relative(targetDir, kanbanDir)}/`
+      `   [DIR] Creating kanban directories in ${path.relative(targetDir, kanbanDir)}/`
     )
   );
 
@@ -134,7 +145,7 @@ async function createKanbanStructureSafe(targetDir, _options = {}) {
 
     await fs.ensureDir(dirPath);
     await fs.ensureDir(archivePath);
-    console.log(chalk.green(`   ✓ ${dir}/`));
+    console.log(chalk.green(`   [OK] ${dir}/`));
   }
 
   // Create README only if it doesn't exist
@@ -168,20 +179,20 @@ See \`sc kanban --help\` for full documentation.
 `;
 
     await fs.writeFile(readmePath, readmeContent);
-    console.log(chalk.green('   ✓ README.md'));
+    console.log(chalk.green('   [OK] README.md'));
   } else {
     console.log(
-      chalk.yellow('   ⚠️  README.md already exists, not overwriting')
+      chalk.yellow('   [WARN] README.md already exists, not overwriting')
     );
   }
 }
 
 /**
  * Create docs directory structure safely (only if not exists)
- * @param {string} targetDir - Target installation directory
- * @param {Object} options - Installation options
+ * @param targetDir - Target installation directory
+ * @param options - Installation options
  */
-async function createDocsStructureSafe(targetDir, _options = {}) {
+async function createDocsStructureSafe(targetDir: string, _options: CopyOptions = {}): Promise<void> {
   // Load configuration from supernal.yaml
   const config = loadProjectConfig(targetDir, { silent: true });
   const paths = getDocPaths(config);
@@ -214,7 +225,7 @@ async function createDocsStructureSafe(targetDir, _options = {}) {
     if (userFiles.length > 0) {
       console.log(
         chalk.yellow(
-          `   ⚠️  Docs directory already exists with user content (${userFiles.length} items)`
+          `   [WARN] Docs directory already exists with user content (${userFiles.length} items)`
         )
       );
       console.log(
@@ -229,27 +240,27 @@ async function createDocsStructureSafe(targetDir, _options = {}) {
   // Safe to create docs structure (kanban is created separately by createKanbanStructureSafe)
   // Based on Dashboard v2 plan - proper workflow-aligned structure
   const docsDirs = [
-    'problems', // ❓ Core problems to solve (MarkdownDocument)
-    'stories', // 📖 User stories and narratives (MarkdownDocument)
-    'compliance', // 🛡️ Regulatory compliance (ComplianceDocument) - EARLY in workflow
-    'requirements', // 📋 All requirements (with subdirectories)
-    'requirements/functional', // ⚡ Gherkin-based functional requirements (Requirement)
-    'requirements/technical', // ⚙️ Technical specs and implementation (Requirement)
-    'architecture', // 🏗️ System design (ArchitectureDocument)
-    'tests', // 🧪 Testing documentation (TestDocument)
-    'verification' // ✅ Verification requirements (Requirement)
+    'problems', // Core problems to solve (MarkdownDocument)
+    'stories', // User stories and narratives (MarkdownDocument)
+    'compliance', // Regulatory compliance (ComplianceDocument) - EARLY in workflow
+    'requirements', // All requirements (with subdirectories)
+    'requirements/functional', // Gherkin-based functional requirements (Requirement)
+    'requirements/technical', // Technical specs and implementation (Requirement)
+    'architecture', // System design (ArchitectureDocument)
+    'tests', // Testing documentation (TestDocument)
+    'verification' // Verification requirements (Requirement)
   ];
 
   console.log(
     chalk.blue(
-      `   📁 Creating docs directories in ${path.relative(targetDir, docsDir)}/`
+      `   [DIR] Creating docs directories in ${path.relative(targetDir, docsDir)}/`
     )
   );
 
   for (const dir of docsDirs) {
     const dirPath = path.join(docsDir, dir);
     await fs.ensureDir(dirPath);
-    console.log(chalk.green(`   ✓ ${dir}/`));
+    console.log(chalk.green(`   [OK] ${dir}/`));
   }
 
   // Create README only if it doesn't exist
@@ -263,21 +274,21 @@ This directory contains the project documentation system organized by workflow p
 
 ### Content Types (Dashboard v2 Workflow)
 
-- **problems/**: ❓ Core problems and opportunities to solve (MarkdownDocument)
-- **stories/**: 📖 User stories and general narratives (MarkdownDocument)
-- **compliance/**: 🛡️ Regulatory compliance requirements and audit trails (ComplianceDocument)
-- **requirements/**: 📋 All requirements organized by type
-  - **requirements/functional/**: ⚡ Gherkin-based functional requirements (Requirement)
-  - **requirements/technical/**: ⚙️ Technical specs and implementation requirements (Requirement)
-- **architecture/**: 🏗️ System design and architecture documentation (ArchitectureDocument)
-- **tests/**: 🧪 Testing documentation, strategies, and status (TestDocument)
-- **verification/**: ✅ Verification and validation requirements (Requirement)
-- **kanban/**: 📋 Kanban workflow documentation and tracking
+- **problems/**: Core problems and opportunities to solve (MarkdownDocument)
+- **stories/**: User stories and general narratives (MarkdownDocument)
+- **compliance/**: Regulatory compliance requirements and audit trails (ComplianceDocument)
+- **requirements/**: All requirements organized by type
+  - **requirements/functional/**: Gherkin-based functional requirements (Requirement)
+  - **requirements/technical/**: Technical specs and implementation requirements (Requirement)
+- **architecture/**: System design and architecture documentation (ArchitectureDocument)
+- **tests/**: Testing documentation, strategies, and status (TestDocument)
+- **verification/**: Verification and validation requirements (Requirement)
+- **kanban/**: Kanban workflow documentation and tracking
 
 ### Workflow Order
 
-1. **Problems** → 2. **Stories** → 3. **Compliance** → 4. **Functional Requirements** → 
-5. **Architecture** → 6. **Technical Requirements** → 7. **Tests** → 8. **Verification**
+1. **Problems** -> 2. **Stories** -> 3. **Compliance** -> 4. **Functional Requirements** -> 
+5. **Architecture** -> 6. **Technical Requirements** -> 7. **Tests** -> 8. **Verification**
 
 ## Usage
 
@@ -293,10 +304,10 @@ See \`sc docs --help\` for full documentation.
 `;
 
     await fs.writeFile(readmePath, readmeContent);
-    console.log(chalk.green('   ✓ README.md'));
+    console.log(chalk.green('   [OK] README.md'));
   } else {
     console.log(
-      chalk.yellow('   ⚠️  README.md already exists, not overwriting')
+      chalk.yellow('   [WARN] README.md already exists, not overwriting')
     );
   }
 }
@@ -304,11 +315,10 @@ See \`sc docs --help\` for full documentation.
 /**
  * Install compliance frameworks from @supernal/compliance-cards npm package
  * Falls back to templates if npm package not available
- * @param {string} targetDir - Target installation directory
- * @param {Object} options - Installation options
- * @param {string[]} options.complianceFrameworks - Array of framework names to install (e.g., ['hipaa', 'gdpr'])
+ * @param targetDir - Target installation directory
+ * @param options - Installation options
  */
-async function installComplianceTemplates(targetDir, options = {}) {
+async function installComplianceTemplates(targetDir: string, options: CopyOptions = {}): Promise<void> {
   try {
     const complianceDir = path.join(targetDir, 'docs/compliance/frameworks');
 
@@ -318,7 +328,7 @@ async function installComplianceTemplates(targetDir, options = {}) {
       if (existingFiles.length > 0 && !options.overwrite) {
         console.log(
           chalk.yellow(
-            `   ⚠️  Compliance directory already exists with content (${existingFiles.length} items)`
+            `   [WARN] Compliance directory already exists with content (${existingFiles.length} items)`
           )
         );
         console.log(
@@ -331,7 +341,7 @@ async function installComplianceTemplates(targetDir, options = {}) {
     }
 
     // Try to find @supernal/compliance-cards package
-    let sourceComplianceDir = null;
+    let sourceComplianceDir: string | null = null;
     let source = 'unknown';
 
     // 1. Check node_modules in supernal-code-package
@@ -387,7 +397,7 @@ async function installComplianceTemplates(targetDir, options = {}) {
     // No source found
     if (!sourceComplianceDir) {
       console.log(
-        chalk.yellow('   ⚠️  @supernal/compliance-cards package not found')
+        chalk.yellow('   [WARN] @supernal/compliance-cards package not found')
       );
       console.log(
         chalk.gray('      Install with: npm install @supernal/compliance-cards')
@@ -441,14 +451,14 @@ async function installComplianceTemplates(targetDir, options = {}) {
           installedCount++;
         } else {
           console.log(
-            chalk.yellow(`      ⚠️  Framework not found: ${framework}`)
+            chalk.yellow(`      [WARN] Framework not found: ${framework}`)
           );
         }
       }
 
       console.log(
         chalk.green(
-          `   ✓ Compliance templates installed (${installedCount}/${options.complianceFrameworks.length} frameworks)`
+          `   [OK] Compliance templates installed (${installedCount}/${options.complianceFrameworks.length} frameworks)`
         )
       );
     } else {
@@ -463,7 +473,7 @@ async function installComplianceTemplates(targetDir, options = {}) {
       const frameworks = await fs.readdir(complianceDir);
       console.log(
         chalk.green(
-          `   ✓ Compliance templates installed (${frameworks.length} frameworks)`
+          `   [OK] Compliance templates installed (${frameworks.length} frameworks)`
         )
       );
     }
@@ -471,9 +481,10 @@ async function installComplianceTemplates(targetDir, options = {}) {
     // Show source
     console.log(chalk.gray(`      Source: ${source}`));
   } catch (error) {
+    const err = error as Error;
     console.log(
       chalk.yellow(
-        `   ⚠️  Could not install compliance templates: ${error.message}`
+        `   [WARN] Could not install compliance templates: ${err.message}`
       )
     );
   }
@@ -481,10 +492,10 @@ async function installComplianceTemplates(targetDir, options = {}) {
 
 /**
  * Install workflow system from templates using TemplateResolver
- * @param {string} targetDir - Target installation directory
- * @param {Object} options - Installation options
+ * @param targetDir - Target installation directory
+ * @param options - Installation options
  */
-async function installWorkflowSystem(targetDir, options = {}) {
+async function installWorkflowSystem(targetDir: string, options: CopyOptions = {}): Promise<void> {
   try {
     const resolver = new TemplateResolver(targetDir);
 
@@ -492,7 +503,7 @@ async function installWorkflowSystem(targetDir, options = {}) {
     const workflowTemplatePath = resolver.resolve('workflow');
 
     console.log(
-      chalk.blue(`   📚 Installing workflow system from templates...`)
+      chalk.blue(`   [DOCS] Installing workflow system from templates...`)
     );
 
     // Copy workflow to target with variable replacement
@@ -504,7 +515,7 @@ async function installWorkflowSystem(targetDir, options = {}) {
       options
     );
 
-    console.log(chalk.green('   ✓ Workflow system installed'));
+    console.log(chalk.green('   [OK] Workflow system installed'));
 
     // Show source
     const source = resolver.getSource('workflow');
@@ -514,8 +525,9 @@ async function installWorkflowSystem(targetDir, options = {}) {
       console.log(chalk.gray('      Source: SC package templates (canonical)'));
     }
   } catch (error) {
+    const err = error as Error;
     console.log(
-      chalk.red(`   ✗ Could not install workflow system: ${error.message}`)
+      chalk.red(`   [ERROR] Could not install workflow system: ${err.message}`)
     );
     throw error;
   }
@@ -523,10 +535,10 @@ async function installWorkflowSystem(targetDir, options = {}) {
 
 /**
  * Install guides from templates using TemplateResolver
- * @param {string} targetDir - Target installation directory
- * @param {Object} options - Installation options
+ * @param targetDir - Target installation directory
+ * @param options - Installation options
  */
-async function installGuidesSystem(targetDir, options = {}) {
+async function installGuidesSystem(targetDir: string, options: CopyOptions = {}): Promise<void> {
   try {
     const resolver = new TemplateResolver(targetDir);
 
@@ -536,7 +548,7 @@ async function installGuidesSystem(targetDir, options = {}) {
       const existingFiles = await fs.readdir(targetGuidesDir);
       if (existingFiles.length > 0 && !options.overwrite) {
         console.log(
-          chalk.yellow(`   ⚠️  Guides directory already exists with content`)
+          chalk.yellow(`   [WARN] Guides directory already exists with content`)
         );
         return;
       }
@@ -546,7 +558,7 @@ async function installGuidesSystem(targetDir, options = {}) {
     if (resolver.exists('guides')) {
       const guidesTemplatePath = resolver.resolve('guides');
 
-      console.log(chalk.blue(`   📖 Installing guides...`));
+      console.log(chalk.blue(`   [DOCS] Installing guides...`));
 
       await copyWithVariableReplacement(
         guidesTemplatePath,
@@ -555,21 +567,22 @@ async function installGuidesSystem(targetDir, options = {}) {
         options
       );
 
-      console.log(chalk.green('   ✓ Guides installed'));
+      console.log(chalk.green('   [OK] Guides installed'));
     }
   } catch (error) {
+    const err = error as Error;
     console.log(
-      chalk.yellow(`   ⚠️  Could not install guides: ${error.message}`)
+      chalk.yellow(`   [WARN] Could not install guides: ${err.message}`)
     );
   }
 }
 
 /**
  * Install planning structure from templates using TemplateResolver
- * @param {string} targetDir - Target installation directory
- * @param {Object} options - Installation options
+ * @param targetDir - Target installation directory
+ * @param options - Installation options
  */
-async function installPlanningSystem(targetDir, options = {}) {
+async function installPlanningSystem(targetDir: string, options: CopyOptions = {}): Promise<void> {
   try {
     const resolver = new TemplateResolver(targetDir);
 
@@ -581,7 +594,7 @@ async function installPlanningSystem(targetDir, options = {}) {
       const hasContent = existingFiles.filter((f) => f !== 'kanban').length > 0;
       if (hasContent && !options.overwrite) {
         console.log(
-          chalk.yellow(`   ⚠️  Planning directory already exists with content`)
+          chalk.yellow(`   [WARN] Planning directory already exists with content`)
         );
         return;
       }
@@ -592,7 +605,7 @@ async function installPlanningSystem(targetDir, options = {}) {
       const epicsTemplatePath = resolver.resolve('planning/epics');
       const targetEpicsDir = path.join(targetDir, 'docs/planning/epics');
 
-      console.log(chalk.blue(`   📋 Installing planning epics...`));
+      console.log(chalk.blue(`   [DOCS] Installing planning epics...`));
 
       await copyWithVariableReplacement(
         epicsTemplatePath,
@@ -601,14 +614,14 @@ async function installPlanningSystem(targetDir, options = {}) {
         options
       );
 
-      console.log(chalk.green('   ✓ Planning epics installed'));
+      console.log(chalk.green('   [OK] Planning epics installed'));
     }
 
     if (resolver.exists('planning/roadmap')) {
       const roadmapTemplatePath = resolver.resolve('planning/roadmap');
       const targetRoadmapDir = path.join(targetDir, 'docs/planning/roadmap');
 
-      console.log(chalk.blue(`   🗺️  Installing planning roadmap...`));
+      console.log(chalk.blue(`   [DOCS] Installing planning roadmap...`));
 
       await copyWithVariableReplacement(
         roadmapTemplatePath,
@@ -617,11 +630,12 @@ async function installPlanningSystem(targetDir, options = {}) {
         options
       );
 
-      console.log(chalk.green('   ✓ Planning roadmap installed'));
+      console.log(chalk.green('   [OK] Planning roadmap installed'));
     }
   } catch (error) {
+    const err = error as Error;
     console.log(
-      chalk.yellow(`   ⚠️  Could not install planning: ${error.message}`)
+      chalk.yellow(`   [WARN] Could not install planning: ${err.message}`)
     );
   }
 }
@@ -629,10 +643,10 @@ async function installPlanningSystem(targetDir, options = {}) {
 /**
  * Install features directory structure from templates
  * Creates domain-based feature tracking structure
- * @param {string} targetDir - Target installation directory
- * @param {Object} options - Installation options
+ * @param targetDir - Target installation directory
+ * @param options - Installation options
  */
-async function installFeaturesSystem(targetDir, _options = {}) {
+async function installFeaturesSystem(targetDir: string, _options: CopyOptions = {}): Promise<void> {
   try {
     const resolver = new TemplateResolver(targetDir);
     const config = loadProjectConfig(targetDir, { silent: true });
@@ -643,7 +657,7 @@ async function installFeaturesSystem(targetDir, _options = {}) {
     );
 
     console.log(
-      chalk.blue(`   📂 Installing features system from templates...`)
+      chalk.blue(`   [DIR] Installing features system from templates...`)
     );
 
     // Check if features directory already has content (excluding README.md)
@@ -655,7 +669,7 @@ async function installFeaturesSystem(targetDir, _options = {}) {
 
       if (contentItems.length > 0) {
         console.log(
-          chalk.yellow(`   ⚠️  Features directory already exists with content`)
+          chalk.yellow(`   [WARN] Features directory already exists with content`)
         );
 
         // Only copy README.md if it doesn't exist
@@ -682,7 +696,7 @@ async function installFeaturesSystem(targetDir, _options = {}) {
 
     if (await fs.pathExists(templateReadme)) {
       await fs.copy(templateReadme, targetReadme);
-      console.log(chalk.green('   ✓ Features system installed'));
+      console.log(chalk.green('   [OK] Features system installed'));
       console.log(
         chalk.gray(
           `      Domain-based structure: {domain}/{feature}/ with phase metadata`
@@ -690,7 +704,7 @@ async function installFeaturesSystem(targetDir, _options = {}) {
       );
     } else {
       console.log(
-        chalk.yellow('   ⚠️  Features README template not found, skipped')
+        chalk.yellow('   [WARN] Features README template not found, skipped')
       );
     }
 
@@ -701,12 +715,23 @@ async function installFeaturesSystem(targetDir, _options = {}) {
       console.log(chalk.gray('      Source: SC package templates (canonical)'));
     }
   } catch (error) {
+    const err = error as Error;
     console.log(
-      chalk.red(`   ✗ Could not install features system: ${error.message}`)
+      chalk.red(`   [ERROR] Could not install features system: ${err.message}`)
     );
     throw error;
   }
 }
+
+export {
+  createKanbanStructureSafe,
+  createDocsStructureSafe,
+  installComplianceTemplates,
+  installWorkflowSystem,
+  installGuidesSystem,
+  installPlanningSystem,
+  installFeaturesSystem
+};
 
 module.exports = {
   createKanbanStructureSafe,

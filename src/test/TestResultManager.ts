@@ -1,14 +1,94 @@
-// @ts-nocheck
-const fs = require('node:fs');
-const path = require('node:path');
-const { execSync, _spawn } = require('node:child_process');
-const chalk = require('chalk');
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
+import yaml from 'yaml';
+
+interface TestConfig {
+  path?: string;
+  retention_days?: number;
+  save_stdout_on_pass?: boolean;
+  max_results?: number;
+  retention?: {
+    routine?: {
+      days?: number;
+      max_count?: number;
+    };
+  };
+  [key: string]: any;
+}
+
+interface GitInfo {
+  branch: string;
+  commit: string;
+  user: string;
+}
+
+interface TestResult {
+  id: string;
+  command: string;
+  timestamp: string;
+  exit_code: number;
+  duration_ms: number;
+  executor: string;
+  git_branch: string;
+  git_commit: string;
+  requirement_id: string | null;
+  feature: string | null;
+  passed: boolean;
+  is_compliance_evidence: boolean;
+  evidence_reason: string | null;
+  valid?: boolean;
+  invalidated_at?: string;
+  invalidated_reason?: string;
+  superseded_by?: string;
+  stdout?: string;
+  stderr?: string;
+}
+
+interface TestIndex {
+  results: TestResult[];
+}
+
+interface RunOptions {
+  req?: string;
+  feature?: string;
+  compliance?: boolean;
+  evidence?: boolean;
+  verbose?: boolean;
+}
+
+interface ListOptions {
+  since?: string;
+  req?: string;
+}
+
+interface CleanupOptions {
+  confirm?: boolean;
+  before?: string;
+}
+
+interface InvalidateOptions {
+  reason?: string;
+  supersededBy?: string;
+}
+
+interface StaleResult {
+  result: TestResult;
+  issues: string[];
+}
+
+interface ValidityCheckResult {
+  valid: TestResult[];
+  stale: StaleResult[];
+}
 
 class TestResultManager {
-  config: any;
-  indexFile: any;
-  resultsDir: any;
-  constructor(config = {}) {
+  protected config: TestConfig;
+  protected indexFile: string;
+  protected resultsDir: string;
+
+  constructor(config: TestConfig = {}) {
     this.resultsDir = config.path || '.supernal/test-results';
     this.indexFile = path.join(this.resultsDir, 'index.json');
     this.config = {
@@ -19,10 +99,8 @@ class TestResultManager {
     };
   }
 
-  loadConfig() {
-    // Load from supernal.yaml if available
+  loadConfig(): void {
     try {
-      const yaml = require('yaml');
       const configPath = path.join(process.cwd(), 'supernal.yaml');
       if (fs.existsSync(configPath)) {
         const config = yaml.parse(fs.readFileSync(configPath, 'utf8'));
@@ -35,7 +113,7 @@ class TestResultManager {
     }
   }
 
-  ensureDir() {
+  ensureDir(): void {
     if (!fs.existsSync(this.resultsDir)) {
       fs.mkdirSync(this.resultsDir, { recursive: true });
     }
@@ -47,7 +125,7 @@ class TestResultManager {
     }
   }
 
-  generateId() {
+  generateId(): string {
     const date = new Date().toISOString().split('T')[0];
     const index = this.getIndex();
     const todayCount =
@@ -55,16 +133,16 @@ class TestResultManager {
     return `test-${date}-${String(todayCount).padStart(3, '0')}`;
   }
 
-  getIndex() {
+  getIndex(): TestIndex {
     this.ensureDir();
     return JSON.parse(fs.readFileSync(this.indexFile, 'utf8'));
   }
 
-  saveIndex(index) {
+  saveIndex(index: TestIndex): void {
     fs.writeFileSync(this.indexFile, JSON.stringify(index, null, 2));
   }
 
-  getGitInfo() {
+  getGitInfo(): GitInfo {
     try {
       const branch = execSync('git branch --show-current', {
         encoding: 'utf8'
@@ -81,7 +159,7 @@ class TestResultManager {
     }
   }
 
-  async run(command, options = {}) {
+  async run(command: string, options: RunOptions = {}): Promise<TestResult> {
     this.ensureDir();
 
     const id = this.generateId();
@@ -98,14 +176,13 @@ class TestResultManager {
     let stderr = '';
 
     try {
-      // Execute command and capture output
       const result = execSync(command, {
         encoding: 'utf8',
-        stdio: ['inherit', 'pipe', 'pipe'],
+        stdio: 'pipe',
         shell: true
-      });
-      stdout = result;
-    } catch (error) {
+      } as any);
+      stdout = result as string;
+    } catch (error: any) {
       exitCode = error.status || 1;
       stdout = error.stdout || '';
       stderr = error.stderr || '';
@@ -114,11 +191,9 @@ class TestResultManager {
     const endTime = Date.now();
     const duration = endTime - startTime;
 
-    // Determine if this is compliance evidence
     const isCompliance = this.isComplianceEvidence(options);
 
-    // Create result record
-    const result = {
+    const result: TestResult = {
       id,
       command,
       timestamp: new Date().toISOString(),
@@ -136,7 +211,6 @@ class TestResultManager {
         : null
     };
 
-    // Save detailed log file (respect verbosity config)
     const logFile = path.join(this.resultsDir, `${id}.json`);
     const shouldSaveOutput =
       exitCode !== 0 || this.config.saveStdoutOnPass || options.verbose;
@@ -149,15 +223,12 @@ class TestResultManager {
     };
     fs.writeFileSync(logFile, JSON.stringify(detailedResult, null, 2));
 
-    // Auto-cleanup old routine results (compliance evidence never auto-deleted)
     this.cleanupRoutine();
 
-    // Update index
     const index = this.getIndex();
     index.results.push(result);
     this.saveIndex(index);
 
-    // Print result
     console.log('');
     if (exitCode === 0) {
       console.log(chalk.green(`✅ Test passed in ${duration}ms`));
@@ -169,7 +240,7 @@ class TestResultManager {
     return result;
   }
 
-  list(options = {}) {
+  list(options: ListOptions = {}): TestResult[] {
     const index = this.getIndex();
     let results = index.results;
 
@@ -199,7 +270,6 @@ class TestResultManager {
     console.log('─'.repeat(100));
 
     for (const r of results.slice(-20)) {
-      // Last 20
       const status = r.passed ? chalk.green('✓') : chalk.red('✗');
       console.log(
         chalk.white(r.id.padEnd(22)) +
@@ -214,14 +284,14 @@ class TestResultManager {
     return results;
   }
 
-  show(id) {
+  show(id: string): TestResult | null {
     const logFile = path.join(this.resultsDir, `${id}.json`);
     if (!fs.existsSync(logFile)) {
       console.log(chalk.red(`Test result not found: ${id}`));
       return null;
     }
 
-    const result = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+    const result: TestResult = JSON.parse(fs.readFileSync(logFile, 'utf8'));
 
     console.log(chalk.bold(`\n📋 Test Result: ${id}\n`));
     console.log(`Command:     ${result.command}`);
@@ -241,7 +311,7 @@ class TestResultManager {
     return result;
   }
 
-  getUrl(id) {
+  getUrl(id: string): string | null {
     const logFile = path.join(this.resultsDir, `${id}.json`);
     if (!fs.existsSync(logFile)) {
       console.log(chalk.red(`Test result not found: ${id}`));
@@ -253,7 +323,7 @@ class TestResultManager {
     return absolutePath;
   }
 
-  export(options = {}) {
+  export(options: ListOptions = {}): string {
     const index = this.getIndex();
     let results = index.results;
 
@@ -286,20 +356,15 @@ class TestResultManager {
     return exportFile;
   }
 
-  /**
-   * Auto-cleanup old ROUTINE results only
-   * COMPLIANCE EVIDENCE IS NEVER AUTO-DELETED
-   */
-  cleanupRoutine() {
+  cleanupRoutine(): void {
     const index = this.getIndex();
     const cutoffDate = new Date();
     cutoffDate.setDate(
       cutoffDate.getDate() - (this.config.retention?.routine?.days || 30)
     );
 
-    // Only cleanup NON-compliance results
     const toDelete = index.results.filter(
-      (r) => new Date(r.timestamp) < cutoffDate && !r.is_compliance_evidence // CRITICAL: Never delete compliance evidence
+      (r) => new Date(r.timestamp) < cutoffDate && !r.is_compliance_evidence
     );
 
     if (toDelete.length === 0) return;
@@ -315,7 +380,6 @@ class TestResultManager {
       (r) => new Date(r.timestamp) >= cutoffDate || r.is_compliance_evidence
     );
 
-    // Enforce max for routine only
     const routineResults = index.results.filter(
       (r) => !r.is_compliance_evidence
     );
@@ -343,17 +407,10 @@ class TestResultManager {
     }
   }
 
-  /**
-   * Determine if test run should be compliance evidence
-   */
-  isComplianceEvidence(options) {
-    // Explicit flags
+  isComplianceEvidence(options: RunOptions): boolean {
     if (options.compliance || options.evidence) return true;
-
-    // Requirement linked
     if (options.req) return true;
 
-    // Release/main branch
     const gitInfo = this.getGitInfo();
     if (gitInfo.branch === 'main') return true;
     if (gitInfo.branch.startsWith('release/')) return true;
@@ -361,11 +418,8 @@ class TestResultManager {
     return false;
   }
 
-  /**
-   * Get reason why test is compliance evidence (for audit trail)
-   */
-  getComplianceReason(options, gitInfo) {
-    const reasons = [];
+  getComplianceReason(options: RunOptions, gitInfo: GitInfo): string {
+    const reasons: string[] = [];
     if (options.compliance) reasons.push('explicit --compliance flag');
     if (options.evidence) reasons.push('explicit --evidence flag');
     if (options.req) reasons.push(`linked to ${options.req}`);
@@ -375,11 +429,7 @@ class TestResultManager {
     return reasons.join(', ');
   }
 
-  /**
-   * Manual compliance evidence cleanup (requires --confirm)
-   * USE WITH EXTREME CAUTION - may violate compliance requirements
-   */
-  cleanupEvidence(options) {
+  cleanupEvidence(options: CleanupOptions): void {
     if (!options.confirm) {
       console.log(
         chalk.red('ERROR: Deleting compliance evidence requires --confirm flag')
@@ -421,7 +471,6 @@ class TestResultManager {
       )
     );
 
-    // Actually delete
     for (const result of toDelete) {
       const logFile = path.join(this.resultsDir, `${result.id}.json`);
       if (fs.existsSync(logFile)) fs.unlinkSync(logFile);
@@ -440,10 +489,7 @@ class TestResultManager {
     );
   }
 
-  /**
-   * Phase 2: Invalidate a test result
-   */
-  invalidate(id, options = {}) {
+  invalidate(id: string, options: InvalidateOptions = {}): TestResult | null {
     const index = this.getIndex();
     const result = index.results.find((r) => r.id === id);
 
@@ -466,10 +512,9 @@ class TestResultManager {
 
     this.saveIndex(index);
 
-    // Also update the detailed log file
     const logFile = path.join(this.resultsDir, `${id}.json`);
     if (fs.existsSync(logFile)) {
-      const detailed = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+      const detailed: TestResult = JSON.parse(fs.readFileSync(logFile, 'utf8'));
       detailed.valid = false;
       detailed.invalidated_at = result.invalidated_at;
       detailed.invalidated_reason = result.invalidated_reason;
@@ -488,10 +533,7 @@ class TestResultManager {
     return result;
   }
 
-  /**
-   * Phase 2: Supersede one test result with another
-   */
-  supersede(oldId, newId) {
+  supersede(oldId: string, newId: string): TestResult | null {
     const index = this.getIndex();
     const oldResult = index.results.find((r) => r.id === oldId);
     const newResult = index.results.find((r) => r.id === newId);
@@ -512,22 +554,16 @@ class TestResultManager {
     });
   }
 
-  /**
-   * Phase 2: Check validity of test results
-   * Detects stale results where command or context may have changed
-   */
-  checkValidity(options = {}) {
+  checkValidity(options: { strict?: boolean } = {}): ValidityCheckResult {
     const index = this.getIndex();
-    const staleResults = [];
-    const validResults = [];
+    const staleResults: StaleResult[] = [];
+    const validResults: TestResult[] = [];
 
     for (const result of index.results) {
-      // Skip already invalidated
       if (result.valid === false) continue;
 
-      const issues = [];
+      const issues: string[] = [];
 
-      // Check if commit still exists
       try {
         execSync(`git cat-file -e ${result.git_commit}^{commit}`, {
           stdio: 'ignore'
@@ -536,7 +572,6 @@ class TestResultManager {
         issues.push(`Commit ${result.git_commit} no longer exists`);
       }
 
-      // Check if on different branch now (warning, not invalidation)
       const currentBranch = this.getGitInfo().branch;
       if (result.git_branch !== currentBranch && options.strict) {
         issues.push(
@@ -544,10 +579,9 @@ class TestResultManager {
         );
       }
 
-      // Check age for routine tests
       if (!result.is_compliance_evidence) {
         const ageInDays =
-          (Date.now() - new Date(result.timestamp)) / (1000 * 60 * 60 * 24);
+          (Date.now() - new Date(result.timestamp).getTime()) / (1000 * 60 * 60 * 24);
         if (ageInDays > 30) {
           issues.push(`Routine test is ${Math.floor(ageInDays)} days old`);
         }
@@ -560,7 +594,6 @@ class TestResultManager {
       }
     }
 
-    // Display results
     console.log(chalk.bold('\nTest Result Validity Check\n'));
     console.log('─'.repeat(80));
 
@@ -600,28 +633,22 @@ class TestResultManager {
     return { valid: validResults, stale: staleResults };
   }
 
-  /**
-   * List only valid (not invalidated) results
-   */
-  listValid(options = {}) {
+  listValid(options: ListOptions = {}): void {
     const originalOptions = { ...options };
     const index = this.getIndex();
 
-    // Filter to only valid results
     const validResults = index.results.filter((r) => r.valid !== false);
 
-    // Temporarily replace index results
     const originalResults = index.results;
     index.results = validResults;
     this.saveIndex(index);
 
-    // Call normal list
     this.list(originalOptions);
 
-    // Restore
     index.results = originalResults;
     this.saveIndex(index);
   }
 }
 
+export default TestResultManager;
 module.exports = TestResultManager;

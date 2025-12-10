@@ -244,6 +244,17 @@ export class CoverageManager {
 
   /**
    * Run tests with coverage collection
+   * 
+   * Integration with `sc test`:
+   * - If `useScTest` is true (default), wraps `sc test` with coverage flags
+   * - Otherwise, runs the coverage tool directly
+   * 
+   * Flow:
+   * 1. sc coverage run
+   * 2. → Determines tool from config (vitest, jest, c8)
+   * 3. → Builds coverage-enabled command
+   * 4. → If TESTME.sh exists and tool=vitest/jest, integrates with it
+   * 5. → Outputs to ./coverage directory
    */
   async run(options: CoverageRunOptions = {}): Promise<CoverageRunResult> {
     const config = this.loadConfig();
@@ -262,13 +273,22 @@ export class CoverageManager {
 
     if (!options.quiet) {
       console.log(chalk.blue('🧪 Running tests with coverage...\n'));
+      console.log(chalk.gray(`   Tool: ${config.collection.tool}`));
+      console.log(chalk.gray(`   Output: ${coverageDir}\n`));
     }
 
     try {
+      // Check if TESTME.sh exists - if so, note we're using direct tool invocation
+      const testmeExists = fs.existsSync(path.join(this.projectRoot, 'TESTME.sh'));
+      if (testmeExists && options.verbose) {
+        console.log(chalk.gray('   Note: TESTME.sh found, but using direct coverage tool for proper instrumentation'));
+        console.log(chalk.gray('   For quick tests without coverage, use: sc test --quick\n'));
+      }
+
       const command = this.buildCoverageCommand(config, options);
       
       if (options.verbose) {
-        console.log(chalk.gray(`Command: ${command}\n`));
+        console.log(chalk.gray(`   Command: ${command}\n`));
       }
 
       execSync(command, {
@@ -277,6 +297,9 @@ export class CoverageManager {
         env: {
           ...process.env,
           FORCE_COLOR: '1',
+          // Pass SC environment variables for potential TESTME.sh integration
+          SC_COVERAGE_RUN: 'true',
+          SC_QUICK_TESTS: options.quick ? 'true' : 'false',
         },
       });
 
@@ -284,7 +307,7 @@ export class CoverageManager {
 
       if (!options.quiet) {
         console.log(chalk.green(`\n✅ Coverage complete (${duration}ms)`));
-        console.log(chalk.gray(`   Output: ${coverageDir}`));
+        console.log(chalk.gray(`   Report: ${coverageDir}`));
       }
 
       // If --check flag, validate thresholds

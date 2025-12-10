@@ -1,25 +1,47 @@
-// @ts-nocheck
-/**
- * Connect CLI Command
- * 
- * Unified entry point for all external integrations.
- * Auto-discovers plugins from lib/plugins/ directory.
- * 
- * Usage:
- *   sc connect                     # List available plugins
- *   sc connect status              # Show all connection statuses
- *   sc connect <plugin> <command>  # Run plugin command
- * 
- * Examples:
- *   sc connect jira auth login
- *   sc connect jira list
- *   sc connect google auth login
- *   sc connect google list /
- */
+import { Command } from 'commander';
+import chalk from 'chalk';
 
-const { Command } = require('commander');
-const chalk = require('chalk');
 const pluginRegistry = require('../plugins/registry');
+
+interface ConnectOptions {
+  project?: string;
+  status?: string;
+  assignee?: string;
+  limit?: string;
+  jql?: string;
+  domain?: string;
+  email?: string;
+  token?: string;
+  type?: string;
+  local?: boolean;
+  jira?: boolean;
+}
+
+interface Plugin {
+  id: string;
+  name: string;
+  description?: string;
+  commands: {
+    auth?: {
+      login?: (args: string[], options: ConnectOptions) => Promise<{ success: boolean }>;
+      logout?: (args: string[], options: ConnectOptions) => Promise<{ success: boolean }>;
+      status?: () => Promise<{ connected: boolean; domain?: string }>;
+    };
+    [key: string]: any;
+  };
+  capabilities?: {
+    browse?: boolean;
+    import?: boolean;
+    export?: boolean;
+    sync?: boolean;
+  };
+}
+
+interface PluginInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 const program = new Command('connect')
   .description('Connect to and interact with external services')
@@ -39,26 +61,24 @@ const program = new Command('connect')
   .option('--jira', 'Prefer Jira changes in sync conflicts')
   .action(handleConnect);
 
-/**
- * Main handler for connect command (can be called directly from program.js)
- */
-async function handleConnect(pluginName, command, args, options) {
+async function handleConnect(
+  pluginName: string | undefined,
+  command: string | undefined,
+  args: string[],
+  options: ConnectOptions
+): Promise<void> {
   try {
-    // Discover all plugins
     pluginRegistry.discover();
     
-    // No plugin specified - list available
     if (!pluginName || pluginName === 'list') {
       return listPlugins();
     }
     
-    // Status command - show all connection statuses
     if (pluginName === 'status') {
       return showAllStatuses();
     }
     
-    // Get specific plugin
-    const plugin = pluginRegistry.get(pluginName);
+    const plugin: Plugin | null = pluginRegistry.get(pluginName);
     if (!plugin) {
       console.error(chalk.red(`Unknown plugin: ${pluginName}`));
       console.log(chalk.gray('Available plugins: ' + pluginRegistry.ids().join(', ')));
@@ -67,26 +87,21 @@ async function handleConnect(pluginName, command, args, options) {
       return;
     }
     
-    // No command - show plugin help
     if (!command) {
       return printPluginHelp(plugin);
     }
     
-    // Route to plugin command
     await routeToPlugin(plugin, command, args, options);
   } catch (error) {
-    console.error(chalk.red(`Error: ${error.message}`));
+    console.error(chalk.red(`Error: ${(error as Error).message}`));
     process.exitCode = 1;
   }
 }
 
-/**
- * List all available plugins
- */
-function listPlugins() {
-  const plugins = pluginRegistry.list();
+function listPlugins(): void {
+  const plugins: PluginInfo[] = pluginRegistry.list();
   
-  console.log(chalk.bold('\n📦 Available Integrations\n'));
+  console.log(chalk.bold('\nAvailable Integrations\n'));
   
   if (plugins.length === 0) {
     console.log(chalk.gray('  No plugins found'));
@@ -105,45 +120,40 @@ function listPlugins() {
   console.log(chalk.gray('Run: sc connect status to check all connections\n'));
 }
 
-/**
- * Show connection status for all plugins
- */
-async function showAllStatuses() {
-  const plugins = pluginRegistry.list();
+async function showAllStatuses(): Promise<void> {
+  const plugins: PluginInfo[] = pluginRegistry.list();
   
-  console.log(chalk.bold('\n🔌 Connection Status\n'));
+  console.log(chalk.bold('\nConnection Status\n'));
   
   for (const pluginInfo of plugins) {
-    const plugin = pluginRegistry.get(pluginInfo.id);
+    const plugin: Plugin = pluginRegistry.get(pluginInfo.id);
     
-    // Try to get status if plugin has auth commands
     if (plugin.commands?.auth?.status) {
       try {
-        // Capture original console.log to suppress plugin output
         const originalLog = console.log;
-        let status = null;
+        let status: { connected: boolean; domain?: string } | null = null;
         
-        console.log = () => {}; // Suppress
+        console.log = () => {};
         status = await plugin.commands.auth.status();
-        console.log = originalLog; // Restore
+        console.log = originalLog;
         
         if (status?.connected) {
           console.log(
-            chalk.green('● ') +
+            chalk.green('* ') +
             chalk.white(pluginInfo.name.padEnd(18)) +
             chalk.green('Connected') +
             (status.domain ? chalk.gray(` (${status.domain})`) : '')
           );
         } else {
           console.log(
-            chalk.gray('○ ') +
+            chalk.gray('o ') +
             chalk.white(pluginInfo.name.padEnd(18)) +
             chalk.gray('Not connected')
           );
         }
       } catch {
         console.log(
-          chalk.gray('○ ') +
+          chalk.gray('o ') +
           chalk.white(pluginInfo.name.padEnd(15)) +
           chalk.gray('Not connected')
         );
@@ -160,11 +170,12 @@ async function showAllStatuses() {
   console.log();
 }
 
-/**
- * Route command to plugin handler
- */
-async function routeToPlugin(plugin, command, args, options) {
-  // Handle nested auth commands (e.g., "auth login")
+async function routeToPlugin(
+  plugin: Plugin,
+  command: string,
+  args: string[],
+  options: ConnectOptions
+): Promise<void> {
   if (command === 'auth' && args.length > 0) {
     const authCommand = args[0];
     const handler = plugin.commands.auth?.[authCommand];
@@ -183,7 +194,6 @@ async function routeToPlugin(plugin, command, args, options) {
     }
   }
   
-  // Handle direct commands
   const handler = plugin.commands[command];
   
   if (typeof handler === 'function') {
@@ -194,16 +204,12 @@ async function routeToPlugin(plugin, command, args, options) {
     return;
   }
   
-  // Unknown command
   console.error(chalk.red(`Unknown command: ${command}`));
   printPluginHelp(plugin);
   process.exitCode = 1;
 }
 
-/**
- * Print help for a specific plugin
- */
-function printPluginHelp(plugin) {
+function printPluginHelp(plugin: Plugin): void {
   console.log(`
 ${chalk.bold(plugin.name)} Integration
 
@@ -215,7 +221,6 @@ ${chalk.cyan('Usage:')}
 ${chalk.cyan('Commands:')}
 `);
 
-  // Auth commands
   if (plugin.commands.auth) {
     console.log(chalk.white('  Authentication:'));
     if (plugin.commands.auth.login) {
@@ -229,7 +234,6 @@ ${chalk.cyan('Commands:')}
     }
   }
 
-  // Other commands
   const otherCommands = Object.keys(plugin.commands).filter(c => c !== 'auth');
   if (otherCommands.length > 0) {
     console.log(chalk.white('\n  Commands:'));
@@ -240,10 +244,9 @@ ${chalk.cyan('Commands:')}
     }
   }
 
-  // Capabilities
   if (plugin.capabilities) {
     console.log(chalk.white('\n  Capabilities:'));
-    const caps = [];
+    const caps: string[] = [];
     if (plugin.capabilities.browse) caps.push('browse');
     if (plugin.capabilities.import) caps.push('import');
     if (plugin.capabilities.export) caps.push('export');
@@ -261,7 +264,6 @@ ${chalk.cyan('Commands:')}
   console.log();
 }
 
-// Add help text
 program.addHelpText('after', `
 ${chalk.cyan('Plugins:')}
   Run 'sc connect list' to see all available plugins
@@ -275,5 +277,5 @@ ${chalk.cyan('Examples:')}
   sc connect google list /             Browse Drive root
 `);
 
+export { program, handleConnect };
 module.exports = { program, handleConnect };
-

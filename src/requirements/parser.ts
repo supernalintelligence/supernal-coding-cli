@@ -1,45 +1,102 @@
-// @ts-nocheck
-/**
- * Shared requirement parser for dashboard applications
- * Extracted from apps/supernal-dashboard for DRY compliance
- * @module requirements/parser
- */
+import fs from 'node:fs';
+import path from 'node:path';
 
-const fs = require('node:fs');
-const path = require('node:path');
+type Phase = 
+  | 'discovery' 
+  | 'research' 
+  | 'design' 
+  | 'compliance' 
+  | 'planning' 
+  | 'drafting' 
+  | 'implementing' 
+  | 'testing' 
+  | 'validating' 
+  | 'complete'
+  | 'foundation'
+  | 'implementation'
+  | 'integration'
+  | 'release';
 
-/**
- * Parse a requirement markdown file and extract metadata
- * @param {string} filePath - Path to the requirement file
- * @returns {import('./types').Requirement | null} Parsed requirement or null on error
- */
-function parseRequirement(filePath) {
+type RequirementType = 
+  | 'problem'
+  | 'story'
+  | 'functional-requirement'
+  | 'technical-requirement'
+  | 'architecture'
+  | 'test'
+  | 'compliance'
+  | 'verification'
+  | 'evidence'
+  | 'component'
+  | 'monitoring'
+  | 'kanban';
+
+interface Requirement {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  priority: string;
+  priorityScore: number;
+  status: string;
+  phase: Phase | string;
+  pattern: string;
+  type: RequirementType;
+  filePath: string;
+  dependencies?: string[];
+  epic?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  targetDate?: string;
+  startDate?: string;
+}
+
+interface PhaseStats {
+  total: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  progress: number;
+}
+
+interface PhasesData {
+  groups: Record<RequirementType, Requirement[]>;
+  stats: Record<RequirementType, PhaseStats>;
+  totalRequirements: number;
+}
+
+interface RepoConfig {
+  requirementsDir: string;
+  repoPath: string;
+  repoRoot: string;
+  projectRoot: string;
+}
+
+function parseRequirement(filePath: string): Requirement | null {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
     const fileName = path.basename(filePath, '.md');
 
-    // Extract YAML front matter
     const yamlMatch = content.match(/^---\n([\s\S]*?)\n---/);
     let priority = 'Medium';
     let priorityScore = 5;
-    let phase = 'drafting'; // Default to drafting phase (SOP Phase 5 - Technical Requirements)
+    let phase: Phase | string = 'drafting';
     let pattern = 'feature';
     let title = '';
     let reqId = fileName;
     let status = 'Draft';
     let category = 'core';
-    let dependencies = [];
-    let epic;
-    let createdAt;
-    let updatedAt;
-    let targetDate;
-    let startDate;
+    let dependencies: string[] = [];
+    let epic: string | undefined;
+    let createdAt: string | undefined;
+    let updatedAt: string | undefined;
+    let targetDate: string | undefined;
+    let startDate: string | undefined;
     let description = '';
 
     if (yamlMatch) {
       const yamlContent = yamlMatch[1];
 
-      // Extract all frontmatter fields
       const priorityMatch = yamlContent.match(/priority:\s*(.+)/);
       const scoreMatch = yamlContent.match(/priorityScore:\s*(\d+)/);
       const phaseMatch = yamlContent.match(/phase:\s*(.+)/);
@@ -56,27 +113,21 @@ function parseRequirement(filePath) {
       const startDateMatch = yamlContent.match(/start_date:\s*['"]*([^'"\n]+)['"]*$/m);
       const descriptionMatch = yamlContent.match(/description:\s*['"]*([^'"\n]+)['"]*$/m);
 
-      // Helper to normalize frontmatter values (strip quotes, normalize case)
-      const normalizeValue = (val) => val.trim().replace(/^['"]|['"]$/g, '');
+      const normalizeValue = (val: string): string => val.trim().replace(/^['"]|['"]$/g, '');
       
-      // Normalize phase to 12-phase SOP workflow
-      // Valid phases: discovery, research, design, compliance, planning, drafting, implementing, testing, validating, complete
-      const normalizePhase = (rawPhase) => {
+      const normalizePhase = (rawPhase: string): Phase | string => {
         const p = rawPhase.toLowerCase().replace(/^['"]|['"]$/g, '').trim();
-        const phaseMap = {
-          // Standard SOP phases (keep as-is)
-          'discovery': 'discovery',       // Phase 1
-          'research': 'research',         // Phase 2
-          'design': 'design',             // Phase 3
-          'compliance': 'compliance',     // Phase 3b
-          'planning': 'planning',         // Phase 4
-          'drafting': 'drafting',         // Phase 5
-          'implementing': 'implementing', // Phases 6-7
-          'testing': 'testing',           // Phase 8
-          'validating': 'validating',     // Phase 10
-          'complete': 'complete',         // Phases 11-12
-          
-          // Numeric phases → map to SOP phase names
+        const phaseMap: Record<string, Phase> = {
+          'discovery': 'discovery',
+          'research': 'research',
+          'design': 'design',
+          'compliance': 'compliance',
+          'planning': 'planning',
+          'drafting': 'drafting',
+          'implementing': 'implementing',
+          'testing': 'testing',
+          'validating': 'validating',
+          'complete': 'complete',
           '1': 'discovery',
           '2': 'research',
           '3': 'design',
@@ -89,8 +140,6 @@ function parseRequirement(filePath) {
           '10': 'validating',
           '11': 'complete',
           '12': 'complete',
-          
-          // Legacy/non-standard → map to closest SOP phase
           'foundation': 'drafting',
           'requirements': 'drafting',
           'implementation': 'implementing',
@@ -120,7 +169,6 @@ function parseRequirement(filePath) {
       if (startDateMatch) startDate = normalizeValue(startDateMatch[1]);
       if (descriptionMatch) description = normalizeValue(descriptionMatch[1]);
 
-      // Parse dependencies array
       if (depsMatch) {
         const depsStr = depsMatch[1];
         dependencies = depsStr
@@ -130,7 +178,6 @@ function parseRequirement(filePath) {
       }
     }
 
-    // Fallback: Extract title from first # heading if not in frontmatter
     if (!title) {
       const headingMatch = content.match(/^#\s+(.+)$/m);
       title = headingMatch
@@ -138,7 +185,6 @@ function parseRequirement(filePath) {
         : fileName.replace(/^req-[^-]+-\d+-/, '').replace(/-/g, ' ');
     }
 
-    // Fallback: Extract category from file path if not in frontmatter
     if (category === 'core') {
       const pathParts = filePath.split(path.sep);
       const requirementsIndex = pathParts.indexOf('requirements');
@@ -147,7 +193,6 @@ function parseRequirement(filePath) {
       }
     }
 
-    // Determine requirement type based on folder structure first, then content and metadata
     const reqType = determineRequirementType(
       content,
       phase,
@@ -181,21 +226,16 @@ function parseRequirement(filePath) {
   }
 }
 
-/**
- * Determine the requirement type based on folder structure FIRST, then content/metadata
- * @param {string} content - File content
- * @param {import('./types').Phase} phase - Phase
- * @param {string} pattern - Pattern
- * @param {string} category - Category
- * @param {string} [filePath] - File path
- * @returns {import('./types').RequirementType} Determined requirement type
- */
-function determineRequirementType(content, phase, pattern, category, filePath) {
-  // FOLDER-BASED CATEGORIZATION (PRIMARY)
+function determineRequirementType(
+  content: string,
+  phase: Phase | string,
+  pattern: string,
+  category: string,
+  filePath?: string
+): RequirementType {
   if (filePath) {
     const pathParts = filePath.split(path.sep);
 
-    // Find the folder after 'requirements'
     const requirementsIndex = pathParts.indexOf('requirements');
     if (requirementsIndex !== -1 && pathParts[requirementsIndex + 1]) {
       const mainFolder = pathParts[requirementsIndex + 1];
@@ -216,21 +256,18 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
         case 'workflow':
           return 'kanban';
         case 'core':
-          // For core, check subfolder or content
           if (pathParts[requirementsIndex + 2]) {
             const subFolder = pathParts[requirementsIndex + 2];
             if (subFolder === 'problems') return 'problem';
             if (subFolder === 'stories') return 'story';
           }
-          return 'functional-requirement'; // Default for core
+          return 'functional-requirement';
       }
     }
   }
 
-  // FALLBACK: Content-based analysis (SECONDARY)
   const lowerContent = content.toLowerCase();
 
-  // Check for problem statements
   if (
     phase === 'discovery' ||
     lowerContent.includes('problem') ||
@@ -240,7 +277,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'problem';
   }
 
-  // Check for user stories
   if (
     lowerContent.includes('user story') ||
     lowerContent.includes('as a user') ||
@@ -250,7 +286,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'story';
   }
 
-  // Check for functional requirements
   if (
     lowerContent.includes('functional') ||
     lowerContent.includes('feature') ||
@@ -260,7 +295,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'functional-requirement';
   }
 
-  // Check for technical requirements
   if (
     lowerContent.includes('technical') ||
     category.includes('technical') ||
@@ -269,7 +303,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'technical-requirement';
   }
 
-  // Check for architecture
   if (
     lowerContent.includes('architecture') ||
     lowerContent.includes('design') ||
@@ -278,7 +311,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'architecture';
   }
 
-  // Check for tests
   if (
     lowerContent.includes('test') ||
     lowerContent.includes('testing') ||
@@ -287,7 +319,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'test';
   }
 
-  // Check for compliance
   if (
     lowerContent.includes('compliance') ||
     lowerContent.includes('gdpr') ||
@@ -297,7 +328,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'compliance';
   }
 
-  // Check for verification
   if (
     phase === 'integration' ||
     phase === 'release' ||
@@ -307,7 +337,6 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
     return 'verification';
   }
 
-  // Default based on phase
   switch (phase) {
     case 'discovery':
       return 'problem';
@@ -324,13 +353,8 @@ function determineRequirementType(content, phase, pattern, category, filePath) {
   }
 }
 
-/**
- * Generate phase-based statistics from requirements
- * @param {import('./types').Requirement[]} requirements - Array of requirements
- * @returns {import('./types').PhasesData} Phase statistics
- */
-function generatePhaseStats(requirements) {
-  const phaseGroups = {
+function generatePhaseStats(requirements: Requirement[]): PhasesData {
+  const phaseGroups: Record<RequirementType, Requirement[]> = {
     evidence: [],
     problem: [],
     story: [],
@@ -345,73 +369,19 @@ function generatePhaseStats(requirements) {
     kanban: []
   };
 
-  const phaseStats = {
-    evidence: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
+  const phaseStats: Record<RequirementType, PhaseStats> = {
+    evidence: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
     problem: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
     story: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
-    compliance: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
-    'functional-requirement': {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
-    'technical-requirement': {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
-    component: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
-    architecture: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
+    compliance: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
+    'functional-requirement': { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
+    'technical-requirement': { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
+    component: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
+    architecture: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
     test: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
-    monitoring: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
-    verification: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    },
-    kanban: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      pending: 0,
-      progress: 0
-    }
+    monitoring: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
+    verification: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 },
+    kanban: { total: 0, completed: 0, inProgress: 0, pending: 0, progress: 0 }
   };
 
   requirements.forEach((req) => {
@@ -432,8 +402,7 @@ function generatePhaseStats(requirements) {
     }
   });
 
-  // Calculate progress percentages
-  Object.keys(phaseStats).forEach((phase) => {
+  (Object.keys(phaseStats) as RequirementType[]).forEach((phase) => {
     const stats = phaseStats[phase];
     stats.progress =
       stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
@@ -446,30 +415,22 @@ function generatePhaseStats(requirements) {
   };
 }
 
-/**
- * Load all requirement files using workflow-driven configuration
- * @param {string} requirementsDir - Base requirements directory
- * @param {string} [repoPath] - Repository path for workflow config
- * @returns {Promise<import('./types').Requirement[]>} Array of parsed requirements
- */
-async function loadRequirements(requirementsDir, repoPath) {
-  const allRequirements = [];
-  const seenFiles = new Set(); // De-duplicate by absolute path
+async function loadRequirements(requirementsDir: string, repoPath?: string): Promise<Requirement[]> {
+  const allRequirements: Requirement[] = [];
+  const seenFiles = new Set<string>();
 
   if (!fs.existsSync(requirementsDir)) {
     console.warn(`Requirements directory not found: ${requirementsDir}`);
     return allRequirements;
   }
 
-  console.log(`📂 Scanning ${requirementsDir} for requirements...`);
+  console.log(`Scanning ${requirementsDir} for requirements...`);
 
-  // Try to load workflow config for directories and patterns
-  let workflowDirectories = [];
-  let workflowPatterns = [];
+  let workflowDirectories: string[] = [];
+  let workflowPatterns: string[] = [];
 
   if (repoPath) {
     try {
-      // Try to load workflow loader - may not be available in all contexts
       const {
         loadWorkflowConfig,
         getDirectories,
@@ -481,19 +442,16 @@ async function loadRequirements(requirementsDir, repoPath) {
         workflowDirectories = getDirectories(workflow);
         workflowPatterns = getFilePatterns(workflow);
         console.log(
-          `✨ Using workflow config: ${workflowDirectories.length} directories, ${workflowPatterns.length} patterns`
+          `Using workflow config: ${workflowDirectories.length} directories, ${workflowPatterns.length} patterns`
         );
       }
     } catch (_error) {
-      // Workflow loader not available or workflow config not found - use fallback
-      console.log('⚠️  Workflow config not available, using default patterns');
+      console.log('[WARN] Workflow config not available, using default patterns');
     }
   }
 
-  // Determine directories to scan
-  const scanDirs = workflowDirectories.length > 0 ? workflowDirectories : ['']; // Scan the base requirementsDir if no workflow
+  const scanDirs = workflowDirectories.length > 0 ? workflowDirectories : [''];
 
-  // Determine file patterns
   const requirementPatterns =
     workflowPatterns.length > 0
       ? workflowPatterns.map((p) => new RegExp(p, 'i'))
@@ -507,7 +465,6 @@ async function loadRequirements(requirementsDir, repoPath) {
           /^epic-/i
         ];
 
-  // Files/dirs to exclude
   const excludePatterns = [
     /handoff/i,
     /todo/i,
@@ -521,20 +478,17 @@ async function loadRequirements(requirementsDir, repoPath) {
     /\.git/i
   ];
 
-  function isRequirementFile(filename, filepath) {
-    // Must be markdown
+  function isRequirementFile(filename: string, filepath: string): boolean {
     if (!filename.endsWith('.md')) return false;
 
-    // Check if path contains excluded patterns
     if (excludePatterns.some((pattern) => pattern.test(filepath))) {
       return false;
     }
 
-    // Check if filename matches requirement patterns
     return requirementPatterns.some((pattern) => pattern.test(filename));
   }
 
-  function traverseDirectory(dirPath) {
+  function traverseDirectory(dirPath: string): void {
     if (!fs.existsSync(dirPath)) {
       return;
     }
@@ -548,21 +502,19 @@ async function loadRequirements(requirementsDir, repoPath) {
       try {
         stat = fs.statSync(itemPath);
       } catch (_error) {
-        continue; // Skip inaccessible files/broken symlinks
+        continue;
       }
 
       if (stat.isDirectory()) {
-        // Skip excluded directories
         if (excludePatterns.some((pattern) => pattern.test(item))) {
           continue;
         }
         traverseDirectory(itemPath);
       } else if (isRequirementFile(item, itemPath)) {
-        // De-duplicate by absolute path
         const absolutePath = path.resolve(itemPath);
         if (seenFiles.has(absolutePath)) {
           console.log(
-            `⏭️  Skipping duplicate: ${path.relative(requirementsDir, absolutePath)}`
+            `[SKIP] Skipping duplicate: ${path.relative(requirementsDir, absolutePath)}`
           );
           continue;
         }
@@ -576,45 +528,33 @@ async function loadRequirements(requirementsDir, repoPath) {
     }
   }
 
-  // Scan directories from workflow or fallback
   for (const dir of scanDirs) {
     const fullPath = dir ? path.join(requirementsDir, dir) : requirementsDir;
     if (fs.existsSync(fullPath)) {
       traverseDirectory(fullPath);
     } else {
-      console.warn(`⚠️  Directory not found: ${fullPath}`);
+      console.warn(`[WARN] Directory not found: ${fullPath}`);
     }
   }
 
-  console.log(`✅ Loaded ${allRequirements.length} unique requirements`);
+  console.log(`[OK] Loaded ${allRequirements.length} unique requirements`);
   return allRequirements;
 }
 
-/**
- * Get repository configuration based on repoId
- * @param {string} repoId - Repository identifier
- * @returns {{requirementsDir: string, repoPath: string, repoRoot: string, projectRoot: string}} Repository configuration
- */
-function getRepoConfig(repoId) {
-  // Use PROJECT_ROOT env var if available (for dashboard serving other repos)
-  // Otherwise fall back to process.cwd() (for direct CLI usage)
+function getRepoConfig(repoId: string): RepoConfig {
   const projectRoot = process.env.PROJECT_ROOT || process.cwd();
 
-  // Check for copied files in production (Vercel)
   const publicRepoPath = path.join(projectRoot, 'public', '_repo');
   let repoPath = projectRoot;
   let usingCopiedFiles = false;
 
   if (fs.existsSync(publicRepoPath)) {
-    // Production: use copied files
     repoPath = publicRepoPath;
     usingCopiedFiles = true;
   } else if (projectRoot.includes('supernal-dashboard')) {
-    // Development: navigate to repo root
     repoPath = path.resolve(projectRoot, '../..');
   }
 
-  // Validate repo name only when NOT using copied files
   if (!usingCopiedFiles) {
     const currentRepoName = path.basename(repoPath);
     if (repoId !== currentRepoName) {
@@ -624,20 +564,17 @@ function getRepoConfig(repoId) {
     }
   }
 
-  // Default: Use docs/ as the base directory for Renaissance structure
   let requirementsDir = path.join(repoPath, 'docs');
 
   const configPath = path.join(repoPath, 'supernal.yaml');
   if (fs.existsSync(configPath)) {
     try {
       const configContent = fs.readFileSync(configPath, 'utf8');
-      // Match ONLY the directory field under [requirements], not reports_directory
       const directoryMatch = configContent.match(
         /\[requirements\][^[]*?^directory\s*=\s*"([^"]+)"/m
       );
       if (directoryMatch) {
-        const configuredDir = directoryMatch[1]; // e.g., "docs/requirements"
-        // Use the parent of the configured directory (e.g., docs/) for Renaissance structure scanning
+        const configuredDir = directoryMatch[1];
         const fullPath = path.join(repoPath, configuredDir);
         requirementsDir = path.dirname(fullPath);
       }
@@ -653,6 +590,23 @@ function getRepoConfig(repoId) {
     projectRoot: repoPath
   };
 }
+
+export {
+  parseRequirement,
+  determineRequirementType,
+  generatePhaseStats,
+  loadRequirements,
+  getRepoConfig
+};
+
+export type {
+  Requirement,
+  RequirementType,
+  Phase,
+  PhaseStats,
+  PhasesData,
+  RepoConfig
+};
 
 module.exports = {
   parseRequirement,

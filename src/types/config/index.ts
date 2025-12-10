@@ -176,6 +176,7 @@ export interface DocPaths {
   architecture: string;
   sessions: string;
   handoffs: string;
+  features?: string;
 }
 
 /** Planning phase paths */

@@ -1,56 +1,93 @@
-// @ts-nocheck
 /**
  * Smart Merge Engine - Intelligent three-way merge for SC upgrades and syncs
  * Shared by both template upgrades (sc upgrade) and repository syncs (sc sync)
  */
 
-const fs = require('fs-extra');
-const crypto = require('node:crypto');
+import fs from 'fs-extra';
+import crypto from 'node:crypto';
 
-/**
- * Merge strategies for different types of conflicts
- */
 const MergeStrategy = {
-  OURS: 'ours', // Keep our version
-  THEIRS: 'theirs', // Take their version
-  MERGE: 'merge', // Attempt intelligent merge
-  MANUAL: 'manual', // Require manual resolution
-  AUTO: 'auto', // Auto-decide based on rules
-};
+  OURS: 'ours',
+  THEIRS: 'theirs',
+  MERGE: 'merge',
+  MANUAL: 'manual',
+  AUTO: 'auto',
+} as const;
 
-/**
- * Conflict types
- */
+type MergeStrategyType = typeof MergeStrategy[keyof typeof MergeStrategy];
+
 const ConflictType = {
-  CONTENT: 'content', // File content differs
-  DELETED: 'deleted', // File deleted in one version
-  ADDED: 'added', // File added in one version
-  BINARY: 'binary', // Binary file conflict
-  PERMISSION: 'permission', // Permission difference
-};
+  CONTENT: 'content',
+  DELETED: 'deleted',
+  ADDED: 'added',
+  BINARY: 'binary',
+  PERMISSION: 'permission',
+} as const;
+
+type ConflictTypeValue = typeof ConflictType[keyof typeof ConflictType];
+
+interface MergeVersions {
+  base: string;
+  ours: string;
+  theirs: string;
+}
+
+interface FileVersions {
+  base?: string;
+  ours?: string;
+  theirs?: string;
+}
+
+interface Conflict {
+  type: ConflictTypeValue;
+  message?: string;
+  ours?: string;
+  theirs?: string;
+  line?: number;
+}
+
+interface MergeResult {
+  success: boolean;
+  merged?: string;
+  conflicts: Conflict[];
+  strategy: string;
+  message?: string;
+}
+
+interface Change {
+  type: 'add' | 'delete' | 'modify';
+  line: number;
+  content?: string;
+  from?: string;
+  to?: string;
+}
+
+interface ConflictInfo {
+  line: number;
+  oursContent: string | undefined;
+  theirsContent: string | undefined;
+}
+
+interface SmartMergerOptions {
+  strategy?: MergeStrategyType;
+  verbose?: boolean;
+  dryRun?: boolean;
+}
 
 class SmartMerger {
-  dryRun: any;
-  strategy: any;
-  verbose: any;
-  constructor(options = {}) {
+  protected dryRun: boolean;
+  protected strategy: MergeStrategyType;
+  protected verbose: boolean;
+
+  constructor(options: SmartMergerOptions = {}) {
     this.strategy = options.strategy || MergeStrategy.AUTO;
     this.verbose = options.verbose || false;
     this.dryRun = options.dryRun || false;
   }
 
-  /**
-   * Perform a three-way merge
-   * @param {Object} versions - { base, ours, theirs }
-   * @param {string} versions.base - Original/common ancestor version
-   * @param {string} versions.ours - Our current version
-   * @param {string} versions.theirs - Their/upstream version
-   * @returns {Promise<MergeResult>}
-   */
-  async threeWayMerge(versions) {
+  async threeWayMerge(versions: MergeVersions): Promise<MergeResult> {
     const { base, ours, theirs } = versions;
 
-    // If all three are identical, no conflict
     if (this.areIdentical(base, ours, theirs)) {
       return {
         success: true,
@@ -60,7 +97,6 @@ class SmartMerger {
       };
     }
 
-    // If ours === base, theirs changed
     if (this.areIdentical(base, ours)) {
       return {
         success: true,
@@ -71,7 +107,6 @@ class SmartMerger {
       };
     }
 
-    // If theirs === base, we changed
     if (this.areIdentical(base, theirs)) {
       return {
         success: true,
@@ -82,39 +117,27 @@ class SmartMerger {
       };
     }
 
-    // Both changed - need actual merge
     return await this.performMerge(versions);
   }
 
-  /**
-   * Check if versions are identical
-   */
-  areIdentical(...versions) {
+  areIdentical(...versions: string[]): boolean {
     if (versions.length < 2) return true;
     const hashes = versions.map((v) => this.hash(v));
     return new Set(hashes).size === 1;
   }
 
-  /**
-   * Hash content for comparison
-   */
-  hash(content) {
+  hash(content: string | null): string | null {
     if (!content) return null;
     return crypto.createHash('sha256').update(content).digest('hex');
   }
 
-  /**
-   * Perform actual merge when all three differ
-   */
-  async performMerge(versions) {
-    const { _, ours, theirs } = versions;
+  async performMerge(versions: MergeVersions): Promise<MergeResult> {
+    const { ours, theirs } = versions;
 
-    // Try line-based merge for text files
     if (this.isTextFile(ours) && this.isTextFile(theirs)) {
       return await this.lineBasedMerge(versions);
     }
 
-    // For binary files or non-text, require manual resolution
     return {
       success: false,
       conflicts: [
@@ -129,25 +152,19 @@ class SmartMerger {
     };
   }
 
-  /**
-   * Line-based merge for text files
-   */
-  async lineBasedMerge(versions) {
+  async lineBasedMerge(versions: MergeVersions): Promise<MergeResult> {
     const { base, ours, theirs } = versions;
 
     const baseLines = this.splitLines(base);
     const ourLines = this.splitLines(ours);
     const theirLines = this.splitLines(theirs);
 
-    // Find changes from base
     const ourChanges = this.diff(baseLines, ourLines);
     const theirChanges = this.diff(baseLines, theirLines);
 
-    // Check for conflicting changes
     const conflicts = this.findConflicts(ourChanges, theirChanges);
 
     if (conflicts.length === 0) {
-      // No conflicts - can merge automatically
       const merged = this.applyChanges(baseLines, ourChanges, theirChanges);
       return {
         success: true,
@@ -157,7 +174,6 @@ class SmartMerger {
       };
     }
 
-    // Has conflicts - return conflict markers or require manual
     if (
       this.strategy === MergeStrategy.AUTO ||
       this.strategy === MergeStrategy.MERGE
@@ -184,24 +200,23 @@ class SmartMerger {
 
     return {
       success: false,
-      conflicts: conflicts,
+      conflicts: conflicts.map((c) => ({
+        type: ConflictType.CONTENT,
+        line: c.line,
+        ours: c.oursContent,
+        theirs: c.theirsContent,
+      })),
       strategy: MergeStrategy.MANUAL,
     };
   }
 
-  /**
-   * Split text into lines
-   */
-  splitLines(text) {
+  splitLines(text: string | null): string[] {
     if (!text) return [];
     return text.split('\n');
   }
 
-  /**
-   * Simple diff between two line arrays
-   */
-  diff(base, modified) {
-    const changes = [];
+  diff(base: string[], modified: string[]): Change[] {
+    const changes: Change[] = [];
     const maxLen = Math.max(base.length, modified.length);
 
     for (let i = 0; i < maxLen; i++) {
@@ -227,27 +242,22 @@ class SmartMerger {
     return changes;
   }
 
-  /**
-   * Find conflicting changes
-   */
-  findConflicts(ourChanges, theirChanges) {
-    const conflicts = [];
+  findConflicts(ourChanges: Change[], theirChanges: Change[]): ConflictInfo[] {
+    const conflicts: ConflictInfo[] = [];
     const ourLines = new Set(ourChanges.map((c) => c.line));
     const theirLines = new Set(theirChanges.map((c) => c.line));
 
-    // Lines changed in both versions
     const conflictLines = [...ourLines].filter((line) => theirLines.has(line));
 
     conflictLines.forEach((line) => {
       const ourChange = ourChanges.find((c) => c.line === line);
       const theirChange = theirChanges.find((c) => c.line === line);
 
-      // Only conflict if they changed to different things
-      if (ourChange.to !== theirChange.to) {
+      if (ourChange?.to !== theirChange?.to) {
         conflicts.push({
           line,
-          oursContent: ourChange.to,
-          theirsContent: theirChange.to,
+          oursContent: ourChange?.to,
+          theirsContent: theirChange?.to,
         });
       }
     });
@@ -255,31 +265,25 @@ class SmartMerger {
     return conflicts;
   }
 
-  /**
-   * Apply non-conflicting changes
-   */
-  applyChanges(baseLines, ourChanges, theirChanges) {
+  applyChanges(baseLines: string[], ourChanges: Change[], theirChanges: Change[]): string[] {
     const result = [...baseLines];
 
-    // Apply our changes first
     ourChanges.forEach((change) => {
-      if (change.type === 'modify') {
+      if (change.type === 'modify' && change.to !== undefined) {
         result[change.line] = change.to;
-      } else if (change.type === 'add') {
+      } else if (change.type === 'add' && change.content !== undefined) {
         result.splice(change.line, 0, change.content);
       } else if (change.type === 'delete') {
         result.splice(change.line, 1);
       }
     });
 
-    // Apply their non-conflicting changes
     theirChanges.forEach((change) => {
-      // Skip if this line was also changed by us (already handled)
       const ourAlsoChanged = ourChanges.some((c) => c.line === change.line);
       if (!ourAlsoChanged) {
-        if (change.type === 'modify') {
+        if (change.type === 'modify' && change.to !== undefined) {
           result[change.line] = change.to;
-        } else if (change.type === 'add') {
+        } else if (change.type === 'add' && change.content !== undefined) {
           result.splice(change.line, 0, change.content);
         } else if (change.type === 'delete') {
           result.splice(change.line, 1);
@@ -290,20 +294,21 @@ class SmartMerger {
     return result;
   }
 
-  /**
-   * Merge with conflict markers for manual resolution
-   */
-  mergeWithConflictMarkers(baseLines, _ourChanges, _theirChanges, conflicts) {
+  mergeWithConflictMarkers(
+    baseLines: string[],
+    _ourChanges: Change[],
+    _theirChanges: Change[],
+    conflicts: ConflictInfo[]
+  ): string[] {
     const result = [...baseLines];
-    const _conflictLines = new Set(conflicts.map((c) => c.line));
 
     conflicts.forEach((conflict) => {
       const line = conflict.line;
       result[line] = [
         '<<<<<<< OURS (Current)',
-        conflict.oursContent,
+        conflict.oursContent || '',
         '=======',
-        conflict.theirsContent,
+        conflict.theirsContent || '',
         '>>>>>>> THEIRS (Upstream)',
       ].join('\n');
     });
@@ -311,24 +316,16 @@ class SmartMerger {
     return result;
   }
 
-  /**
-   * Check if content is text (heuristic)
-   */
-  isTextFile(content) {
+  isTextFile(content: string | null): boolean {
     if (!content) return true;
 
-    // Check for null bytes (binary indicator)
     if (content.includes('\0')) return false;
 
-    // Check if mostly printable ASCII/UTF-8
     const printableRatio = this.getPrintableRatio(content);
-    return printableRatio > 0.8; // 80% printable = text
+    return printableRatio > 0.8;
   }
 
-  /**
-   * Get ratio of printable characters
-   */
-  getPrintableRatio(content) {
+  getPrintableRatio(content: string): number {
     let printable = 0;
     for (let i = 0; i < Math.min(content.length, 1000); i++) {
       const code = content.charCodeAt(i);
@@ -344,10 +341,7 @@ class SmartMerger {
     return printable / Math.min(content.length, 1000);
   }
 
-  /**
-   * Merge files from filesystem
-   */
-  async mergeFiles(_filePath, versions) {
+  async mergeFiles(_filePath: string, versions: FileVersions): Promise<MergeResult> {
     const baseContent = versions.base
       ? await fs.readFile(versions.base, 'utf8')
       : '';
@@ -366,16 +360,11 @@ class SmartMerger {
   }
 }
 
-/**
- * Merge result type
- * @typedef {Object} MergeResult
- * @property {boolean} success - Whether merge was successful
- * @property {string} merged - Merged content (if successful)
- * @property {Array<Conflict>} conflicts - List of conflicts (if any)
- * @property {string} strategy - Strategy used for merge
- * @property {string} message - Optional message about merge
- */
-
+export {
+  SmartMerger,
+  MergeStrategy,
+  ConflictType,
+};
 module.exports = {
   SmartMerger,
   MergeStrategy,

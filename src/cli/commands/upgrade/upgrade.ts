@@ -1,26 +1,103 @@
-// @ts-nocheck
 /**
  * SC Upgrade Command - Template upgrade system for sc init users
  * Allows users to safely update templates while preserving customizations
  */
 
-const { Command } = require('commander');
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const path = require('node:path');
-const VersionManager = require('../../../upgrade/version-manager');
-const CustomizationDetector = require('../../../upgrade/customization-detector');
-const BackupManager = require('../../../upgrade/backup-manager');
-const TemplateFetcher = require('../../../upgrade/template-fetcher');
-const { SmartMerger, MergeStrategy } = require('../../../upgrade/smart-merger');
+import { Command } from 'commander';
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'node:path';
+import VersionManager from '../../../upgrade/version-manager';
+import CustomizationDetector from '../../../upgrade/customization-detector';
+import BackupManager from '../../../upgrade/backup-manager';
+import TemplateFetcher from '../../../upgrade/template-fetcher';
+import { SmartMerger, MergeStrategy } from '../../../upgrade/smart-merger';
+
+interface UpgradeOptions {
+  component?: string;
+  auto?: boolean;
+  force?: boolean;
+  verbose?: boolean;
+  yes?: boolean;
+}
+
+interface VersionSummary {
+  current: {
+    version: string | null;
+    lastUpgrade?: string;
+    components: Record<string, string>;
+  };
+  latest: {
+    version: string;
+  };
+  upgrade: {
+    hasUpgrade: boolean;
+    type: string;
+  };
+}
+
+interface UpgradeCheck {
+  hasUpgrade: boolean;
+  current: string;
+  latest: string;
+}
+
+interface Customizations {
+  modified: Array<{ path: string }>;
+  userCreated: Array<{ path: string }> | string[];
+  preserved: Array<{ path: string }> | string[];
+  untracked: Array<{ path: string }> | string[];
+}
+
+interface BackupInfo {
+  name: string;
+  created?: string;
+  size?: number;
+}
+
+interface FetchResult {
+  success: boolean;
+  cached?: boolean;
+  path: string;
+}
+
+interface ApplyResult {
+  success: boolean;
+  filesUpdated: number;
+  filesSkipped: number;
+  conflicts: Array<{ file: string; conflicts: unknown[] }>;
+  message: string;
+}
+
+interface RestoreResult {
+  success: boolean;
+  restored: string[];
+  failed: Array<{ path: string; error: string }>;
+  metadata: {
+    scVersion?: string;
+  };
+}
+
+interface LocalMergeResult {
+  success: boolean;
+  merged?: string;
+  conflicts?: Array<{ error: string }>;
+}
+
+interface HistoryEntry {
+  type: string;
+  version: string;
+  timestamp: string;
+}
 
 class UpgradeCommand {
-  backupManager: any;
-  customizationDetector: any;
-  projectRoot: any;
-  scDir: any;
-  templateFetcher: any;
-  versionManager: any;
+  readonly backupManager: BackupManager;
+  readonly customizationDetector: CustomizationDetector;
+  readonly projectRoot: string;
+  readonly scDir: string;
+  readonly templateFetcher: TemplateFetcher;
+  readonly versionManager: VersionManager;
+
   constructor() {
     this.projectRoot = process.cwd();
     this.scDir = path.join(this.projectRoot, '.supernal-coding');
@@ -32,7 +109,7 @@ class UpgradeCommand {
     });
   }
 
-  createCommand() {
+  createCommand(): Command {
     const command = new Command('upgrade');
     command
       .description('Upgrade SC templates and rules to latest version')
@@ -48,13 +125,14 @@ class UpgradeCommand {
       .option('--auto', 'Auto-accept non-conflicting changes')
       .option('--force', 'Force upgrade even with conflicts')
       .option('-v, --verbose', 'Verbose output')
-      .action(async (action, options) => {
+      .action(async (action: string, options: UpgradeOptions) => {
         try {
           await this.execute(action, options);
         } catch (error) {
-          console.error(chalk.red('❌ Upgrade failed:'), error.message);
+          const err = error as Error;
+          console.error(chalk.red('[X] Upgrade failed:'), err.message);
           if (options.verbose) {
-            console.error(error);
+            console.error(err);
           }
           process.exit(1);
         }
@@ -63,10 +141,10 @@ class UpgradeCommand {
     return command;
   }
 
-  async execute(action, options) {
+  async execute(action: string, options: UpgradeOptions): Promise<void> {
     // Ensure SC is initialized
     if (!(await this.isSCInitialized())) {
-      console.error(chalk.red('❌ SC not initialized in this directory'));
+      console.error(chalk.red('[X] SC not initialized in this directory'));
       console.log(chalk.gray('Run "sc init" first'));
       process.exit(1);
     }
@@ -91,21 +169,21 @@ class UpgradeCommand {
         await this.configureUpgrade(options);
         break;
       default:
-        console.error(chalk.red(`❌ Unknown action: ${action}`));
+        console.error(chalk.red(`[X] Unknown action: ${action}`));
         this.showHelp();
         process.exit(1);
     }
   }
 
-  async isSCInitialized() {
+  async isSCInitialized(): Promise<boolean> {
     return await fs.pathExists(this.scDir);
   }
 
-  async checkUpgrade(_options) {
-    console.log(chalk.blue('🔍 Checking for SC updates...'));
+  async checkUpgrade(_options: UpgradeOptions): Promise<void> {
+    console.log(chalk.blue('[i] Checking for SC updates...'));
     console.log(chalk.blue('='.repeat(50)));
 
-    const summary = await this.versionManager.getVersionSummary();
+    const summary: VersionSummary = await this.versionManager.getVersionSummary();
 
     console.log(
       chalk.cyan('Current version:'),
@@ -114,7 +192,7 @@ class UpgradeCommand {
     console.log(chalk.cyan('Latest version:'), summary.latest.version);
 
     if (!summary.upgrade.hasUpgrade) {
-      console.log(chalk.green('\n✅ You are on the latest version'));
+      console.log(chalk.green('\n[OK] You are on the latest version'));
 
       if (summary.current.lastUpgrade) {
         console.log(
@@ -127,7 +205,7 @@ class UpgradeCommand {
     }
 
     console.log(
-      chalk.yellow(`\n📦 New version available: ${summary.latest.version}`)
+      chalk.yellow(`\n[i] New version available: ${summary.latest.version}`)
     );
     console.log(chalk.cyan(`Upgrade type: ${summary.upgrade.type}`));
 
@@ -140,25 +218,25 @@ class UpgradeCommand {
     console.log(chalk.gray('\nRun "sc upgrade preview" to see details'));
   }
 
-  async previewUpgrade(_options) {
-    console.log(chalk.blue('👁️  Previewing upgrade changes...'));
+  async previewUpgrade(_options: UpgradeOptions): Promise<void> {
+    console.log(chalk.blue('[i] Previewing upgrade changes...'));
     console.log(chalk.blue('='.repeat(50)));
 
     // Check for upgrade
-    const upgradeCheck = await this.versionManager.checkUpgrade();
+    const upgradeCheck: UpgradeCheck = await this.versionManager.checkUpgrade();
     if (!upgradeCheck.hasUpgrade) {
-      console.log(chalk.green('✅ Already on latest version'));
+      console.log(chalk.green('[OK] Already on latest version'));
       return;
     }
 
     console.log(
-      chalk.cyan(`Upgrading: ${upgradeCheck.current} → ${upgradeCheck.latest}`)
+      chalk.cyan(`Upgrading: ${upgradeCheck.current} -> ${upgradeCheck.latest}`)
     );
     console.log('');
 
     // Detect customizations
     console.log(chalk.gray('Scanning for customizations...'));
-    const customizations =
+    const customizations: Customizations =
       await this.customizationDetector.detectCustomizations();
 
     console.log('');
@@ -172,7 +250,7 @@ class UpgradeCommand {
       console.log('');
       console.log(chalk.yellow('Modified files that will be preserved:'));
       customizations.modified.slice(0, 10).forEach((mod) => {
-        console.log(chalk.gray(`  • ${mod.path}`));
+        console.log(chalk.gray(`  * ${mod.path}`));
       });
       if (customizations.modified.length > 10) {
         console.log(
@@ -190,43 +268,43 @@ class UpgradeCommand {
     );
   }
 
-  async applyUpgrade(options) {
-    console.log(chalk.blue('🔄 Applying upgrade...'));
+  async applyUpgrade(options: UpgradeOptions): Promise<void> {
+    console.log(chalk.blue('[>] Applying upgrade...'));
     console.log(chalk.blue('='.repeat(50)));
 
     // Check for upgrade
-    const upgradeCheck = await this.versionManager.checkUpgrade();
+    const upgradeCheck: UpgradeCheck = await this.versionManager.checkUpgrade();
     if (!upgradeCheck.hasUpgrade) {
-      console.log(chalk.green('✅ Already on latest version'));
+      console.log(chalk.green('[OK] Already on latest version'));
       return;
     }
 
     console.log(
-      chalk.cyan(`Upgrading: ${upgradeCheck.current} → ${upgradeCheck.latest}`)
+      chalk.cyan(`Upgrading: ${upgradeCheck.current} -> ${upgradeCheck.latest}`)
     );
     console.log('');
 
     // Step 1: Detect customizations
     console.log(chalk.gray('1/5 Detecting customizations...'));
-    const customizations =
+    const customizations: Customizations =
       await this.customizationDetector.detectCustomizations();
     console.log(
       chalk.green(
-        `    ✓ Found ${customizations.modified.length} customized files`
+        `    [OK] Found ${customizations.modified.length} customized files`
       )
     );
 
     // Step 2: Create backup
     console.log(chalk.gray('2/5 Creating backup...'));
-    const backup = await this.backupManager.createBackup(
+    const backup: BackupInfo = await this.backupManager.createBackup(
       `upgrade-${upgradeCheck.latest}`
     );
-    console.log(chalk.green(`    ✓ Backup created: ${backup.name}`));
+    console.log(chalk.green(`    [OK] Backup created: ${backup.name}`));
 
     // Step 3: Fetch latest templates
     console.log(chalk.gray('3/5 Fetching latest templates...'));
-    this.templateFetcher.verbose = options.verbose;
-    const fetchResult = await this.templateFetcher.fetchTemplates(
+    (this.templateFetcher as unknown as { verbose?: boolean }).verbose = options.verbose;
+    const fetchResult: FetchResult = await this.templateFetcher.fetchTemplates(
       upgradeCheck.latest
     );
 
@@ -236,13 +314,13 @@ class UpgradeCommand {
 
     console.log(
       chalk.green(
-        `    ✓ Templates fetched${fetchResult.cached ? ' (cached)' : ''}`
+        `    [OK] Templates fetched${fetchResult.cached ? ' (cached)' : ''}`
       )
     );
 
     // Step 4: Apply upgrades
     console.log(chalk.gray('4/5 Applying upgrades...'));
-    const applyResult = await this.applyTemplateUpgrades(
+    const applyResult: ApplyResult = await this.applyTemplateUpgrades(
       fetchResult.path,
       customizations,
       options
@@ -253,7 +331,7 @@ class UpgradeCommand {
     }
 
     console.log(
-      chalk.green(`    ✓ Applied ${applyResult.filesUpdated} file(s)`)
+      chalk.green(`    [OK] Applied ${applyResult.filesUpdated} file(s)`)
     );
 
     // Step 5: Validate
@@ -263,41 +341,41 @@ class UpgradeCommand {
     if (valid) {
       await this.versionManager.recordUpgrade(upgradeCheck.latest);
       console.log('');
-      console.log(chalk.green('✅ Upgrade completed successfully!'));
+      console.log(chalk.green('[OK] Upgrade completed successfully!'));
       console.log(chalk.gray(`Upgraded to version ${upgradeCheck.latest}`));
       console.log('');
       console.log(chalk.gray('If you encounter issues, rollback with:'));
       console.log(chalk.cyan(`  sc upgrade rollback`));
     } else {
       console.log('');
-      console.log(chalk.red('❌ Validation failed, rolling back...'));
+      console.log(chalk.red('[X] Validation failed, rolling back...'));
       await this.performRollback(backup.name);
     }
   }
 
-  async rollbackUpgrade(options) {
-    console.log(chalk.blue('↩️  Rolling back last upgrade...'));
+  async rollbackUpgrade(options: UpgradeOptions): Promise<void> {
+    console.log(chalk.blue('[<] Rolling back last upgrade...'));
     console.log(chalk.blue('='.repeat(50)));
 
     // Get most recent backup
-    const latest = await this.backupManager.getLatestBackup();
+    const latest: BackupInfo | null = await this.backupManager.getLatestBackup();
 
     if (!latest) {
-      console.log(chalk.yellow('⚠️  No backups found'));
+      console.log(chalk.yellow('[!] No backups found'));
       console.log(chalk.gray('Nothing to rollback'));
       return;
     }
 
     console.log(chalk.cyan(`Found backup: ${latest.name}`));
     console.log(
-      chalk.gray(`Created: ${new Date(latest.created).toLocaleString()}`)
+      chalk.gray(`Created: ${new Date(latest.created!).toLocaleString()}`)
     );
-    console.log(chalk.gray(`Size: ${(latest.size / 1024).toFixed(2)} KB`));
+    console.log(chalk.gray(`Size: ${(latest.size! / 1024).toFixed(2)} KB`));
     console.log('');
 
     // Confirm rollback (unless --yes flag)
     if (!options.yes) {
-      console.log(chalk.yellow('⚠️  Interactive confirmation coming soon'));
+      console.log(chalk.yellow('[!] Interactive confirmation coming soon'));
       console.log(chalk.gray('For now, use: sc upgrade rollback --yes'));
       return;
     }
@@ -305,13 +383,14 @@ class UpgradeCommand {
     await this.performRollback(latest.name);
   }
 
-  async performRollback(backupName) {
+  async performRollback(backupName: string): Promise<void> {
     console.log(chalk.gray('Restoring from backup...'));
 
-    const result = await this.backupManager.restoreBackup(backupName);
+    const result: RestoreResult =
+      await this.backupManager.restoreBackup(backupName);
 
     if (result.success) {
-      console.log(chalk.green(`✅ Rollback successful`));
+      console.log(chalk.green(`[OK] Rollback successful`));
       console.log(chalk.gray(`Restored ${result.restored.length} items`));
 
       // Update version tracking
@@ -321,29 +400,33 @@ class UpgradeCommand {
 
       await this.backupManager.addRestoreToHistory(backupName);
     } else {
-      console.log(chalk.red(`❌ Rollback partially failed`));
+      console.log(chalk.red(`[X] Rollback partially failed`));
       console.log(chalk.gray(`Restored: ${result.restored.length}`));
       console.log(chalk.gray(`Failed: ${result.failed.length}`));
 
       result.failed.forEach((fail) => {
-        console.log(chalk.red(`  • ${fail.path}: ${fail.error}`));
+        console.log(chalk.red(`  * ${fail.path}: ${fail.error}`));
       });
     }
   }
 
-  async applyTemplateUpgrades(templatePath, _customizations, options) {
+  async applyTemplateUpgrades(
+    templatePath: string,
+    _customizations: Customizations,
+    options: UpgradeOptions
+  ): Promise<ApplyResult> {
     const merger = new SmartMerger({
       strategy: options.auto ? MergeStrategy.AUTO : MergeStrategy.MERGE,
       verbose: options.verbose
     });
 
     // Get directories to upgrade
-    const directories =
+    const directories: Record<string, string> =
       await this.templateFetcher.extractDirectories(templatePath);
 
     let filesUpdated = 0;
     let filesSkipped = 0;
-    const conflicts = [];
+    const conflicts: Array<{ file: string; conflicts: unknown[] }> = [];
 
     for (const [dir, sourcePath] of Object.entries(directories)) {
       const targetPath = path.join(this.projectRoot, dir);
@@ -356,9 +439,10 @@ class UpgradeCommand {
       }
 
       // Merge existing directory
-      const files = await this.templateFetcher.getFileList(sourcePath, [
-        `${dir}/**/*`
-      ]);
+      const files: string[] = await this.templateFetcher.getFileList(
+        sourcePath,
+        [`${dir}/**/*`]
+      );
 
       for (const file of files) {
         const relPath = path.relative(sourcePath, file);
@@ -366,12 +450,12 @@ class UpgradeCommand {
         const sourceFile = path.join(sourcePath, file);
 
         // Check if customized
-        const isCustomized =
+        const isCustomized: boolean =
           await this.customizationDetector.isCustomized(targetFile);
 
         if (isCustomized && !options.force) {
           // Need to merge
-          const mergeResult = await this.mergeFile(
+          const mergeResult: LocalMergeResult = await this.mergeFile(
             sourceFile,
             targetFile,
             merger
@@ -380,7 +464,10 @@ class UpgradeCommand {
           if (mergeResult.success) {
             filesUpdated++;
           } else {
-            conflicts.push({ file: relPath, conflicts: mergeResult.conflicts });
+            conflicts.push({
+              file: relPath,
+              conflicts: mergeResult.conflicts || []
+            });
             filesSkipped++;
           }
         } else {
@@ -403,11 +490,16 @@ class UpgradeCommand {
     };
   }
 
-  async mergeFile(sourceFile, targetFile, merger) {
+  async mergeFile(
+    sourceFile: string,
+    targetFile: string,
+    merger: SmartMerger
+  ): Promise<LocalMergeResult> {
     try {
       // Get base version (from tracking)
-      const info =
-        await this.customizationDetector.getCustomizationInfo(targetFile);
+      const info = await this.customizationDetector.getCustomizationInfo(
+        targetFile
+      );
 
       const sourceContent = await fs.readFile(sourceFile, 'utf8');
       const targetContent = await fs.readFile(targetFile, 'utf8');
@@ -417,42 +509,44 @@ class UpgradeCommand {
         base: info.originalHash ? targetContent : '', // Simplified
         ours: targetContent,
         theirs: sourceContent
-      });
+      }) as unknown as LocalMergeResult;
 
       if (mergeResult.success) {
-        await fs.writeFile(targetFile, mergeResult.merged, 'utf8');
+        await fs.writeFile(targetFile, mergeResult.merged!, 'utf8');
       }
 
       return mergeResult;
     } catch (error) {
+      const err = error as Error;
       return {
         success: false,
-        conflicts: [{ error: error.message }]
+        conflicts: [{ error: err.message }]
       };
     }
   }
 
-  async validateInstallation() {
+  async validateInstallation(): Promise<boolean> {
     // Basic validation - check key files exist
     const keyPaths = ['.cursor/rules', 'templates', '.supernal-coding'];
 
     for (const relPath of keyPaths) {
       const fullPath = path.join(this.projectRoot, relPath);
       if (!(await fs.pathExists(fullPath))) {
-        console.error(chalk.red(`✗ Missing: ${relPath}`));
+        console.error(chalk.red(`[X] Missing: ${relPath}`));
         return false;
       }
     }
 
-    console.log(chalk.green('    ✓ Installation valid'));
+    console.log(chalk.green('    [OK] Installation valid'));
     return true;
   }
 
-  async showHistory(_options) {
-    console.log(chalk.blue('📜 Upgrade History'));
+  async showHistory(_options: UpgradeOptions): Promise<void> {
+    console.log(chalk.blue('[i] Upgrade History'));
     console.log(chalk.blue('='.repeat(50)));
 
-    const history = await this.versionManager.getUpgradeHistory();
+    const history: HistoryEntry[] =
+      await this.versionManager.getUpgradeHistory();
 
     if (history.length === 0) {
       console.log(chalk.gray('No upgrade history found'));
@@ -462,7 +556,7 @@ class UpgradeCommand {
 
     console.log('');
     history.forEach((entry, _index) => {
-      const icon = entry.type === 'rollback' ? '↩️ ' : '⬆️ ';
+      const icon = entry.type === 'rollback' ? '[<]' : '[^]';
       const color = entry.type === 'rollback' ? chalk.yellow : chalk.green;
       console.log(color(`${icon} ${entry.version}`));
       console.log(
@@ -473,13 +567,13 @@ class UpgradeCommand {
     });
 
     // Show available backups
-    const backups = await this.backupManager.listBackups();
+    const backups: BackupInfo[] = await this.backupManager.listBackups();
     if (backups.length > 0) {
       console.log(chalk.cyan('Available backups:'));
       backups.slice(0, 5).forEach((backup) => {
         console.log(
           chalk.gray(
-            `  • ${backup.name} (${(backup.size / 1024).toFixed(2)} KB)`
+            `  * ${backup.name} (${(backup.size! / 1024).toFixed(2)} KB)`
           )
         );
       });
@@ -489,8 +583,8 @@ class UpgradeCommand {
     }
   }
 
-  async configureUpgrade(_options) {
-    console.log(chalk.blue('⚙️  Upgrade Configuration'));
+  async configureUpgrade(_options: UpgradeOptions): Promise<void> {
+    console.log(chalk.blue('[>] Upgrade Configuration'));
     console.log(chalk.blue('='.repeat(50)));
 
     // TODO: Implement configuration
@@ -500,11 +594,11 @@ class UpgradeCommand {
     // - Preserve patterns
     // - Component-specific settings
 
-    console.log(chalk.yellow('⚠️  Configuration functionality coming soon'));
+    console.log(chalk.yellow('[!] Configuration functionality coming soon'));
   }
 
-  showHelp() {
-    console.log(chalk.blue.bold('🔄 SC Upgrade Command'));
+  showHelp(): void {
+    console.log(chalk.blue.bold('[>] SC Upgrade Command'));
     console.log(chalk.blue('='.repeat(35)));
     console.log('');
     console.log(
@@ -516,7 +610,7 @@ class UpgradeCommand {
     console.log(chalk.yellow('Available Actions:'));
     console.log('');
 
-    const actions = [
+    const actions: Array<[string, string]> = [
       ['check', 'Check for available updates (default)'],
       ['preview', 'Preview upgrade changes without applying'],
       ['apply', 'Apply upgrade with smart merge'],
@@ -564,10 +658,13 @@ class UpgradeCommand {
 }
 
 // Export the command function
-module.exports = async (action, options) => {
+const upgradeHandler = async (
+  action: string,
+  options: UpgradeOptions
+): Promise<void> => {
   const upgradeCmd = new UpgradeCommand();
   await upgradeCmd.execute(action, options);
 };
 
-// Export class for testing
-module.exports.UpgradeCommand = UpgradeCommand;
+export default upgradeHandler;
+export { UpgradeCommand };

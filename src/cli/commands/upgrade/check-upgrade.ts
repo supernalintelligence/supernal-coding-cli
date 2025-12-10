@@ -1,27 +1,64 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * Upgrade Detection and Recommendation System
  * Checks for newer versions of supernal-code and provides upgrade paths
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
-const chalk = require('chalk');
-const semver = require('semver');
+import fs from 'fs-extra';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
+import semver from 'semver';
+
+interface CheckOptions {
+  force?: boolean;
+  silent?: boolean;
+}
+
+interface UpgradeOptions {
+  dryRun?: boolean;
+  verbose?: boolean;
+}
+
+interface CheckResult {
+  checked: boolean;
+  currentVersion: string;
+  latestVersion?: string;
+  isOutdated?: boolean;
+  isDevelopment?: boolean;
+  installationMethod?: string;
+  upgradeCommand?: string;
+  needsUpgrade?: boolean;
+  reason?: string;
+  error?: string;
+}
+
+interface UpgradeResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  oldVersion?: string;
+  newVersion?: string;
+  command?: string;
+  commands?: string[];
+}
+
+interface CacheData {
+  timestamp: number;
+  checkedAt: string;
+  currentVersion?: string;
+  latestVersion?: string;
+  checked?: boolean;
+}
 
 class UpgradeChecker {
-  _currentVersion: any;
-  _installationMethod: any;
-  checkIntervalHours: any;
-  lastCheckFile: any;
-  packageName: any;
+  private _currentVersion: string | null = null;
+  private _installationMethod: string | null = null;
+  readonly checkIntervalHours: number;
+  readonly lastCheckFile: string;
+  readonly packageName: string;
+
   constructor() {
     this.packageName = 'supernal-coding';
-    this._currentVersion = null; // Lazy load
-    this._installationMethod = null; // Lazy load (cached)
     this.lastCheckFile = path.join(
       process.cwd(),
       '.supernal-coding',
@@ -30,14 +67,14 @@ class UpgradeChecker {
     this.checkIntervalHours = 24; // Check once per day
   }
 
-  get currentVersion() {
+  get currentVersion(): string {
     if (!this._currentVersion) {
       this._currentVersion = this.getCurrentVersion();
     }
     return this._currentVersion;
   }
 
-  getCurrentVersion() {
+  getCurrentVersion(): string {
     try {
       // Path: upgrade/ -> commands/ -> cli/ -> lib/ -> supernal-code-package/
       const packagePath = path.join(__dirname, '../../../../package.json');
@@ -79,7 +116,7 @@ class UpgradeChecker {
     }
   }
 
-  async getLatestVersion() {
+  async getLatestVersion(): Promise<string> {
     try {
       const result = execSync('npm view supernal-coding version', {
         encoding: 'utf8',
@@ -103,7 +140,7 @@ class UpgradeChecker {
     }
   }
 
-  shouldCheckForUpdates() {
+  shouldCheckForUpdates(): boolean {
     try {
       if (!fs.existsSync(this.lastCheckFile)) {
         return true;
@@ -112,7 +149,8 @@ class UpgradeChecker {
       const lastCheck = JSON.parse(fs.readFileSync(this.lastCheckFile, 'utf8'));
       const lastCheckTime = new Date(lastCheck.timestamp);
       const now = new Date();
-      const hoursSinceCheck = (now - lastCheckTime) / (1000 * 60 * 60);
+      const hoursSinceCheck =
+        (now.getTime() - lastCheckTime.getTime()) / (1000 * 60 * 60);
 
       return hoursSinceCheck >= this.checkIntervalHours;
     } catch (_error) {
@@ -120,7 +158,7 @@ class UpgradeChecker {
     }
   }
 
-  async recordCheck(latestVersion) {
+  async recordCheck(latestVersion: string): Promise<void> {
     try {
       await fs.ensureDir(path.dirname(this.lastCheckFile));
       await fs.writeFile(
@@ -141,7 +179,7 @@ class UpgradeChecker {
     }
   }
 
-  getInstallationMethod() {
+  getInstallationMethod(): string {
     // Return cached result if available (avoid repeated slow checks)
     if (this._installationMethod) {
       return this._installationMethod;
@@ -211,7 +249,7 @@ class UpgradeChecker {
     return this._installationMethod;
   }
 
-  getUpgradeCommand() {
+  getUpgradeCommand(): string {
     const method = this.getInstallationMethod();
 
     switch (method) {
@@ -226,7 +264,7 @@ class UpgradeChecker {
     }
   }
 
-  async checkForUpgrade(options = {}) {
+  async checkForUpgrade(options: CheckOptions = {}): Promise<CheckResult> {
     const { force = false, silent = false } = options;
 
     // Skip check if not forced and recently checked
@@ -239,7 +277,7 @@ class UpgradeChecker {
     }
 
     if (!silent) {
-      console.log(chalk.blue('🔍 Checking for supernal-coding updates...'));
+      console.log(chalk.blue('[i] Checking for supernal-coding updates...'));
     }
 
     try {
@@ -257,50 +295,51 @@ class UpgradeChecker {
         checked: true,
         currentVersion: this.currentVersion,
         latestVersion: latestVersion,
-        isOutdated: isOutdated,
+        isOutdated: isOutdated || false,
         isDevelopment: isDev,
         installationMethod: this.getInstallationMethod(),
         upgradeCommand: this.getUpgradeCommand(),
-        needsUpgrade: isOutdated && !isDev
+        needsUpgrade: (isOutdated || false) && !isDev
       };
     } catch (error) {
+      const err = error as Error;
       if (!silent) {
-        console.log(chalk.yellow(`⚠️  ${error.message}`));
+        console.log(chalk.yellow(`[!] ${err.message}`));
       }
       return {
         checked: false,
-        error: error.message,
+        error: err.message,
         currentVersion: this.currentVersion
       };
     }
   }
 
-  displayUpgradeNotification(checkResult) {
+  displayUpgradeNotification(checkResult: CheckResult): void {
     if (!checkResult.checked || !checkResult.needsUpgrade) {
       return;
     }
 
-    console.log(chalk.yellow('\n📦 UPDATE AVAILABLE - Supernal Coding'));
+    console.log(chalk.yellow('\n[i] UPDATE AVAILABLE - Supernal Coding'));
     console.log(chalk.yellow('='.repeat(60)));
     console.log(`Current version: ${chalk.red(checkResult.currentVersion)}`);
     console.log(`Latest version:  ${chalk.green(checkResult.latestVersion)}`);
     console.log('');
-    console.log(chalk.blue('🚀 To upgrade:'));
+    console.log(chalk.blue('[>] To upgrade:'));
     console.log(chalk.cyan(`   ${checkResult.upgradeCommand}`));
     console.log('');
-    console.log(chalk.blue('💡 Or run: sc upgrade'));
+    console.log(chalk.blue('[i] Or run: sc upgrade'));
     console.log('');
     console.log(
-      chalk.gray('💡 To skip these checks: sc <command> --skip-upgrade-check')
+      chalk.gray('[i] To skip these checks: sc <command> --skip-upgrade-check')
     );
     console.log('');
   }
 
-  async performSelfUpgrade(options = {}) {
+  async performSelfUpgrade(options: UpgradeOptions = {}): Promise<UpgradeResult> {
     const { dryRun = false, verbose = true } = options;
 
     if (verbose) {
-      console.log(chalk.blue('🔄 Initiating self-upgrade process...'));
+      console.log(chalk.blue('[>] Initiating self-upgrade process...'));
     }
 
     const checkResult = await this.checkForUpgrade({
@@ -312,10 +351,10 @@ class UpgradeChecker {
       if (verbose) {
         if (checkResult.isDevelopment) {
           console.log(
-            chalk.green('✅ Development mode - use git pull to update')
+            chalk.green('[OK] Development mode - use git pull to update')
           );
         } else {
-          console.log(chalk.green('✅ Already running the latest version'));
+          console.log(chalk.green('[OK] Already running the latest version'));
         }
       }
       return { success: true, message: 'Already up to date' };
@@ -323,7 +362,7 @@ class UpgradeChecker {
 
     if (checkResult.installationMethod === 'development') {
       if (verbose) {
-        console.log(chalk.yellow('⚠️  Development mode detected'));
+        console.log(chalk.yellow('[!] Development mode detected'));
         console.log('To update, run:');
         console.log(chalk.cyan('   git pull origin main'));
         console.log(chalk.cyan('   npm install'));
@@ -351,20 +390,20 @@ class UpgradeChecker {
       if (verbose) {
         console.log(
           chalk.blue(
-            `📦 Upgrading from ${checkResult.currentVersion} to ${checkResult.latestVersion}...`
+            `[i] Upgrading from ${checkResult.currentVersion} to ${checkResult.latestVersion}...`
           )
         );
         console.log(chalk.gray(`Executing: ${checkResult.upgradeCommand}`));
       }
 
-      execSync(checkResult.upgradeCommand, {
+      execSync(checkResult.upgradeCommand!, {
         stdio: verbose ? 'inherit' : 'pipe'
       });
 
       if (verbose) {
-        console.log(chalk.green('✅ Upgrade completed successfully!'));
+        console.log(chalk.green('[OK] Upgrade completed successfully!'));
         console.log(
-          chalk.blue('🔄 Please restart your terminal or run: source ~/.bashrc')
+          chalk.blue('[>] Please restart your terminal or run: source ~/.bashrc')
         );
       }
 
@@ -375,34 +414,34 @@ class UpgradeChecker {
         newVersion: checkResult.latestVersion
       };
     } catch (error) {
+      const err = error as Error;
       if (verbose) {
-        console.log(chalk.red('❌ Upgrade failed:'));
-        console.log(chalk.red(`   ${error.message}`));
+        console.log(chalk.red('[X] Upgrade failed:'));
+        console.log(chalk.red(`   ${err.message}`));
         console.log('');
-        console.log(chalk.blue('💡 Manual upgrade:'));
+        console.log(chalk.blue('[i] Manual upgrade:'));
         console.log(chalk.cyan(`   ${checkResult.upgradeCommand}`));
       }
 
       return {
         success: false,
-        error: error.message,
+        error: err.message,
         command: checkResult.upgradeCommand
-      };
+      } as UpgradeResult;
     }
   }
 
   /**
    * Cache update status for fast subsequent checks
-   * @param {object} status - Update status to cache
    */
-  cacheUpdateStatus(status) {
+  cacheUpdateStatus(status: CacheData): void {
     try {
       const dir = path.dirname(this.lastCheckFile);
       if (!fs.existsSync(dir)) {
         fs.mkdirpSync(dir);
       }
 
-      const cacheData = {
+      const cacheData: CacheData = {
         ...status,
         timestamp: Date.now(),
         checkedAt: new Date().toISOString()
@@ -416,15 +455,16 @@ class UpgradeChecker {
 
   /**
    * Get cached update status (no network call)
-   * @returns {object|null} Cached status or null
    */
-  getCachedUpdateStatus() {
+  getCachedUpdateStatus(): CacheData | null {
     try {
       if (!fs.existsSync(this.lastCheckFile)) {
         return null;
       }
 
-      const cached = JSON.parse(fs.readFileSync(this.lastCheckFile, 'utf8'));
+      const cached = JSON.parse(
+        fs.readFileSync(this.lastCheckFile, 'utf8')
+      ) as CacheData;
 
       // Cache expires after 24 hours
       const age = Date.now() - cached.timestamp;
@@ -442,7 +482,7 @@ class UpgradeChecker {
 }
 
 // CLI Interface
-async function main() {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const checker = new UpgradeChecker();
 
@@ -498,14 +538,15 @@ Options:
         if (result.needsUpgrade) {
           checker.displayUpgradeNotification(result);
         } else if (result.isDevelopment) {
-          console.log(chalk.blue('🔧 Running in development mode'));
+          console.log(chalk.blue('[i] Running in development mode'));
         } else {
-          console.log(chalk.green('✅ Running the latest version'));
+          console.log(chalk.green('[OK] Running the latest version'));
         }
       }
     }
   } catch (error) {
-    console.error(chalk.red(`❌ Error: ${error.message}`));
+    const err = error as Error;
+    console.error(chalk.red(`[X] Error: ${err.message}`));
     process.exit(1);
   }
 }
@@ -514,4 +555,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = UpgradeChecker;
+export default UpgradeChecker;

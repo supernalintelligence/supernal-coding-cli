@@ -1,22 +1,28 @@
-// @ts-nocheck
-const fs = require('node:fs');
-const path = require('node:path');
-const chalk = require('chalk');
-const { execSync } = require('node:child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
+import { execSync } from 'node:child_process';
+
+interface CreateOptions {
+  type?: string;
+  impact?: string;
+  edit?: boolean;
+}
 
 class ChangeManager {
-  changesDir: any;
+  protected changesDir: string;
+
   constructor() {
     this.changesDir = 'docs/changes';
   }
 
-  ensureDir() {
+  ensureDir(): void {
     if (!fs.existsSync(this.changesDir)) {
       fs.mkdirSync(this.changesDir, { recursive: true });
     }
   }
 
-  getNextNumber() {
+  getNextNumber(): number {
     this.ensureDir();
     const files = fs
       .readdirSync(this.changesDir)
@@ -32,11 +38,11 @@ class ChangeManager {
     return Math.max(...numbers) + 1;
   }
 
-  formatNumber(n) {
+  formatNumber(n: number): string {
     return String(n).padStart(6, '0');
   }
 
-  slugify(title) {
+  slugify(title: string): string {
     return title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -44,7 +50,7 @@ class ChangeManager {
       .substring(0, 50);
   }
 
-  create(title, options = {}) {
+  create(title: string, options: CreateOptions = {}): string {
     this.ensureDir();
 
     const num = this.getNextNumber();
@@ -73,7 +79,7 @@ class ChangeManager {
     return filepath;
   }
 
-  generateTemplate(num, title, options) {
+  generateTemplate(num: string, title: string, options: CreateOptions): string {
     const date = new Date().toISOString().split('T')[0];
     const type = options.type || 'general';
     const impact = options.impact || 'medium';
@@ -150,7 +156,7 @@ If issues arise, the change can be reverted by:
 `;
   }
 
-  list() {
+  list(): void {
     this.ensureDir();
     const files = fs
       .readdirSync(this.changesDir)
@@ -182,7 +188,7 @@ If issues arise, the change can be reverted by:
     console.log('─'.repeat(70));
   }
 
-  show(num) {
+  show(num: string): void {
     const paddedNum = this.formatNumber(parseInt(num, 10));
     const files = fs
       .readdirSync(this.changesDir)
@@ -201,4 +207,5 @@ If issues arise, the change can be reverted by:
   }
 }
 
+export default ChangeManager;
 module.exports = ChangeManager;

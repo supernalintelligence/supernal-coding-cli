@@ -1,12 +1,39 @@
-// @ts-nocheck
-const fs = require('node:fs');
-const path = require('node:path');
-const glob = require('glob');
-const chalk = require('chalk');
-const yaml = require('yaml');
+import fs from 'node:fs';
+import path from 'node:path';
+import glob from 'glob';
+import chalk from 'chalk';
+import yaml from 'yaml';
+import { minimatch } from 'minimatch';
+
+interface Frontmatter {
+  status?: string;
+  title?: string;
+  created?: string;
+  updated?: string;
+}
+
+interface ScanResult {
+  path: string;
+  type: string;
+  title: string;
+  status: string;
+  created: string;
+  updated: string;
+}
+
+interface ScanOptions {
+  type?: string;
+  path?: string;
+  count?: boolean;
+  json?: boolean;
+  group?: boolean;
+}
+
+type ChalkColor = (text: string) => string;
 
 class PendingApprovalScanner {
-  searchPaths: any;
+  protected searchPaths: string[];
+
   constructor() {
     this.searchPaths = [
       'docs/**/*.md',
@@ -14,7 +41,7 @@ class PendingApprovalScanner {
     ];
   }
 
-  extractFrontmatter(content) {
+  extractFrontmatter(content: string): Frontmatter | null {
     const match = content.match(/^---\n([\s\S]*?)\n---/);
     if (!match) return null;
     try {
@@ -24,7 +51,7 @@ class PendingApprovalScanner {
     }
   }
 
-  getDocumentType(filePath) {
+  getDocumentType(filePath: string): string {
     if (filePath.includes('/sops/') || filePath.includes('SOP-')) return 'sop';
     if (filePath.includes('/requirements/') || filePath.includes('req-'))
       return 'requirement';
@@ -36,8 +63,8 @@ class PendingApprovalScanner {
     return 'document';
   }
 
-  async scan(options = {}) {
-    const results = [];
+  async scan(options: ScanOptions = {}): Promise<ScanResult[]> {
+    const results: ScanResult[] = [];
 
     for (const pattern of this.searchPaths) {
       const files = glob.sync(pattern, { nodir: true });
@@ -54,10 +81,8 @@ class PendingApprovalScanner {
 
           const docType = this.getDocumentType(file);
 
-          // Apply filters
           if (options.type && docType !== options.type) continue;
           if (options.path) {
-            const { minimatch } = require('minimatch');
             if (!minimatch(file, options.path)) continue;
           }
 
@@ -65,7 +90,7 @@ class PendingApprovalScanner {
             path: file,
             type: docType,
             title: frontmatter.title || path.basename(file, '.md'),
-            status: frontmatter.status,
+            status: frontmatter.status || '',
             created: frontmatter.created || 'unknown',
             updated: frontmatter.updated || frontmatter.created || 'unknown'
           });
@@ -78,7 +103,7 @@ class PendingApprovalScanner {
     return results.sort((a, b) => a.path.localeCompare(b.path));
   }
 
-  async display(options = {}) {
+  async display(options: ScanOptions = {}): Promise<ScanResult[]> {
     const results = await this.scan(options);
 
     if (options.count) {
@@ -105,7 +130,7 @@ class PendingApprovalScanner {
     return results;
   }
 
-  displayTable(results) {
+  displayTable(results: ScanResult[]): void {
     console.log(
       chalk.bold(`\n📋 Documents Pending Approval (${results.length})\n`)
     );
@@ -128,8 +153,8 @@ class PendingApprovalScanner {
     console.log('─'.repeat(90));
   }
 
-  displayGrouped(results) {
-    const grouped = {};
+  displayGrouped(results: ScanResult[]): void {
+    const grouped: Record<string, ScanResult[]> = {};
     for (const doc of results) {
       if (!grouped[doc.type]) grouped[doc.type] = [];
       grouped[doc.type].push(doc);
@@ -148,8 +173,8 @@ class PendingApprovalScanner {
     }
   }
 
-  getTypeColor(type) {
-    const colors = {
+  getTypeColor(type: string): ChalkColor {
+    const colors: Record<string, ChalkColor> = {
       sop: chalk.cyan,
       requirement: chalk.yellow,
       feature: chalk.green,
@@ -161,9 +186,8 @@ class PendingApprovalScanner {
     return colors[type] || chalk.white;
   }
 
-  async getStatusSummary() {
-    const _allDocs = [];
-    const statusCounts = {};
+  async getStatusSummary(): Promise<Record<string, number>> {
+    const statusCounts: Record<string, number> = {};
 
     for (const pattern of this.searchPaths) {
       const files = glob.sync(pattern, { nodir: true });
@@ -186,4 +210,5 @@ class PendingApprovalScanner {
   }
 }
 
+export default PendingApprovalScanner;
 module.exports = PendingApprovalScanner;

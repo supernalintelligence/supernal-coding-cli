@@ -1,38 +1,59 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
-const chalk = require('chalk');
+import chalk from 'chalk';
 const RuleChangeDetector = require('./rule-change-detector');
 const ConsentManager = require('./consent-manager');
 const RuleSubmissionClient = require('./rule-submission-client');
 
-/**
- * Command Interceptor for Rules Reporting
- * REQ-065: Active Rules Reporting System with Automatic PR Submission
- *
- * Intercepts sc commands to check for rule changes and request consent
- * when changes are detected. Supports bypass flags and different consent modes.
- */
+interface InterceptorOptions {
+  projectRoot?: string;
+  bypassFlag?: boolean;
+  commandName?: string;
+  testMode?: boolean;
+  interactive?: boolean;
+}
+
+interface InterceptionResult {
+  shouldProceed: boolean;
+  reason: string;
+  consentResult?: {
+    allowed: boolean;
+  };
+  changes?: RuleChange[];
+}
+
+interface RuleChange {
+  type: string;
+  path: string;
+  [key: string]: unknown;
+}
+
+interface ChangeResult {
+  hasChanges: boolean;
+  changes: RuleChange[];
+}
+
+interface CommandWithOptions {
+  name(): string;
+  args: string[];
+  opts(): { Y?: boolean; 'yes-to-rules'?: boolean };
+  _ruleInterceptionResult?: InterceptionResult;
+}
 
 class CommandInterceptor {
-  bypassFlag: any;
-  commandName: any;
-  interactive: any;
-  projectRoot: any;
-  testMode: any;
-  constructor(options = {}) {
+  protected projectRoot: string;
+  protected bypassFlag: boolean;
+  protected commandName: string;
+  protected testMode: boolean;
+  protected interactive: boolean;
+
+  constructor(options: InterceptorOptions = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.bypassFlag = options.bypassFlag || false;
     this.commandName = options.commandName || 'unknown';
-    this.testMode = options.testMode || false; // Allow testing interception logic
+    this.testMode = options.testMode || false;
     this.interactive = options.interactive !== false;
   }
 
-  /**
-   * Check if command should be intercepted
-   */
-  shouldIntercept(commandName, args = []) {
-    // Don't intercept in test environments unless explicitly testing the logic
+  shouldIntercept(commandName: string, args: string[] = []): boolean {
     if (
       !this.testMode &&
       (process.env.NODE_ENV === 'test' ||
@@ -43,7 +64,6 @@ class CommandInterceptor {
       return false;
     }
 
-    // Don't intercept certain commands to avoid recursion
     const skipCommands = [
       'config',
       'privacy',
@@ -55,12 +75,10 @@ class CommandInterceptor {
       '-v'
     ];
 
-    // Don't intercept if bypass flag is present
     if (args.includes('-Y') || args.includes('--yes-to-rules')) {
       return false;
     }
 
-    // Don't intercept excluded commands
     if (skipCommands.some((cmd) => commandName.includes(cmd))) {
       return false;
     }
@@ -68,12 +86,8 @@ class CommandInterceptor {
     return true;
   }
 
-  /**
-   * Main interception logic
-   */
-  async interceptCommand(commandName, args = []) {
+  async interceptCommand(commandName: string, args: string[] = []): Promise<InterceptionResult> {
     try {
-      // Check if we should intercept this command
       if (!this.shouldIntercept(commandName, args)) {
         return {
           shouldProceed: true,
@@ -81,7 +95,6 @@ class CommandInterceptor {
         };
       }
 
-      // Initialize components
       const detector = new RuleChangeDetector({
         projectRoot: this.projectRoot
       });
@@ -92,23 +105,19 @@ class CommandInterceptor {
         interactive: this.interactive
       });
 
-      // Check for rule changes
-      const changeResult = await detector.checkForChanges();
+      const changeResult: ChangeResult = await detector.checkForChanges();
 
       if (!changeResult.hasChanges) {
         return { shouldProceed: true, reason: 'No rule changes detected' };
       }
 
-      // Display changes to user
       console.log(detector.formatChangesForDisplay(changeResult.changes));
 
-      // Get user consent
       const consentResult = await consentManager.getConsentForRuleSharing(
         changeResult.changes
       );
 
       if (consentResult.allowed) {
-        // Submit rules in background (non-blocking)
         this.submitRulesInBackground(changeResult.changes, consentResult);
 
         console.log(
@@ -133,7 +142,7 @@ class CommandInterceptor {
       };
     } catch (error) {
       console.warn(
-        chalk.yellow(`Warning: Rule change detection failed: ${error.message}`)
+        chalk.yellow(`Warning: Rule change detection failed: ${(error as Error).message}`)
       );
       return {
         shouldProceed: true,
@@ -142,11 +151,7 @@ class CommandInterceptor {
     }
   }
 
-  /**
-   * Submit rules to backend in background (non-blocking)
-   */
-  async submitRulesInBackground(changes, consentResult) {
-    // Don't await this - let it run in background
+  async submitRulesInBackground(changes: RuleChange[], consentResult: { allowed: boolean }): Promise<void> {
     setImmediate(async () => {
       try {
         const submissionClient = new RuleSubmissionClient({
@@ -159,28 +164,23 @@ class CommandInterceptor {
           command_context: this.commandName
         });
 
-        // Log success quietly (don't interrupt user)
         if (process.env.SC_DEBUG) {
           console.log(
             chalk.dim('✅ Rules submitted successfully in background')
           );
         }
       } catch (error) {
-        // Log error quietly (don't interrupt user)
         if (process.env.SC_DEBUG) {
           console.log(
-            chalk.dim(`❌ Background rule submission failed: ${error.message}`)
+            chalk.dim(`❌ Background rule submission failed: ${(error as Error).message}`)
           );
         }
       }
     });
   }
 
-  /**
-   * Create interceptor middleware for commander.js
-   */
-  static createMiddleware(options = {}) {
-    return async (command) => {
+  static createMiddleware(options: InterceptorOptions = {}): (command: CommandWithOptions) => Promise<boolean> {
+    return async (command: CommandWithOptions) => {
       const interceptor = new CommandInterceptor({
         ...options,
         commandName: command.name(),
@@ -192,18 +192,13 @@ class CommandInterceptor {
         command.args
       );
 
-      // Store result in command for potential use by the actual command
       command._ruleInterceptionResult = result;
 
       return result.shouldProceed;
     };
   }
 
-  /**
-   * Add bypass flag to commander program
-   */
-  static addBypassFlag(program) {
-    // Add global -Y flag to all commands
+  static addBypassFlag(program: { option: (flag: string, description: string) => unknown }): typeof program {
     program.option(
       '-Y, --yes-to-rules',
       'Skip rule sharing prompts (bypass consent)'
@@ -212,13 +207,12 @@ class CommandInterceptor {
     return program;
   }
 
-  /**
-   * Wrap command action to include interception
-   */
-  static wrapCommandAction(originalAction, options = {}) {
-    return async function (...args) {
-      // Extract command object (usually the last argument in commander.js)
-      const command = args[args.length - 1];
+  static wrapCommandAction<T extends (...args: unknown[]) => Promise<unknown>>(
+    originalAction: T,
+    options: InterceptorOptions = {}
+  ): (...args: unknown[]) => Promise<unknown> {
+    return async function (this: unknown, ...args: unknown[]) {
+      const command = args[args.length - 1] as CommandWithOptions;
 
       const interceptor = new CommandInterceptor({
         ...options,
@@ -226,14 +220,12 @@ class CommandInterceptor {
         bypassFlag: command.opts().Y || command.opts()['yes-to-rules'] || false
       });
 
-      // Intercept before running original command
       const result = await interceptor.interceptCommand(
         command.name(),
         command.args
       );
 
       if (result.shouldProceed) {
-        // Run original command
         return await originalAction.apply(this, args);
       } else {
         console.log(
@@ -245,4 +237,5 @@ class CommandInterceptor {
   }
 }
 
+export default CommandInterceptor;
 module.exports = CommandInterceptor;

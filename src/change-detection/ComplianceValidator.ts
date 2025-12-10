@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ComplianceValidator - Validates security/compliance configurations
  *
@@ -13,13 +12,68 @@
  *   const { compliant, violations, proof } = await validator.validate();
  */
 
-const { FileChangeDetector } = require('./FileChangeDetector');
-const fs = require('fs-extra');
-const path = require('node:path');
-const os = require('node:os');
+import { FileChangeDetector } from './FileChangeDetector';
+import fs from 'fs-extra';
+import path from 'node:path';
+import os from 'node:os';
+import { glob } from 'glob';
 
-// Compliance rules - what we're validating
-const COMPLIANCE_RULES = {
+interface GitignoreRule {
+  name: string;
+  description: string;
+  requiredPatterns: string[];
+}
+
+interface CredentialStorageRule {
+  name: string;
+  description: string;
+  expectedLocations: string[];
+  forbiddenLocations: string[];
+}
+
+interface PermissionModesRule {
+  name: string;
+  description: string;
+  files: Record<string, number>;
+}
+
+interface ComplianceRules {
+  gitignore: GitignoreRule;
+  credentialStorage: CredentialStorageRule;
+  permissionModes: PermissionModesRule;
+}
+
+interface Violation {
+  rule: string;
+  type: string;
+  message: string;
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  remediation?: string;
+  missingPatterns?: string[];
+  path?: string;
+  files?: string[];
+  actualMode?: string;
+  expectedMode?: string;
+}
+
+interface Warning {
+  rule: string;
+  message: string;
+  severity: 'info' | 'warning';
+}
+
+interface PassedCheck {
+  rule: string;
+  message: string;
+}
+
+interface ComplianceValidatorOptions {
+  projectRoot?: string;
+  stateFile?: string;
+  rules?: ComplianceRules;
+}
+
+const COMPLIANCE_RULES: ComplianceRules = {
   gitignore: {
     name: 'Gitignore Security Patterns',
     description: 'Ensures sensitive files are gitignored',
@@ -44,9 +98,9 @@ const COMPLIANCE_RULES = {
       '~/.supernal/keys/'
     ],
     forbiddenLocations: [
-      './', // Project root
+      './',
       './credentials/',
-      './.supernal/credentials/' // Should NOT be in project
+      './.supernal/credentials/'
     ]
   },
   permissionModes: {
@@ -60,11 +114,12 @@ const COMPLIANCE_RULES = {
 };
 
 class ComplianceValidator extends FileChangeDetector {
-  passed: any;
-  rules: any;
-  violations: any;
-  warnings: any;
-  constructor(options = {}) {
+  protected passed: PassedCheck[];
+  protected rules: ComplianceRules;
+  protected violations: Violation[];
+  protected warnings: Warning[];
+
+  constructor(options: ComplianceValidatorOptions = {}) {
     super({
       ...options,
       name: 'ComplianceValidator',
@@ -82,22 +137,23 @@ class ComplianceValidator extends FileChangeDetector {
     this.passed = [];
   }
 
-  /**
-   * Main validation entry point
-   * @returns {Promise<Object>} Validation result with proof
-   */
-  async validate() {
+  async validate(): Promise<{
+    compliant: boolean;
+    violations: Violation[];
+    warnings: Warning[];
+    passed: PassedCheck[];
+    proof: any;
+    timestamp: string;
+  }> {
     this.violations = [];
     this.warnings = [];
     this.passed = [];
 
-    // Run all validation checks
     await this.validateGitignore();
     await this.validateCredentialStorage();
     await this.validatePermissions();
     await this.validateEncryption();
 
-    // Generate proof document
     const proof = await this.generateComplianceProof();
 
     return {
@@ -110,10 +166,7 @@ class ComplianceValidator extends FileChangeDetector {
     };
   }
 
-  /**
-   * Validate .gitignore contains required security patterns
-   */
-  async validateGitignore() {
+  async validateGitignore(): Promise<void> {
     const gitignorePath = path.join(this.projectRoot, '.gitignore');
     const ruleName = this.rules.gitignore.name;
 
@@ -131,16 +184,12 @@ class ComplianceValidator extends FileChangeDetector {
     const content = await fs.readFile(gitignorePath, 'utf8');
     const lines = content.split('\n').map((l) => l.trim());
 
-    const missingPatterns = [];
+    const missingPatterns: string[] = [];
     for (const pattern of this.rules.gitignore.requiredPatterns) {
-      // Check if pattern or a more general version exists
       const found = lines.some((line) => {
         if (line.startsWith('#')) return false;
-        // Exact match
         if (line === pattern) return true;
-        // Pattern contains the required pattern
         if (line.includes(pattern)) return true;
-        // Wildcard match (e.g., *.env matches .env)
         if (pattern.includes('*')) {
           const regex = new RegExp(
             '^' + pattern.replace(/\*/g, '.*').replace(/\./g, '\\.') + '$'
@@ -172,17 +221,12 @@ class ComplianceValidator extends FileChangeDetector {
     }
   }
 
-  /**
-   * Validate credential storage is in secure locations
-   */
-  async validateCredentialStorage() {
+  async validateCredentialStorage(): Promise<void> {
     const ruleName = this.rules.credentialStorage.name;
     const homeDir = os.homedir();
 
-    // Check that global credential directory exists (or is expected)
     const globalCredPath = path.join(homeDir, '.supernal', 'credentials');
 
-    // Check for forbidden credential locations in project
     const forbiddenPaths = [
       path.join(this.projectRoot, 'credentials'),
       path.join(this.projectRoot, '.credentials'),
@@ -202,10 +246,8 @@ class ComplianceValidator extends FileChangeDetector {
       }
     }
 
-    // Check for credential files in project root
     const credentialPatterns = ['*.credentials.json', '*.credentials.enc', '*-service-account.json'];
     for (const pattern of credentialPatterns) {
-      const { glob } = require('glob');
       const matches = await glob(pattern, {
         cwd: this.projectRoot,
         ignore: ['**/node_modules/**']
@@ -231,14 +273,10 @@ class ComplianceValidator extends FileChangeDetector {
     }
   }
 
-  /**
-   * Validate file permissions on sensitive files
-   */
-  async validatePermissions() {
+  async validatePermissions(): Promise<void> {
     const ruleName = this.rules.permissionModes.name;
     const homeDir = os.homedir();
 
-    // Only check on Unix-like systems
     if (process.platform === 'win32') {
       this.warnings.push({
         rule: ruleName,
@@ -265,7 +303,7 @@ class ComplianceValidator extends FileChangeDetector {
       if (await fs.pathExists(filePath)) {
         try {
           const stats = await fs.stat(filePath);
-          const actualMode = stats.mode & 0o777; // Get permission bits only
+          const actualMode = stats.mode & 0o777;
 
           if (actualMode !== expectedMode) {
             this.violations.push({
@@ -279,7 +317,7 @@ class ComplianceValidator extends FileChangeDetector {
               remediation: `Run: chmod ${expectedMode.toString(8)} "${filePath}"`
             });
           }
-        } catch (error) {
+        } catch (_error) {
           // Can't check permissions - might be okay
         }
       }
@@ -293,19 +331,14 @@ class ComplianceValidator extends FileChangeDetector {
     }
   }
 
-  /**
-   * Validate encryption settings
-   */
-  async validateEncryption() {
+  async validateEncryption(): Promise<void> {
     const ruleName = 'Encryption Configuration';
     const homeDir = os.homedir();
 
-    // Check if encryption key exists (if credentials exist)
     const keyPath = path.join(homeDir, '.supernal', 'keys', 'credential-key');
     const credPath = path.join(homeDir, '.supernal', 'credentials');
 
     if (await fs.pathExists(credPath)) {
-      // Credentials exist, key should exist
       if (!(await fs.pathExists(keyPath))) {
         this.violations.push({
           rule: ruleName,
@@ -315,7 +348,6 @@ class ComplianceValidator extends FileChangeDetector {
           remediation: 'Run: sc credentials setup-encryption'
         });
       } else {
-        // Check key file is not empty
         const keyStats = await fs.stat(keyPath);
         if (keyStats.size < 32) {
           this.violations.push({
@@ -333,7 +365,6 @@ class ComplianceValidator extends FileChangeDetector {
         }
       }
     } else {
-      // No credentials yet - that's fine
       this.passed.push({
         rule: ruleName,
         message: 'No credentials configured (encryption not yet needed)'
@@ -341,11 +372,7 @@ class ComplianceValidator extends FileChangeDetector {
     }
   }
 
-  /**
-   * Generate compliance proof document
-   * @returns {Object} Proof document
-   */
-  async generateComplianceProof() {
+  async generateComplianceProof(): Promise<any> {
     const fileProof = await this.generateProofDocument();
 
     return {
@@ -365,7 +392,6 @@ class ComplianceValidator extends FileChangeDetector {
         name: this.rules[key].name,
         description: this.rules[key].description
       })),
-      // Hash of the validation result for verification
       validationHash: this.hashContent(
         JSON.stringify({
           violations: this.violations,
@@ -376,11 +402,7 @@ class ComplianceValidator extends FileChangeDetector {
     };
   }
 
-  /**
-   * Generate human-readable report
-   * @returns {string} Markdown report
-   */
-  generateReport() {
+  generateReport(): string {
     const lines = [
       '# Compliance Validation Report',
       '',
@@ -433,5 +455,5 @@ class ComplianceValidator extends FileChangeDetector {
   }
 }
 
+export default ComplianceValidator;
 module.exports = ComplianceValidator;
-

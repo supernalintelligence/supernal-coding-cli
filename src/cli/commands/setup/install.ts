@@ -1,29 +1,22 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+import chalk from 'chalk';
 
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
-
-// Colors for output
-const colors = {
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  purple: '\x1b[35m',
-  cyan: '\x1b[36m',
-  bold: '\x1b[1m',
-  reset: '\x1b[0m'
-};
+interface InstallOptions {
+  mode?: 'copy' | 'link';
+  components?: string;
+  force?: boolean;
+}
 
 class InstallManager {
-  devScriptsDir: any;
-  docsScriptsDir: any;
-  gitHooksScriptsDir: any;
-  kanbanScriptsDir: any;
-  sourceRoot: any;
-  templatesDir: any;
+  sourceRoot: string;
+  kanbanScriptsDir: string;
+  docsScriptsDir: string;
+  gitHooksScriptsDir: string;
+  devScriptsDir: string;
+  templatesDir: string;
+
   constructor() {
     this.sourceRoot = path.join(__dirname, '..', '..');
     this.kanbanScriptsDir = path.join(__dirname, 'kanban-scripts');
@@ -33,21 +26,21 @@ class InstallManager {
     this.templatesDir = path.join(this.sourceRoot, 'templates');
   }
 
-  async install(targetPath, options = {}) {
+  async install(targetPath: string, options: InstallOptions = {}): Promise<void> {
     const { mode = 'copy', components = 'all', force = false } = options;
 
     console.log(
-      `${colors.blue}🏗️  Installing Supernal Coding system...${colors.reset}`
+      chalk.blue('[INSTALL] Installing Supernal Coding system...')
     );
-    console.log(`${colors.cyan}Target: ${targetPath}${colors.reset}`);
-    console.log(`${colors.cyan}Mode: ${mode}${colors.reset}`);
-    console.log(`${colors.cyan}Components: ${components}${colors.reset}`);
+    console.log(chalk.cyan(`Target: ${targetPath}`));
+    console.log(chalk.cyan(`Mode: ${mode}`));
+    console.log(chalk.cyan(`Components: ${components}`));
     console.log('');
 
     // Validate target path
     if (!fs.existsSync(targetPath)) {
       console.error(
-        `${colors.red}❌ Target directory does not exist: ${targetPath}${colors.reset}`
+        chalk.red(`[ERROR] Target directory does not exist: ${targetPath}`)
       );
       process.exit(1);
     }
@@ -78,9 +71,9 @@ class InstallManager {
       await this.setupPackageJson(targetAbsolute);
 
       console.log('');
-      console.log(`${colors.green}✅ Installation complete!${colors.reset}`);
+      console.log(chalk.green('[OK] Installation complete!'));
       console.log('');
-      console.log(`${colors.bold}Next steps:${colors.reset}`);
+      console.log(chalk.bold('Next steps:'));
       console.log(`  cd ${targetAbsolute}`);
       console.log(`  npm install                     # Install dependencies`);
       console.log(
@@ -88,17 +81,18 @@ class InstallManager {
       );
       console.log(`  sc kanban list   # Test kanban system`);
     } catch (error) {
+      const err = error as Error;
       console.error(
-        `${colors.red}❌ Installation failed:${colors.reset}`,
-        error.message
+        chalk.red('[ERROR] Installation failed:'),
+        err.message
       );
       process.exit(1);
     }
   }
 
-  async installComponent(component, targetPath, mode, force) {
+  async installComponent(component: string, targetPath: string, mode: string, force: boolean): Promise<void> {
     console.log(
-      `${colors.blue}📦 Installing ${component} component...${colors.reset}`
+      chalk.blue(`[PACKAGE] Installing ${component} component...`)
     );
 
     switch (component) {
@@ -122,12 +116,12 @@ class InstallManager {
         break;
       default:
         console.warn(
-          `${colors.yellow}⚠️  Unknown component: ${component}${colors.reset}`
+          chalk.yellow(`[WARN] Unknown component: ${component}`)
         );
     }
   }
 
-  async installKanban(targetPath, mode, force) {
+  async installKanban(targetPath: string, mode: string, force: boolean): Promise<void> {
     const targetCliDir = path.join(targetPath, 'cli', 'commands');
     const targetKanbanDir = path.join(targetCliDir, 'kanban-scripts');
 
@@ -138,40 +132,40 @@ class InstallManager {
     if (mode === 'link') {
       if (fs.existsSync(targetKanbanDir) && !force) {
         console.log(
-          `${colors.yellow}  Kanban scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Kanban scripts already exist, skipping...')
         );
         return;
       }
       if (fs.existsSync(targetKanbanDir))
         fs.rmSync(targetKanbanDir, { recursive: true });
       fs.symlinkSync(this.kanbanScriptsDir, targetKanbanDir);
-      console.log(`${colors.green}  ✅ Linked kanban scripts${colors.reset}`);
+      console.log(chalk.green('  [OK] Linked kanban scripts'));
     } else {
       if (fs.existsSync(targetKanbanDir) && !force) {
         console.log(
-          `${colors.yellow}  Kanban scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Kanban scripts already exist, skipping...')
         );
         return;
       }
       this.copyDirectory(this.kanbanScriptsDir, targetKanbanDir);
-      console.log(`${colors.green}  ✅ Copied kanban scripts${colors.reset}`);
+      console.log(chalk.green('  [OK] Copied kanban scripts'));
     }
 
     // Copy kanban.js wrapper
     const sourceKanbanJs = path.join(__dirname, 'kanban.js');
     const targetKanbanJs = path.join(targetCliDir, 'kanban.js');
     fs.copyFileSync(sourceKanbanJs, targetKanbanJs);
-    console.log(`${colors.green}  ✅ Installed kanban wrapper${colors.reset}`);
+    console.log(chalk.green('  [OK] Installed kanban wrapper'));
 
     // Create kanban directory structure
     const docsKanbanDir = path.join(targetPath, 'docs', 'kanban');
     this.createKanbanStructure(docsKanbanDir);
     console.log(
-      `${colors.green}  ✅ Created kanban directory structure${colors.reset}`
+      chalk.green('  [OK] Created kanban directory structure')
     );
   }
 
-  async installDocs(targetPath, mode, force) {
+  async installDocs(targetPath: string, mode: string, force: boolean): Promise<void> {
     const targetCliDir = path.join(targetPath, 'cli', 'commands');
     const targetDocsDir = path.join(targetCliDir, 'docs-scripts');
 
@@ -182,33 +176,33 @@ class InstallManager {
     if (mode === 'link') {
       if (fs.existsSync(targetDocsDir) && !force) {
         console.log(
-          `${colors.yellow}  Docs scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Docs scripts already exist, skipping...')
         );
         return;
       }
       if (fs.existsSync(targetDocsDir))
         fs.rmSync(targetDocsDir, { recursive: true });
       fs.symlinkSync(this.docsScriptsDir, targetDocsDir);
-      console.log(`${colors.green}  ✅ Linked docs scripts${colors.reset}`);
+      console.log(chalk.green('  [OK] Linked docs scripts'));
     } else {
       if (fs.existsSync(targetDocsDir) && !force) {
         console.log(
-          `${colors.yellow}  Docs scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Docs scripts already exist, skipping...')
         );
         return;
       }
       this.copyDirectory(this.docsScriptsDir, targetDocsDir);
-      console.log(`${colors.green}  ✅ Copied docs scripts${colors.reset}`);
+      console.log(chalk.green('  [OK] Copied docs scripts'));
     }
 
     // Copy docs.js wrapper
     const sourceDocsJs = path.join(__dirname, 'docs.js');
     const targetDocsJs = path.join(targetCliDir, 'docs.js');
     fs.copyFileSync(sourceDocsJs, targetDocsJs);
-    console.log(`${colors.green}  ✅ Installed docs wrapper${colors.reset}`);
+    console.log(chalk.green('  [OK] Installed docs wrapper'));
   }
 
-  async installValidation(targetPath, _mode, force) {
+  async installValidation(targetPath: string, _mode: string, force: boolean): Promise<void> {
     const targetCliDir = path.join(targetPath, 'cli', 'commands');
 
     // Copy validation commands
@@ -220,50 +214,50 @@ class InstallManager {
     ];
     for (const command of validationCommands) {
       const sourcePath = path.join(__dirname, command);
-      const targetPath = path.join(targetCliDir, command);
+      const destPath = path.join(targetCliDir, command);
 
       if (fs.existsSync(sourcePath)) {
-        if (!fs.existsSync(targetPath) || force) {
-          fs.copyFileSync(sourcePath, targetPath);
+        if (!fs.existsSync(destPath) || force) {
+          fs.copyFileSync(sourcePath, destPath);
           console.log(
-            `${colors.green}  ✅ Installed ${command}${colors.reset}`
+            chalk.green(`  [OK] Installed ${command}`)
           );
         } else {
           console.log(
-            `${colors.yellow}  ${command} already exists, skipping...${colors.reset}`
+            chalk.yellow(`  ${command} already exists, skipping...`)
           );
         }
       }
     }
   }
 
-  async installTemplates(targetPath, mode, force) {
+  async installTemplates(targetPath: string, mode: string, force: boolean): Promise<void> {
     const targetTemplatesDir = path.join(targetPath, 'templates');
 
     if (mode === 'link') {
       if (fs.existsSync(targetTemplatesDir) && !force) {
         console.log(
-          `${colors.yellow}  Templates already exist, skipping...${colors.reset}`
+          chalk.yellow('  Templates already exist, skipping...')
         );
         return;
       }
       if (fs.existsSync(targetTemplatesDir))
         fs.rmSync(targetTemplatesDir, { recursive: true });
       fs.symlinkSync(this.templatesDir, targetTemplatesDir);
-      console.log(`${colors.green}  ✅ Linked templates${colors.reset}`);
+      console.log(chalk.green('  [OK] Linked templates'));
     } else {
       if (fs.existsSync(targetTemplatesDir) && !force) {
         console.log(
-          `${colors.yellow}  Templates already exist, skipping...${colors.reset}`
+          chalk.yellow('  Templates already exist, skipping...')
         );
         return;
       }
       this.copyDirectory(this.templatesDir, targetTemplatesDir);
-      console.log(`${colors.green}  ✅ Copied templates${colors.reset}`);
+      console.log(chalk.green('  [OK] Copied templates'));
     }
   }
 
-  async installGitHooks(targetPath, mode, force) {
+  async installGitHooks(targetPath: string, mode: string, force: boolean): Promise<void> {
     const targetCliDir = path.join(targetPath, 'cli', 'commands');
     const targetGitHooksDir = path.join(targetCliDir, 'git-hooks-scripts');
     const targetGitHooksWrapper = path.join(targetCliDir, 'git-hooks.js');
@@ -275,7 +269,7 @@ class InstallManager {
     if (mode === 'link') {
       if (fs.existsSync(targetGitHooksDir) && !force) {
         console.log(
-          `${colors.yellow}  Git hooks scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Git hooks scripts already exist, skipping...')
         );
         return;
       }
@@ -283,18 +277,18 @@ class InstallManager {
         fs.rmSync(targetGitHooksDir, { recursive: true });
       fs.symlinkSync(this.gitHooksScriptsDir, targetGitHooksDir);
       console.log(
-        `${colors.green}  ✅ Linked git hooks scripts${colors.reset}`
+        chalk.green('  [OK] Linked git hooks scripts')
       );
     } else {
       if (fs.existsSync(targetGitHooksDir) && !force) {
         console.log(
-          `${colors.yellow}  Git hooks scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Git hooks scripts already exist, skipping...')
         );
         return;
       }
       this.copyDirectory(this.gitHooksScriptsDir, targetGitHooksDir);
       console.log(
-        `${colors.green}  ✅ Copied git hooks scripts${colors.reset}`
+        chalk.green('  [OK] Copied git hooks scripts')
       );
     }
 
@@ -303,18 +297,18 @@ class InstallManager {
     if (fs.existsSync(sourceGitHooksWrapper)) {
       if (fs.existsSync(targetGitHooksWrapper) && !force) {
         console.log(
-          `${colors.yellow}  Git hooks wrapper already exists, skipping...${colors.reset}`
+          chalk.yellow('  Git hooks wrapper already exists, skipping...')
         );
       } else {
         fs.copyFileSync(sourceGitHooksWrapper, targetGitHooksWrapper);
         console.log(
-          `${colors.green}  ✅ Copied git hooks wrapper${colors.reset}`
+          chalk.green('  [OK] Copied git hooks wrapper')
         );
       }
     }
   }
 
-  async installDevTools(targetPath, mode, force) {
+  async installDevTools(targetPath: string, mode: string, force: boolean): Promise<void> {
     const targetCliDir = path.join(targetPath, 'cli', 'commands');
     const targetDevScriptsDir = path.join(targetCliDir, 'dev-scripts');
     const targetDevWrapper = path.join(targetCliDir, 'dev.js');
@@ -326,23 +320,23 @@ class InstallManager {
     if (mode === 'link') {
       if (fs.existsSync(targetDevScriptsDir) && !force) {
         console.log(
-          `${colors.yellow}  Dev scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Dev scripts already exist, skipping...')
         );
         return;
       }
       if (fs.existsSync(targetDevScriptsDir))
         fs.rmSync(targetDevScriptsDir, { recursive: true });
       fs.symlinkSync(this.devScriptsDir, targetDevScriptsDir);
-      console.log(`${colors.green}  ✅ Linked dev scripts${colors.reset}`);
+      console.log(chalk.green('  [OK] Linked dev scripts'));
     } else {
       if (fs.existsSync(targetDevScriptsDir) && !force) {
         console.log(
-          `${colors.yellow}  Dev scripts already exist, skipping...${colors.reset}`
+          chalk.yellow('  Dev scripts already exist, skipping...')
         );
         return;
       }
       this.copyDirectory(this.devScriptsDir, targetDevScriptsDir);
-      console.log(`${colors.green}  ✅ Copied dev scripts${colors.reset}`);
+      console.log(chalk.green('  [OK] Copied dev scripts'));
     }
 
     // Copy dev tools wrapper
@@ -350,16 +344,16 @@ class InstallManager {
     if (fs.existsSync(sourceDevWrapper)) {
       if (fs.existsSync(targetDevWrapper) && !force) {
         console.log(
-          `${colors.yellow}  Dev wrapper already exists, skipping...${colors.reset}`
+          chalk.yellow('  Dev wrapper already exists, skipping...')
         );
       } else {
         fs.copyFileSync(sourceDevWrapper, targetDevWrapper);
-        console.log(`${colors.green}  ✅ Copied dev wrapper${colors.reset}`);
+        console.log(chalk.green('  [OK] Copied dev wrapper'));
       }
     }
   }
 
-  async createMainCLI(targetPath, _components, _mode) {
+  async createMainCLI(targetPath: string, _components: string[], _mode: string): Promise<void> {
     const targetCliDir = path.join(targetPath, 'cli');
     const targetIndexJs = path.join(targetCliDir, 'index.js');
 
@@ -372,15 +366,15 @@ class InstallManager {
     // Make it executable
     fs.chmodSync(targetIndexJs, '755');
 
-    console.log(`${colors.green}  ✅ Installed main CLI${colors.reset}`);
+    console.log(chalk.green('  [OK] Installed main CLI'));
   }
 
-  async setupPackageJson(targetPath) {
+  async setupPackageJson(targetPath: string): Promise<void> {
     const packageJsonPath = path.join(targetPath, 'package.json');
 
     if (fs.existsSync(packageJsonPath)) {
       console.log(
-        `${colors.yellow}  package.json already exists, skipping...${colors.reset}`
+        chalk.yellow('  package.json already exists, skipping...')
       );
       return;
     }
@@ -405,10 +399,10 @@ class InstallManager {
     };
 
     fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
-    console.log(`${colors.green}  ✅ Created package.json${colors.reset}`);
+    console.log(chalk.green('  [OK] Created package.json'));
   }
 
-  createKanbanStructure(kanbanDir) {
+  createKanbanStructure(kanbanDir: string): void {
     const dirs = [
       'BRAINSTORM',
       'PLANNING',
@@ -448,7 +442,7 @@ See \`sc kanban --help\` for full documentation.
     fs.writeFileSync(readmePath, readmeContent);
   }
 
-  copyDirectory(src, dest) {
+  copyDirectory(src: string, dest: string): void {
     if (fs.existsSync(dest)) {
       fs.rmSync(dest, { recursive: true });
     }
@@ -469,18 +463,18 @@ See \`sc kanban --help\` for full documentation.
 }
 
 // CLI Interface
-async function main(targetPath, options) {
+async function main(targetPath: string, options: InstallOptions): Promise<void> {
   const installer = new InstallManager();
   await installer.install(targetPath, options);
 }
 
 if (require.main === module) {
   const targetPath = process.argv[2];
-  const options = {};
+  const options: InstallOptions = {};
 
   if (!targetPath) {
     console.error(
-      `${colors.red}❌ Usage: sc install <target-path> [options]${colors.reset}`
+      chalk.red('[ERROR] Usage: sc install <target-path> [options]')
     );
     process.exit(1);
   }
@@ -491,7 +485,7 @@ if (require.main === module) {
     if (arg === '--force') {
       options.force = true;
     } else if (arg.startsWith('--mode=')) {
-      options.mode = arg.split('=')[1];
+      options.mode = arg.split('=')[1] as 'copy' | 'link';
     } else if (arg.startsWith('--components=')) {
       options.components = arg.split('=')[1];
     }
@@ -499,5 +493,7 @@ if (require.main === module) {
 
   main(targetPath, options);
 }
+
+export { InstallManager, main };
 
 module.exports = main;

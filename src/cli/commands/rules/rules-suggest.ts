@@ -1,33 +1,58 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
-const chalk = require('chalk');
-const _fs = require('fs-extra');
-const path = require('node:path');
+import chalk from 'chalk';
+import path from 'node:path';
 const RuleChangeDetector = require('./rule-change-detector');
-const _ConsentManager = require('./consent-manager');
 const RuleSubmissionClient = require('./rule-submission-client');
 const { getConfig } = require('../../../scripts/config-loader');
 
-/**
- * sc rules suggest - Suggest local rule changes to upstream repository
- *
- * Creates GitHub issues or PRs with sanitized rule content for community review.
- */
+interface RulesConfig {
+  rules?: {
+    reporting?: {
+      enabled?: boolean;
+      submission_mode?: string;
+      github_repo?: string;
+    };
+  };
+}
+
+interface RuleChange {
+  type: 'added' | 'modified' | 'deleted';
+  path: string;
+  timestamp: string;
+  content?: string;
+  file?: { content?: string };
+}
+
+interface SuggestOptions {
+  rule?: string;
+  all?: boolean;
+}
+
+interface ConstructorOptions {
+  projectRoot?: string;
+  verbose?: boolean;
+  dryRun?: boolean;
+}
+
+interface HandleOptions {
+  verbose?: boolean;
+  dryRun?: boolean;
+  all?: boolean;
+}
 
 class RulesSuggest {
-  config: any;
-  dryRun: any;
-  projectRoot: any;
-  verbose: any;
-  constructor(options = {}) {
+  protected projectRoot: string;
+  protected verbose: boolean;
+  protected dryRun: boolean;
+  protected config: RulesConfig | null;
+
+  constructor(options: ConstructorOptions = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;
     this.dryRun = options.dryRun || false;
     this.config = null;
   }
 
-  async loadConfig() {
+  async loadConfig(): Promise<void> {
     try {
       const configLoader = getConfig(this.projectRoot);
       configLoader.load();
@@ -45,10 +70,7 @@ class RulesSuggest {
     }
   }
 
-  /**
-   * Generate GitHub issue URL for rule suggestion
-   */
-  generateGitHubIssueUrl(changes, summary) {
+  generateGitHubIssueUrl(changes: RuleChange[], summary: string): string {
     const repo =
       this.config?.rules?.reporting?.github_repo ||
       'supernalintelligence/supernal-coding';
@@ -64,9 +86,7 @@ ${summary}
 
 ${changes
   .map(
-    (
-      c
-    ) => `#### ${c.type === 'added' ? '➕' : c.type === 'modified' ? '✏️' : '🗑️'} \`${c.path}\`
+    (c) => `#### ${c.type === 'added' ? '➕' : c.type === 'modified' ? '✏️' : '🗑️'} \`${c.path}\`
 - **Type**: ${c.type}
 - **Timestamp**: ${c.timestamp}
 ${
@@ -102,10 +122,7 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
     return `https://github.com/${repo}/issues/new?title=${encodedTitle}&body=${encodedBody}&labels=${labels}`;
   }
 
-  /**
-   * Main suggest flow
-   */
-  async suggest(options = {}) {
+  async suggest(options: SuggestOptions = {}): Promise<void> {
     await this.loadConfig();
 
     const detector = new RuleChangeDetector({ projectRoot: this.projectRoot });
@@ -113,7 +130,6 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
       projectRoot: this.projectRoot
     });
 
-    // Check if rules reporting is enabled
     if (!this.config?.rules?.reporting?.enabled) {
       console.log(
         chalk.yellow('⚠️  Rules reporting is disabled in supernal.yaml')
@@ -124,7 +140,6 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
       return;
     }
 
-    // Detect changes
     console.log(chalk.blue('🔍 Checking for rule changes...'));
     const result = await detector.checkForChanges();
 
@@ -134,7 +149,6 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
       return;
     }
 
-    // Display changes
     console.log(
       chalk.cyan(`\n📋 Found ${result.changes.length} rule change(s):\n`)
     );
@@ -151,13 +165,12 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
       console.log(color(`   ${icon} ${change.type.padEnd(10)} ${change.path}`));
     }
 
-    // Filter to specific rule if provided
-    let changesToSubmit = result.changes;
+    let changesToSubmit: RuleChange[] = result.changes;
     if (options.rule) {
       changesToSubmit = result.changes.filter(
-        (c) =>
-          c.path.includes(options.rule) ||
-          path.basename(c.path).includes(options.rule)
+        (c: RuleChange) =>
+          c.path.includes(options.rule!) ||
+          path.basename(c.path).includes(options.rule!)
       );
       if (changesToSubmit.length === 0) {
         console.log(
@@ -167,18 +180,16 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
       }
     }
 
-    // Dry run - just show what would be submitted
     if (this.dryRun) {
       console.log(chalk.yellow('\n🔍 Dry run - no submission will be made'));
       console.log(chalk.gray('   Remove --dry-run to actually submit'));
       return;
     }
 
-    // Sanitize content
     console.log(chalk.gray('\n🔒 Sanitizing content for privacy...'));
     const sanitizedChanges = await Promise.all(
       changesToSubmit.map(async (change) => {
-        const sanitized = { ...change };
+        const sanitized: RuleChange = { ...change };
         if (change.file?.content) {
           sanitized.content = submissionClient.sanitizeRuleContent(
             change.file.content,
@@ -189,10 +200,8 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
       })
     );
 
-    // Generate summary
     const summary = `Suggesting ${sanitizedChanges.length} rule update(s) from local development.`;
 
-    // Determine submission mode
     const mode =
       this.config?.rules?.reporting?.submission_mode || 'github_issue';
 
@@ -205,7 +214,6 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
       console.log(chalk.gray('\n💡 The URL contains your rule suggestions'));
       console.log(chalk.gray('   Review the pre-filled content and submit'));
     } else if (mode === 'github_pr') {
-      // Future: Use gh CLI to create PR
       console.log(
         chalk.yellow('⚠️  GitHub PR mode requires gh CLI authentication')
       );
@@ -220,10 +228,7 @@ ${c.content.slice(0, 2000)}${c.content.length > 2000 ? '\n...(truncated)' : ''}
   }
 }
 
-/**
- * CLI handler for `sc rules suggest`
- */
-async function handleRulesSuggest(args, options) {
+async function handleRulesSuggest(args: string[], options: HandleOptions): Promise<void> {
   const suggest = new RulesSuggest({
     projectRoot: process.cwd(),
     verbose: options.verbose,
@@ -231,10 +236,15 @@ async function handleRulesSuggest(args, options) {
   });
 
   await suggest.suggest({
-    rule: args[0], // Optional specific rule name
+    rule: args[0],
     all: options.all
   });
 }
+
+export {
+  RulesSuggest,
+  handleRulesSuggest
+};
 
 module.exports = {
   RulesSuggest,

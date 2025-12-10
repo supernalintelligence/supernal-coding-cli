@@ -1,33 +1,23 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
-// setup-git-protection.js - Setup enhanced git workflow protection
-// Installs git aliases and hooks for comprehensive workflow safety
-
-const { execSync } = require('node:child_process');
-const fs = require('node:fs');
-const path = require('node:path');
-const chalk = require('chalk');
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
 
 class GitProtectionSetup {
-  projectRoot: any;
-  wrapperPath: any;
+  protected projectRoot: string;
+  protected wrapperPath: string;
+
   constructor() {
     this.projectRoot = process.cwd();
     this.wrapperPath = path.join(__dirname, 'safe-git-wrapper.js');
   }
 
-  /**
-   * Install git aliases for protected commands
-   */
-  async installGitAliases() {
+  async installGitAliases(): Promise<void> {
     try {
       console.log(chalk.blue('🔧 Setting up git command protection...'));
 
-      // Create a safe-git command that wraps git add
       const aliasCommand = `node "${this.wrapperPath}"`;
 
-      // Set git alias for intercepting git add
       execSync(`git config alias.sadd '!${aliasCommand} add'`, {
         cwd: this.projectRoot
       });
@@ -40,7 +30,6 @@ class GitProtectionSetup {
         `   ${chalk.cyan('git add --force <files>')} # Bypass protection (emergency only)`
       );
 
-      // Suggest shell alias for convenience
       console.log(
         chalk.yellow('\n💡 Optional: Add shell alias for convenience:')
       );
@@ -50,21 +39,17 @@ class GitProtectionSetup {
     } catch (error) {
       console.error(
         chalk.red('❌ Failed to install git aliases:'),
-        error.message
+        (error as Error).message
       );
       throw error;
     }
   }
 
-  /**
-   * Install enhanced pre-commit hook
-   */
-  async installEnhancedPreCommitHook() {
+  async installEnhancedPreCommitHook(): Promise<void> {
     try {
       const hooksDir = path.join(this.projectRoot, '.git', 'hooks');
       const preCommitPath = path.join(hooksDir, 'pre-commit');
 
-      // Check if using Husky
       const huskyDir = path.join(this.projectRoot, '.husky');
       const huskyPreCommit = path.join(huskyDir, '_', 'pre-commit');
 
@@ -82,13 +67,11 @@ fi
 `;
 
       if (fs.existsSync(huskyDir)) {
-        // Using Husky - update the husky pre-commit hook
         console.log(chalk.blue('📝 Updating Husky pre-commit hook...'));
         fs.writeFileSync(huskyPreCommit, hookContent);
         fs.chmodSync(huskyPreCommit, '755');
         console.log(chalk.green('✅ Enhanced Husky pre-commit hook installed'));
       } else {
-        // Standard git hooks
         console.log(chalk.blue('📝 Installing enhanced pre-commit hook...'));
         fs.writeFileSync(preCommitPath, hookContent);
         fs.chmodSync(preCommitPath, '755');
@@ -97,16 +80,13 @@ fi
     } catch (error) {
       console.error(
         chalk.red('❌ Failed to install pre-commit hook:'),
-        error.message
+        (error as Error).message
       );
       throw error;
     }
   }
 
-  /**
-   * Show usage instructions
-   */
-  showUsageInstructions() {
+  showUsageInstructions(): void {
     console.log(chalk.blue.bold('\n🚀 Git Protection Setup Complete!'));
     console.log(chalk.blue('='.repeat(50)));
     console.log('');
@@ -151,15 +131,11 @@ fi
     console.log('   • Use with extreme caution!');
   }
 
-  /**
-   * Check current protection status
-   */
-  checkProtectionStatus() {
+  checkProtectionStatus(): void {
     console.log(chalk.blue('🔍 Git Protection Status:'));
     console.log(chalk.blue('='.repeat(30)));
 
     try {
-      // Check git aliases
       const saddAlias = execSync('git config --get alias.sadd', {
         encoding: 'utf8'
       }).trim();
@@ -168,7 +144,6 @@ fi
       console.log(chalk.red('❌ git sadd alias: Not installed'));
     }
 
-    // Check hooks
     const hooksDir = path.join(this.projectRoot, '.git', 'hooks');
     const huskyDir = path.join(this.projectRoot, '.husky');
 
@@ -183,14 +158,10 @@ fi
     console.log('');
   }
 
-  /**
-   * Uninstall protection (for emergencies)
-   */
-  async uninstallProtection() {
+  async uninstallProtection(): Promise<void> {
     try {
       console.log(chalk.yellow('⚠️  Removing git protection...'));
 
-      // Remove git aliases
       try {
         execSync('git config --unset alias.sadd', { cwd: this.projectRoot });
         console.log(chalk.yellow('🗑️  Removed git sadd alias'));
@@ -202,16 +173,13 @@ fi
     } catch (error) {
       console.error(
         chalk.red('❌ Failed to uninstall protection:'),
-        error.message
+        (error as Error).message
       );
       throw error;
     }
   }
 
-  /**
-   * Main execution
-   */
-  async execute(action = 'install') {
+  async execute(action: string = 'install'): Promise<void> {
     try {
       switch (action) {
         case 'install':
@@ -238,23 +206,22 @@ fi
     } catch (error) {
       console.error(
         chalk.red('❌ Git protection setup failed:'),
-        error.message
+        (error as Error).message
       );
       process.exit(1);
     }
   }
 }
 
-// CLI interface
-async function main() {
+async function main(): Promise<void> {
   const action = process.argv[2] || 'install';
   const setup = new GitProtectionSetup();
   await setup.execute(action);
 }
 
-// Execute if called directly
 if (require.main === module) {
   main();
 }
 
+export { GitProtectionSetup };
 module.exports = { GitProtectionSetup };

@@ -1,29 +1,138 @@
-// @ts-nocheck
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const path = require('node:path');
-const yaml = require('js-yaml');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'node:path';
+import yaml from 'js-yaml';
 
-/**
- * Create supernal.yaml configuration file
- * @param {string} gitRoot - Git repository root
- * @param {Object} resolvedPaths - Resolved paths configuration
- * @param {Object} structure - Repository structure analysis
- * @param {Object} gitInfo - Git repository information
- * @param {Object} activeFeatures - Active features configuration
- */
+interface ResolvedPaths {
+  docs?: string;
+  requirements?: string;
+}
+
+interface GitHooksConfig {
+  enabled: boolean;
+  hooks_dir: string;
+  pre_commit: {
+    enabled: boolean;
+    checks: {
+      wip_registry_check: {
+        enabled: boolean;
+        block_on_untracked: boolean;
+        threshold: number;
+        allow_bypass: boolean;
+      };
+      lint: {
+        enabled: boolean;
+        allow_bypass: boolean;
+      };
+      type_check: {
+        enabled: boolean;
+        allow_bypass: boolean;
+      };
+    };
+  };
+  pre_push: {
+    enabled: boolean;
+    checks: {
+      requirement_validation: {
+        enabled: boolean;
+        allow_bypass: boolean;
+      };
+      test_suite: {
+        enabled: boolean;
+        skip_env: string;
+      };
+      branch_protection: {
+        enabled: boolean;
+        protected_branches: string[];
+        skip_env: string;
+      };
+    };
+  };
+  bypass_variables: {
+    wip_registry: string;
+    lint: string;
+    type_check: string;
+    all_hooks: string;
+  };
+}
+
+interface SupernalConfig {
+  project: {
+    name: string;
+    description: string;
+    version: string;
+  };
+  docs: {
+    root: string;
+    features: string;
+    requirements: string;
+    architecture: string;
+    planning: string;
+    guides: string;
+    compliance: string;
+    handoffs: string;
+  };
+  git: {
+    signing: {
+      enabled: boolean;
+      agent_commits: {
+        sign: boolean;
+        key_source: string;
+      };
+      human_commits: {
+        require_signature: boolean;
+      };
+      agent_registry: string;
+    };
+  };
+  requirements: {
+    path: string;
+    format: string;
+    id_prefix: string;
+    categories: string[];
+  };
+  features: {
+    path: string;
+    domains: string[];
+  };
+  compliance: {
+    enabled: boolean;
+    framework: string | null;
+    evidence_path: string;
+  };
+  cli: {
+    verbose: boolean;
+    colors: boolean;
+    confirmDestructive: boolean;
+  };
+  testing: {
+    framework: string;
+    coverageThreshold: number;
+    testPaths: string[];
+  };
+  git_hooks?: GitHooksConfig;
+  monitor: {
+    enabled: boolean;
+    repos: Array<{ path: string }>;
+    pollInterval: number;
+  };
+}
+
+interface ActiveFeatures {
+  gitManagement?: boolean;
+}
+
 async function createEnhancedYAMLConfig(
-  gitRoot,
-  resolvedPaths,
-  _structure,
-  _gitInfo,
-  activeFeatures = {}
-) {
+  gitRoot: string,
+  resolvedPaths: ResolvedPaths,
+  _structure: unknown,
+  _gitInfo: unknown,
+  activeFeatures: ActiveFeatures = {}
+): Promise<void> {
   console.log(chalk.blue('📝 Creating supernal.yaml configuration...'));
 
   const configPath = path.join(gitRoot, 'supernal.yaml');
 
-  // Check if config already exists
   if (await fs.pathExists(configPath)) {
     console.log(chalk.gray('  ✓ supernal.yaml already exists, skipping'));
     return;
@@ -32,16 +141,13 @@ async function createEnhancedYAMLConfig(
   const projectName = path.basename(gitRoot);
   const docsRoot = resolvedPaths.docs || 'docs';
 
-  // Create comprehensive YAML config matching template structure
-  const config = {
-    // Project metadata
+  const config: SupernalConfig = {
     project: {
       name: projectName,
       description: 'Project managed with Supernal Coding',
       version: '1.0.0'
     },
 
-    // Documentation paths (all relative to project root)
     docs: {
       root: docsRoot,
       features: `${docsRoot}/features`,
@@ -53,34 +159,27 @@ async function createEnhancedYAMLConfig(
       handoffs: `${docsRoot}/handoffs`
     },
 
-    // Git configuration
     git: {
-      // Agent commit signing - distinguish AI agent commits from human commits
-      // When enabled:
-      //   - Human commits: Use user's GPG key (if configured)
-      //   - SC commits: Explicitly unsigned + [SC] prefix in message
       signing: {
-        enabled: false, // Set true to enable SC signing behavior
+        enabled: false,
         agent_commits: {
-          sign: false, // false = unsigned (recommended), true = use agent GPG key
-          key_source: 'registry' // 'registry' or 'environment' (SC_AGENT_GPG_KEY)
+          sign: false,
+          key_source: 'registry'
         },
         human_commits: {
-          require_signature: false // If true, SC tools warn on unsigned human commits
+          require_signature: false
         },
         agent_registry: '.supernal/config/agents.yaml'
       }
     },
 
-    // Requirements configuration
     requirements: {
       path: resolvedPaths.requirements || `${docsRoot}/requirements`,
-      format: 'gherkin', // 'gherkin' or 'markdown'
+      format: 'gherkin',
       id_prefix: 'REQ',
       categories: ['core', 'infrastructure', 'workflow', 'compliance']
     },
 
-    // Features configuration
     features: {
       path: `${docsRoot}/features`,
       domains: [
@@ -92,29 +191,31 @@ async function createEnhancedYAMLConfig(
       ]
     },
 
-    // Compliance (optional)
     compliance: {
       enabled: false,
-      framework: null, // 'hipaa', 'soc2', 'iso27001', or custom
+      framework: null,
       evidence_path: `${docsRoot}/compliance/evidence`
     },
 
-    // CLI behavior
     cli: {
       verbose: false,
       colors: true,
       confirmDestructive: true
     },
 
-    // Testing configuration
     testing: {
-      framework: 'jest', // 'jest', 'vitest', 'mocha'
+      framework: 'jest',
       coverageThreshold: 80,
       testPaths: ['tests', '__tests__']
+    },
+
+    monitor: {
+      enabled: false,
+      repos: [{ path: '.' }],
+      pollInterval: 60000
     }
   };
 
-  // Add git hooks configuration if git management is enabled
   if (activeFeatures.gitManagement) {
     config.git_hooks = {
       enabled: true,
@@ -165,13 +266,6 @@ async function createEnhancedYAMLConfig(
     };
   }
 
-  // Monitor section (optional, disabled by default)
-  config.monitor = {
-    enabled: false,
-    repos: [{ path: '.' }],
-    pollInterval: 60000
-  };
-
   await fs.writeFile(configPath, yaml.dump(config, { indent: 2 }), 'utf8');
   console.log(chalk.green('  ✓ Created supernal.yaml'));
 
@@ -181,6 +275,7 @@ async function createEnhancedYAMLConfig(
   console.log(chalk.gray('    • Git signing configuration included (disabled by default)'));
 }
 
+export { createEnhancedYAMLConfig as createEnhancedTOMLConfig };
 module.exports = {
   createEnhancedTOMLConfig: createEnhancedYAMLConfig
 };

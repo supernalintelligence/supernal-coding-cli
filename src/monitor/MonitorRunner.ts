@@ -1,7 +1,36 @@
-// @ts-nocheck
-const fs = require('fs-extra');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
+import fs from 'fs-extra';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+
+interface MonitorConfig {
+  monitor?: {
+    pollInterval?: number;
+    repos?: Array<{ path: string }>;
+    watch?: Array<{
+      type: string;
+      action: string;
+    }>;
+  };
+}
+
+interface Watcher {
+  repo: { path: string };
+  repoPath: string;
+  lastHead: string | null;
+  type: 'git';
+  close?: () => void;
+}
+
+interface ActionContext {
+  repo?: { path: string };
+  commit?: string;
+}
+
+interface ActionResult {
+  success: boolean;
+  output?: string;
+  error?: string;
+}
 
 /**
  * MonitorRunner
@@ -13,24 +42,23 @@ const { execSync } = require('node:child_process');
  * - Trigger configured actions
  */
 class MonitorRunner {
-  config: any;
-  pollInterval: any;
-  pollTimer: any;
-  projectRoot: any;
-  running: any;
-  watchers: any;
-  constructor(projectRoot, config) {
+  protected config: MonitorConfig;
+  protected pollInterval: number;
+  protected pollTimer: ReturnType<typeof setInterval> | null;
+  protected projectRoot: string;
+  protected running: boolean;
+  protected watchers: Watcher[];
+
+  constructor(projectRoot: string, config: MonitorConfig) {
     this.projectRoot = projectRoot;
     this.config = config;
     this.running = false;
     this.watchers = [];
-    this.pollInterval = config.monitor?.pollInterval || 60000; // 1 minute default
+    this.pollInterval = config.monitor?.pollInterval || 60000;
+    this.pollTimer = null;
   }
 
-  /**
-   * Start monitoring
-   */
-  async start() {
+  async start(): Promise<void> {
     if (this.running) {
       throw new Error('Runner already started');
     }
@@ -38,37 +66,32 @@ class MonitorRunner {
     this.running = true;
     this.log('Monitor started');
 
-    // Initialize watchers for each repo
-    for (const repo of this.config.monitor.repos) {
+    for (const repo of this.config.monitor?.repos || []) {
       await this.initRepoWatcher(repo);
     }
 
-    // Start polling loop
     this.startPolling();
   }
 
-  /**
-   * Stop monitoring
-   */
-  async stop() {
+  async stop(): Promise<void> {
     this.running = false;
     this.log('Monitor stopping...');
 
-    // Stop all watchers
     for (const watcher of this.watchers) {
       if (watcher.close) {
         watcher.close();
       }
     }
 
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+
     this.log('Monitor stopped');
   }
 
-  /**
-   * Initialize repo watcher
-   * @param {object} repo - { path }
-   */
-  async initRepoWatcher(repo) {
+  async initRepoWatcher(repo: { path: string }): Promise<void> {
     const repoPath = path.resolve(this.projectRoot, repo.path);
     const gitDir = path.join(repoPath, '.git');
 
@@ -79,7 +102,6 @@ class MonitorRunner {
 
     this.log(`Watching repo: ${repo.path}`);
 
-    // Store last known HEAD
     const lastHead = await this.getGitHead(repoPath);
     
     this.watchers.push({
@@ -90,59 +112,41 @@ class MonitorRunner {
     });
   }
 
-  /**
-   * Get current git HEAD
-   * @param {string} repoPath
-   * @returns {Promise<string>}
-   */
-  async getGitHead(repoPath) {
+  async getGitHead(repoPath: string): Promise<string | null> {
     try {
       return execSync('git rev-parse HEAD', { cwd: repoPath, encoding: 'utf-8' }).trim();
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
 
-  /**
-   * Start polling loop
-   */
-  startPolling() {
+  startPolling(): void {
     this.pollTimer = setInterval(async () => {
       if (!this.running) return;
 
       try {
         await this.checkForChanges();
       } catch (error) {
-        this.log(`Error in poll cycle: ${error.message}`);
+        this.log(`Error in poll cycle: ${(error as Error).message}`);
       }
     }, this.pollInterval);
   }
 
-  /**
-   * Check for changes in all watched repos
-   */
-  async checkForChanges() {
+  async checkForChanges(): Promise<void> {
     this.log('Checking for changes...');
 
-    // Check git repos for new commits
     for (const watcher of this.watchers.filter(w => w.type === 'git')) {
       await this.checkGitChanges(watcher);
     }
 
-    // Poll GitHub for issue responses
     if (this.config.monitor?.watch?.some(w => w.type === 'issue-response')) {
       await this.pollGitHubIssues();
     }
 
-    // Update stats files
     await this.updateStatsFiles();
   }
 
-  /**
-   * Check for git changes in repo
-   * @param {object} watcher
-   */
-  async checkGitChanges(watcher) {
+  async checkGitChanges(watcher: Watcher): Promise<void> {
     const currentHead = await this.getGitHead(watcher.repoPath);
 
     if (!currentHead) {
@@ -153,7 +157,6 @@ class MonitorRunner {
       this.log(`New commit detected in ${watcher.repo.path}`);
       watcher.lastHead = currentHead;
 
-      // Trigger push actions
       await this.triggerActions('push', {
         repo: watcher.repo,
         commit: currentHead
@@ -161,15 +164,11 @@ class MonitorRunner {
     }
   }
 
-  /**
-   * Poll GitHub for issue responses
-   */
-  async pollGitHubIssues() {
+  async pollGitHubIssues(): Promise<void> {
     try {
       const GitHubSync = require('../cli/commands/git/github-sync');
       const sync = new GitHubSync({ verbose: false });
 
-      // Sync issues to local tracking file
       await sync.syncIssues({
         state: 'open',
         labels: 'agent-request',
@@ -178,40 +177,29 @@ class MonitorRunner {
 
       this.log('GitHub issues synced');
 
-      // Trigger issue-response actions if new responses detected
       await this.triggerActions('issue-response', {});
     } catch (error) {
-      this.log(`Error polling GitHub: ${error.message}`);
+      this.log(`Error polling GitHub: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Update stats files
-   */
-  async updateStatsFiles() {
+  async updateStatsFiles(): Promise<void> {
     const supernalDir = path.join(this.projectRoot, '.supernal-coding');
     await fs.ensureDir(supernalDir);
 
-    // Update health-cache.json
     await this.updateHealthCache(supernalDir);
 
-    // Update ci-status.json (if configured)
     if (this.config.monitor?.watch?.some(w => w.type === 'ci-status')) {
       await this.updateCIStatus(supernalDir);
     }
 
-    // Update issue-tracker.json
     await this.updateIssueTracker(supernalDir);
   }
 
-  /**
-   * Update health cache
-   * @param {string} supernalDir
-   */
-  async updateHealthCache(supernalDir) {
+  async updateHealthCache(supernalDir: string): Promise<void> {
     const healthPath = path.join(supernalDir, 'health-cache.json');
     
-    const health = {
+    const health: Record<string, any> = {
       timestamp: new Date().toISOString(),
       monitor: {
         running: true,
@@ -220,7 +208,6 @@ class MonitorRunner {
       }
     };
 
-    // Merge with existing health data if present
     if (fs.existsSync(healthPath)) {
       const existing = await fs.readJson(healthPath);
       Object.assign(health, existing, { monitor: health.monitor });
@@ -229,15 +216,8 @@ class MonitorRunner {
     await fs.writeJson(healthPath, health, { spaces: 2 });
   }
 
-  /**
-   * Update CI status
-   * @param {string} supernalDir
-   */
-  async updateCIStatus(supernalDir) {
-    const ciPath = path.join(supernalDir, 'ci-status.json');
-    
+  async updateCIStatus(_supernalDir: string): Promise<void> {
     try {
-      // Use github-sync to get CI status
       const GitHubSync = require('../cli/commands/git/github-sync');
       const sync = new GitHubSync({ verbose: false });
       
@@ -245,20 +225,14 @@ class MonitorRunner {
       
       this.log('CI status updated');
     } catch (error) {
-      this.log(`Error updating CI status: ${error.message}`);
+      this.log(`Error updating CI status: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Update issue tracker
-   * @param {string} supernalDir
-   */
-  async updateIssueTracker(supernalDir) {
+  async updateIssueTracker(supernalDir: string): Promise<void> {
     const trackerPath = path.join(supernalDir, 'issue-tracker.json');
     
-    // Issue tracker is updated by GitHub sync
-    // Just record that we checked
-    const tracker = {
+    const tracker: Record<string, any> = {
       lastCheck: new Date().toISOString(),
       source: 'monitor-daemon'
     };
@@ -271,12 +245,7 @@ class MonitorRunner {
     await fs.writeJson(trackerPath, tracker, { spaces: 2 });
   }
 
-  /**
-   * Trigger configured actions for event type
-   * @param {string} type - Event type (push, issue-response, ci-failure)
-   * @param {object} context - Event context
-   */
-  async triggerActions(type, context) {
+  async triggerActions(type: string, context: ActionContext): Promise<void> {
     const actions = (this.config.monitor?.watch || [])
       .filter(w => w.type === type)
       .map(w => w.action);
@@ -285,27 +254,20 @@ class MonitorRunner {
       try {
         await this.executeAction(action, context);
       } catch (error) {
-        this.log(`Error executing action ${action}: ${error.message}`);
+        this.log(`Error executing action ${action}: ${(error as Error).message}`);
       }
     }
   }
 
-  /**
-   * Execute a configured action
-   * @param {string} action - Action name
-   * @param {object} context - Event context
-   */
-  async executeAction(action, context) {
+  async executeAction(action: string, context: ActionContext): Promise<ActionResult | void> {
     this.log(`Executing action: ${action}`);
 
     switch (action) {
       case 'run-tests':
-        await this.runTests(context);
-        break;
+        return await this.runTests(context);
 
       case 'validate':
-        await this.runValidation(context);
-        break;
+        return await this.runValidation(context);
 
       case 'notify':
         await this.sendNotification(context);
@@ -316,11 +278,7 @@ class MonitorRunner {
     }
   }
 
-  /**
-   * Run tests
-   * @param {object} context
-   */
-  async runTests(context) {
+  async runTests(context: ActionContext): Promise<ActionResult> {
     try {
       const result = execSync('npm test', {
         cwd: context.repo?.path ? path.resolve(this.projectRoot, context.repo.path) : this.projectRoot,
@@ -330,16 +288,12 @@ class MonitorRunner {
       this.log('Tests passed');
       return { success: true, output: result };
     } catch (error) {
-      this.log(`Tests failed: ${error.message}`);
-      return { success: false, error: error.message };
+      this.log(`Tests failed: ${(error as Error).message}`);
+      return { success: false, error: (error as Error).message };
     }
   }
 
-  /**
-   * Run validation
-   * @param {object} context
-   */
-  async runValidation(context) {
+  async runValidation(_context: ActionContext): Promise<ActionResult> {
     try {
       const result = execSync('npx sc validate', {
         cwd: this.projectRoot,
@@ -349,38 +303,27 @@ class MonitorRunner {
       this.log('Validation passed');
       return { success: true, output: result };
     } catch (error) {
-      this.log(`Validation failed: ${error.message}`);
-      return { success: false, error: error.message };
+      this.log(`Validation failed: ${(error as Error).message}`);
+      return { success: false, error: (error as Error).message };
     }
   }
 
-  /**
-   * Send notification
-   * @param {object} context
-   */
-  async sendNotification(context) {
-    // For now, just log
-    // Future: integrate with notification systems (Slack, email, etc.)
+  async sendNotification(context: ActionContext): Promise<void> {
     this.log(`Notification: ${JSON.stringify(context)}`);
   }
 
-  /**
-   * Log message
-   * @param {string} message
-   */
-  log(message) {
+  log(message: string): void {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] ${message}\n`;
 
-    // Write to log file
     const logFile = path.join(this.projectRoot, '.supernal', 'monitor.log');
     fs.appendFileSync(logFile, logMessage);
 
-    // Also console log if not daemonized
     if (process.stdout.isTTY) {
       console.log(logMessage.trim());
     }
   }
 }
 
+export default MonitorRunner;
 module.exports = MonitorRunner;

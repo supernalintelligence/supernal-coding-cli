@@ -1,6 +1,3 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * SC Dev Fix Declarations Command
  * Moved from scripts/utilities/fix-case-declarations.js for self-contained package architecture
@@ -8,30 +5,47 @@
  * Fixes JavaScript case declarations by adding block scopes where needed
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
-const chalk = require('chalk');
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
+
+interface FixerOptions {
+  verbose?: boolean;
+  dryRun?: boolean;
+}
+
+interface MainOptions {
+  target: string;
+  verbose: boolean;
+  dryRun: boolean;
+  file: string | null;
+}
+
+interface MainResult {
+  success: boolean;
+}
 
 class CaseDeclarationFixer {
-  dryRun: any;
-  verbose: any;
-  constructor(options = {}) {
+  readonly dryRun: boolean;
+  readonly verbose: boolean;
+
+  constructor(options: FixerOptions = {}) {
     this.verbose = options.verbose || false;
     this.dryRun = options.dryRun || false;
   }
 
-  fixCaseDeclarations(filePath) {
+  fixCaseDeclarations(filePath: string): boolean {
     if (this.verbose) {
       console.log(
         chalk.blue(
-          `🔧 ${this.dryRun ? '[DRY RUN] ' : ''}Fixing case declarations in ${filePath}`
+          `[>] ${this.dryRun ? '[DRY RUN] ' : ''}Fixing case declarations in ${filePath}`
         )
       );
     }
 
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split('\n');
-    const result = [];
+    const result: string[] = [];
     let modified = false;
 
     for (let i = 0; i < lines.length; i++) {
@@ -45,7 +59,8 @@ class CaseDeclarationFixer {
         // Look ahead to see if next non-empty line has a variable declaration
         let j = i + 1;
         let hasDeclaration = false;
-        const caseIndent = line.match(/^(\s*)/)[1];
+        const caseIndentMatch = line.match(/^(\s*)/);
+        const caseIndent = caseIndentMatch ? caseIndentMatch[1] : '';
 
         // Skip empty lines
         while (j < lines.length && lines[j].trim() === '') {
@@ -114,7 +129,7 @@ class CaseDeclarationFixer {
       if (this.verbose) {
         console.log(
           chalk.green(
-            `✅ ${this.dryRun ? '[DRY RUN] ' : ''}Fixed case declarations in ${filePath}`
+            `[OK] ${this.dryRun ? '[DRY RUN] ' : ''}Fixed case declarations in ${filePath}`
           )
         );
       }
@@ -122,17 +137,17 @@ class CaseDeclarationFixer {
     } else {
       if (this.verbose) {
         console.log(
-          chalk.gray(`ℹ️  No case declarations to fix in ${filePath}`)
+          chalk.gray(`[i] No case declarations to fix in ${filePath}`)
         );
       }
       return false;
     }
   }
 
-  scanDirectory(directory) {
-    const results = [];
+  scanDirectory(directory: string): string[] {
+    const results: string[] = [];
 
-    const scanRecursive = (dir) => {
+    const scanRecursive = (dir: string): void => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
 
       for (const entry of entries) {
@@ -157,9 +172,10 @@ class CaseDeclarationFixer {
                 results.push(fullPath);
               }
             } catch (error) {
+              const err = error as Error;
               console.warn(
                 chalk.yellow(
-                  `Warning: Could not process ${fullPath}: ${error.message}`
+                  `Warning: Could not process ${fullPath}: ${err.message}`
                 )
               );
             }
@@ -172,13 +188,14 @@ class CaseDeclarationFixer {
     return results;
   }
 
-  scanFile(filePath) {
+  scanFile(filePath: string): string[] {
     try {
       const wasModified = this.fixCaseDeclarations(filePath);
       return wasModified ? [filePath] : [];
     } catch (error) {
+      const err = error as Error;
       console.error(
-        chalk.red(`Error processing ${filePath}: ${error.message}`)
+        chalk.red(`Error processing ${filePath}: ${err.message}`)
       );
       return [];
     }
@@ -186,8 +203,8 @@ class CaseDeclarationFixer {
 }
 
 // CLI Interface
-async function main(args) {
-  const options = {
+async function main(args: string[]): Promise<MainResult> {
+  const options: MainOptions = {
     target: process.cwd(),
     verbose: false,
     dryRun: false,
@@ -243,19 +260,19 @@ ${chalk.cyan('Examples:')}
 
   try {
     const fixer = new CaseDeclarationFixer(options);
-    let results = [];
+    let results: string[] = [];
 
     if (options.file) {
       // Fix specific file
       if (!fs.existsSync(options.file)) {
-        console.error(chalk.red(`❌ File not found: ${options.file}`));
+        console.error(chalk.red(`[X] File not found: ${options.file}`));
         return { success: false };
       }
       results = fixer.scanFile(options.file);
     } else {
       // Fix directory
       if (!fs.existsSync(options.target)) {
-        console.error(chalk.red(`❌ Directory not found: ${options.target}`));
+        console.error(chalk.red(`[X] Directory not found: ${options.target}`));
         return { success: false };
       }
       results = fixer.scanDirectory(options.target);
@@ -264,25 +281,26 @@ ${chalk.cyan('Examples:')}
     if (results.length > 0) {
       console.log(
         chalk.green(
-          `✅ ${options.dryRun ? '[DRY RUN] ' : ''}Fixed case declarations in ${results.length} file(s)`
+          `[OK] ${options.dryRun ? '[DRY RUN] ' : ''}Fixed case declarations in ${results.length} file(s)`
         )
       );
       if (options.verbose) {
         results.forEach((file) => console.log(`   - ${file}`));
       }
     } else {
-      console.log(chalk.blue('ℹ️  No case declarations needed fixing'));
+      console.log(chalk.blue('[i] No case declarations needed fixing'));
     }
 
     return { success: true };
   } catch (error) {
-    console.error(chalk.red(`❌ Error: ${error.message}`));
+    const err = error as Error;
+    console.error(chalk.red(`[X] Error: ${err.message}`));
     return { success: false };
   }
 }
 
 // Export for CLI system
-module.exports = main;
+export default main;
 
 // Allow direct execution
 if (require.main === module) {

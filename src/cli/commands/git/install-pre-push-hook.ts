@@ -1,14 +1,10 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
- * install-pre-push-hook.js - Install Git pre-push hooks
+ * install-pre-push-hook.ts - Install Git pre-push hooks
  * Part of REQ-050: Pre-Push Testing and Validation System
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
+import fs from 'fs-extra';
+import path from 'node:path';
 
 const colors = {
   red: '\x1b[31m',
@@ -20,7 +16,19 @@ const colors = {
   bold: '\x1b[1m'
 };
 
-async function installPrePushHook(options = {}) {
+interface HookOptions {
+  projectRoot?: string;
+  verbose?: boolean;
+}
+
+interface HookStatus {
+  installed: boolean;
+  path: string;
+  executable: boolean;
+  lastModified: Date | null;
+}
+
+async function installPrePushHook(options: HookOptions = {}): Promise<string> {
   const { projectRoot = process.cwd(), verbose = false } = options;
 
   if (verbose) {
@@ -29,7 +37,6 @@ async function installPrePushHook(options = {}) {
     );
   }
 
-  // Check if we're in a git repository
   const gitHooksDir = path.join(projectRoot, '.git', 'hooks');
   if (!(await fs.pathExists(gitHooksDir))) {
     throw new Error(
@@ -37,21 +44,17 @@ async function installPrePushHook(options = {}) {
     );
   }
 
-  // Copy pre-push hook from source file
   const sourceHookPath = path.join(__dirname, 'hooks', 'pre-push.sh');
   const hookPath = path.join(gitHooksDir, 'pre-push');
 
-  // Verify source file exists
   try {
     await fs.access(sourceHookPath);
   } catch (_error) {
     throw new Error(`Pre-push hook source file not found: ${sourceHookPath}`);
   }
 
-  // Copy the source file to the git hooks directory
   await fs.copyFile(sourceHookPath, hookPath);
 
-  // Make it executable
   await fs.chmod(hookPath, '755');
 
   if (verbose) {
@@ -75,7 +78,7 @@ async function installPrePushHook(options = {}) {
   return hookPath;
 }
 
-async function uninstallPrePushHook(options = {}) {
+async function uninstallPrePushHook(options: HookOptions = {}): Promise<boolean> {
   const { projectRoot = process.cwd(), verbose = false } = options;
 
   const hookPath = path.join(projectRoot, '.git', 'hooks', 'pre-push');
@@ -94,7 +97,7 @@ async function uninstallPrePushHook(options = {}) {
   }
 }
 
-async function checkPrePushHookStatus(options = {}) {
+async function checkPrePushHookStatus(options: HookOptions = {}): Promise<HookStatus> {
   const { projectRoot = process.cwd() } = options;
 
   const hookPath = path.join(projectRoot, '.git', 'hooks', 'pre-push');
@@ -120,8 +123,7 @@ async function checkPrePushHookStatus(options = {}) {
   }
 }
 
-// CLI interface
-async function main() {
+async function main(): Promise<void> {
   const command = process.argv[2];
   const verbose =
     process.argv.includes('--verbose') || process.argv.includes('-v');
@@ -175,7 +177,7 @@ async function main() {
         break;
     }
   } catch (error) {
-    console.error(`${colors.red}❌ Error: ${error.message}${colors.reset}`);
+    console.error(`${colors.red}❌ Error: ${(error as Error).message}${colors.reset}`);
     process.exit(1);
   }
 }
@@ -183,6 +185,12 @@ async function main() {
 if (require.main === module) {
   main();
 }
+
+export {
+  installPrePushHook,
+  uninstallPrePushHook,
+  checkPrePushHookStatus
+};
 
 module.exports = {
   installPrePushHook,

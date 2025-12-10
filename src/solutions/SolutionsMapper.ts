@@ -1,38 +1,70 @@
-// @ts-nocheck
-const fs = require('fs-extra');
-const path = require('node:path');
-const chalk = require('chalk');
-const matter = require('gray-matter');
+import fs from 'fs-extra';
+import path from 'node:path';
+import chalk from 'chalk';
+import matter from 'gray-matter';
 
-/**
- * Solutions Mapper
- * Automatically maps code components to requirements/sub-requirements for compliance tracing
- */
+interface ComponentInfo {
+  file: string;
+  type: string;
+  name: string;
+  functions: string[];
+  classes: string[];
+  exports: string[];
+  matchCount: number;
+}
+
+interface MapOptions {
+  searchDirs?: string[];
+  updateRequirement?: boolean;
+  generateTrace?: boolean;
+}
+
+interface MapResult {
+  requirementId: string;
+  components: ComponentInfo[];
+}
+
+interface RequirementInfo {
+  id: string;
+  title?: string;
+  codeComponents?: string[];
+  lastMapped?: string;
+}
+
+interface ComplianceReport {
+  generated: string;
+  requirements: Array<{
+    id: string;
+    title?: string;
+    mapped: boolean;
+    componentCount: number;
+    lastMapped: string | null;
+  }>;
+  totalRequirements: number;
+  totalMapped: number;
+  totalComponents: number;
+}
+
 class SolutionsMapper {
-  codeDir: any;
-  projectRoot: any;
-  requirementsDir: any;
-  solutionsDir: any;
-  constructor(projectRoot) {
+  protected codeDir: string;
+  protected projectRoot: string;
+  protected requirementsDir: string;
+  protected solutionsDir: string;
+
+  constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.requirementsDir = path.join(projectRoot, 'docs', 'requirements');
     this.solutionsDir = path.join(projectRoot, 'docs', 'solutions');
-    this.codeDir = path.join(projectRoot); // Scan from root
+    this.codeDir = projectRoot;
     this.ensureDirectories();
   }
 
-  /**
-   * Ensure directories exist
-   */
-  async ensureDirectories() {
+  async ensureDirectories(): Promise<void> {
     await fs.ensureDir(this.solutionsDir);
   }
 
-  /**
-   * Map code components for a requirement or sub-requirement
-   */
-  async mapComponents(requirementId, options = {}) {
-    console.log(chalk.blue(`🔍 Scanning codebase for ${requirementId}...`));
+  async mapComponents(requirementId: string, options: MapOptions = {}): Promise<MapResult> {
+    console.log(chalk.blue(`Scanning codebase for ${requirementId}...`));
 
     const components = await this.scanCodebase(requirementId, options);
 
@@ -45,43 +77,33 @@ class SolutionsMapper {
       return { requirementId, components: [] };
     }
 
-    // Update requirement file with component mappings
     if (options.updateRequirement !== false) {
       await this.updateRequirementWithComponents(requirementId, components);
     }
 
-    // Generate solution trace document
     if (options.generateTrace !== false) {
       await this.generateTraceDocument(requirementId, components);
     }
 
     console.log(
       chalk.green(
-        `✅ Mapped ${components.length} components for ${requirementId}`
+        `[OK] Mapped ${components.length} components for ${requirementId}`
       )
     );
 
     return { requirementId, components };
   }
 
-  /**
-   * Scan codebase for components referencing a requirement
-   */
-  async scanCodebase(requirementId, options = {}) {
-    const components = [];
-    const scannedFiles = new Set();
+  async scanCodebase(requirementId: string, options: MapOptions = {}): Promise<ComponentInfo[]> {
+    const components: ComponentInfo[] = [];
+    const scannedFiles = new Set<string>();
 
     const patterns = [
-      // Comments with requirement ID
       new RegExp(`//.*${requirementId}`, 'gi'),
       new RegExp(`/\\*.*${requirementId}.*\\*/`, 'gis'),
       new RegExp(`#.*${requirementId}`, 'gi'),
-
-      // JSDoc tags
       new RegExp(`@implements.*${requirementId}`, 'gi'),
       new RegExp(`@requirement.*${requirementId}`, 'gi'),
-
-      // Decorators (if applicable)
       new RegExp(`@Requirement\\(['"]${requirementId}['"]\\)`, 'gi')
     ];
 
@@ -109,23 +131,19 @@ class SolutionsMapper {
     return components;
   }
 
-  /**
-   * Recursively scan directory for requirement references
-   */
   async scanDirectory(
-    dirPath,
-    patterns,
-    requirementId,
-    components,
-    scannedFiles
-  ) {
+    dirPath: string,
+    patterns: RegExp[],
+    requirementId: string,
+    components: ComponentInfo[],
+    scannedFiles: Set<string>
+  ): Promise<void> {
     const items = await fs.readdir(dirPath, { withFileTypes: true });
 
     for (const item of items) {
       const fullPath = path.join(dirPath, item.name);
       const relativePath = path.relative(this.projectRoot, fullPath);
 
-      // Skip node_modules, .git, etc
       if (
         item.name === 'node_modules' ||
         item.name === '.git' ||
@@ -159,10 +177,7 @@ class SolutionsMapper {
     }
   }
 
-  /**
-   * Check if file is a code file
-   */
-  isCodeFile(filename) {
+  isCodeFile(filename: string): boolean {
     const extensions = [
       '.js',
       '.jsx',
@@ -181,15 +196,17 @@ class SolutionsMapper {
     return extensions.some((ext) => filename.endsWith(ext));
   }
 
-  /**
-   * Scan a single file for requirement references
-   */
-  async scanFile(filePath, patterns, _requirementId, components, relativePath) {
+  async scanFile(
+    filePath: string,
+    patterns: RegExp[],
+    _requirementId: string,
+    components: ComponentInfo[],
+    relativePath: string
+  ): Promise<void> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
 
-      // Check if file references the requirement
-      const matches = [];
+      const matches: string[] = [];
       for (const pattern of patterns) {
         const found = content.match(pattern);
         if (found) {
@@ -198,7 +215,6 @@ class SolutionsMapper {
       }
 
       if (matches.length > 0) {
-        // Extract component info
         const componentInfo = this.extractComponentInfo(
           content,
           filePath,
@@ -220,22 +236,22 @@ class SolutionsMapper {
     }
   }
 
-  /**
-   * Extract component information from file
-   */
-  extractComponentInfo(content, filePath, _relativePath) {
+  extractComponentInfo(
+    content: string,
+    filePath: string,
+    _relativePath: string
+  ): { type: string; name: string; functions: string[]; classes: string[]; exports: string[] } {
     const fileName = path.basename(filePath);
     const ext = path.extname(fileName);
 
     const info = {
       type: this.inferComponentType(ext, content),
       name: path.basename(fileName, ext),
-      functions: [],
-      classes: [],
-      exports: []
+      functions: [] as string[],
+      classes: [] as string[],
+      exports: [] as string[]
     };
 
-    // Extract functions
     const functionMatches = content.matchAll(
       /(?:function|async function|const|let|var)\s+(\w+)\s*[=(]/g
     );
@@ -243,7 +259,6 @@ class SolutionsMapper {
       info.functions.push(match[1]);
     }
 
-    // Extract classes
     const classMatches = content.matchAll(
       /class\s+(\w+)(?:\s+extends\s+\w+)?/g
     );
@@ -251,7 +266,6 @@ class SolutionsMapper {
       info.classes.push(match[1]);
     }
 
-    // Extract exports
     const exportMatches = content.matchAll(
       /export\s+(?:default\s+)?(?:function|class|const|let|var)?\s*(\w+)?/g
     );
@@ -264,10 +278,7 @@ class SolutionsMapper {
     return info;
   }
 
-  /**
-   * Infer component type from file extension and content
-   */
-  inferComponentType(ext, content) {
+  inferComponentType(ext: string, content: string): string {
     if (['.tsx', '.jsx'].includes(ext)) return 'react-component';
     if (['.ts', '.js'].includes(ext)) {
       if (content.includes('React')) return 'react-component';
@@ -283,10 +294,7 @@ class SolutionsMapper {
     return 'code';
   }
 
-  /**
-   * Update requirement file with component mappings
-   */
-  async updateRequirementWithComponents(requirementId, components) {
+  async updateRequirementWithComponents(requirementId: string, components: ComponentInfo[]): Promise<void> {
     const reqFile = await this.findRequirementFile(requirementId);
     if (!reqFile) {
       console.log(
@@ -298,19 +306,15 @@ class SolutionsMapper {
     const content = await fs.readFile(reqFile, 'utf8');
     const { data, content: markdownContent } = matter(content);
 
-    // Update frontmatter
     data.codeComponents = components.map((c) => c.file);
     data.lastMapped = new Date().toISOString().split('T')[0];
 
-    // Update content section
     let updatedContent = markdownContent;
 
-    // Find or create Code Components section
     if (!updatedContent.includes('## Code Components')) {
       updatedContent += '\n\n## Code Components\n\n';
     }
 
-    // Replace Code Components section
     const componentsSection = this.generateComponentsSection(
       components,
       requirementId
@@ -328,10 +332,7 @@ class SolutionsMapper {
     );
   }
 
-  /**
-   * Generate components section for requirement file
-   */
-  generateComponentsSection(components, requirementId) {
+  generateComponentsSection(components: ComponentInfo[], requirementId: string): string {
     let section = `<!-- Auto-generated by: sc solutions map ${requirementId} -->\n`;
     section += `<!-- Last updated: ${new Date().toISOString()} -->\n\n`;
 
@@ -339,8 +340,7 @@ class SolutionsMapper {
       return `${section}No code components mapped yet.\n`;
     }
 
-    // Group by type
-    const byType = {};
+    const byType: Record<string, ComponentInfo[]> = {};
     for (const comp of components) {
       if (!byType[comp.type]) {
         byType[comp.type] = [];
@@ -365,10 +365,7 @@ class SolutionsMapper {
     return section;
   }
 
-  /**
-   * Generate solution trace document
-   */
-  async generateTraceDocument(requirementId, components) {
+  async generateTraceDocument(requirementId: string, components: ComponentInfo[]): Promise<void> {
     const tracePath = path.join(this.solutionsDir, `${requirementId}-trace.md`);
 
     let content = `# Solution Trace: ${requirementId}\n\n`;
@@ -415,13 +412,10 @@ class SolutionsMapper {
     );
   }
 
-  /**
-   * Find requirement file by ID
-   */
-  async findRequirementFile(requirementId) {
-    const files = [];
+  async findRequirementFile(requirementId: string): Promise<string | null> {
+    const files: string[] = [];
 
-    async function scanDir(dir) {
+    const scanDir = async (dir: string): Promise<void> => {
       if (!(await fs.pathExists(dir))) return;
 
       const items = await fs.readdir(dir, { withFileTypes: true });
@@ -444,19 +438,16 @@ class SolutionsMapper {
           }
         }
       }
-    }
+    };
 
     await scanDir(this.requirementsDir);
     return files[0] || null;
   }
 
-  /**
-   * Generate compliance report for all requirements
-   */
-  async generateComplianceReport() {
-    console.log(chalk.blue('📊 Generating compliance report...'));
+  async generateComplianceReport(): Promise<ComplianceReport> {
+    console.log(chalk.blue('Generating compliance report...'));
 
-    const report = {
+    const report: ComplianceReport = {
       generated: new Date().toISOString(),
       requirements: [],
       totalRequirements: 0,
@@ -464,16 +455,15 @@ class SolutionsMapper {
       totalComponents: 0
     };
 
-    // Get all requirements
-    const reqFiles = [];
+    const reqFiles: string[] = [];
     await this.collectRequirementFiles(this.requirementsDir, reqFiles);
 
     for (const reqFile of reqFiles) {
       const content = await fs.readFile(reqFile, 'utf8');
-      const { data } = matter(content);
+      const { data } = matter(content) as unknown as { data: RequirementInfo };
 
       if (data.id) {
-        const mapped = data.codeComponents && data.codeComponents.length > 0;
+        const mapped = !!(data.codeComponents && data.codeComponents.length > 0);
         report.requirements.push({
           id: data.id,
           title: data.title,
@@ -485,16 +475,15 @@ class SolutionsMapper {
         report.totalRequirements++;
         if (mapped) {
           report.totalMapped++;
-          report.totalComponents += data.codeComponents.length;
+          report.totalComponents += data.codeComponents!.length;
         }
       }
     }
 
-    // Save report
     const reportPath = path.join(this.solutionsDir, 'compliance-report.json');
     await fs.writeJson(reportPath, report, { spaces: 2 });
 
-    console.log(chalk.green('✅ Compliance report generated'));
+    console.log(chalk.green('[OK] Compliance report generated'));
     console.log(
       chalk.cyan(`   Total Requirements: ${report.totalRequirements}`)
     );
@@ -508,10 +497,7 @@ class SolutionsMapper {
     return report;
   }
 
-  /**
-   * Collect all requirement files
-   */
-  async collectRequirementFiles(dir, files) {
+  async collectRequirementFiles(dir: string, files: string[]): Promise<void> {
     if (!(await fs.pathExists(dir))) return;
 
     const items = await fs.readdir(dir, { withFileTypes: true });
@@ -526,4 +512,5 @@ class SolutionsMapper {
   }
 }
 
+export default SolutionsMapper;
 module.exports = SolutionsMapper;

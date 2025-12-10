@@ -1,38 +1,66 @@
-// @ts-nocheck
 /**
  * Template Fetcher - Fetch latest SC templates from various sources
  * Supports npm registry, git repository, and local sources
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
-const https = require('node:https');
-const tar = require('tar');
+import fs from 'fs-extra';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import https from 'node:https';
+import tar from 'tar';
+import { glob } from 'glob';
+
+interface TemplateFetcherOptions {
+  cacheDir?: string;
+  source?: 'npm' | 'git' | 'local';
+  verbose?: boolean;
+}
+
+interface FetchResult {
+  success: boolean;
+  path: string;
+  version: string;
+  cached: boolean;
+  source?: string;
+}
+
+interface NpmPackageInfo {
+  version: string;
+  dist: {
+    tarball: string;
+  };
+}
+
+interface CacheEntry {
+  name: string;
+  size: number;
+  modified: Date;
+}
+
+interface CacheInfo {
+  exists: boolean;
+  size: number;
+  entries: CacheEntry[];
+}
 
 class TemplateFetcher {
-  cacheDir: any;
-  source: any;
-  verbose: any;
-  constructor(options = {}) {
+  protected cacheDir: string;
+  protected source: 'npm' | 'git' | 'local';
+  protected verbose: boolean;
+
+  constructor(options: TemplateFetcherOptions = {}) {
     this.cacheDir =
       options.cacheDir || path.join(process.cwd(), '.supernal-coding', 'cache');
-    this.source = options.source || 'npm'; // 'npm', 'git', or 'local'
+    this.source = options.source || 'npm';
     this.verbose = options.verbose || false;
   }
 
-  /**
-   * Fetch templates for a specific version
-   * @param {string} version - Version to fetch (e.g., '1.2.5', 'latest')
-   * @returns {Promise<FetchResult>}
-   */
-  async fetchTemplates(version = 'latest') {
+  async fetchTemplates(version: string = 'latest'): Promise<FetchResult> {
     await fs.ensureDir(this.cacheDir);
 
     const cacheKey = `sc-templates-${version}`;
     const cachePath = path.join(this.cacheDir, cacheKey);
 
-    // Check cache first
     if (await this.isCached(cachePath)) {
       if (this.verbose) {
         console.log(`Using cached templates: ${version}`);
@@ -45,7 +73,6 @@ class TemplateFetcher {
       };
     }
 
-    // Fetch based on source
     switch (this.source) {
       case 'npm':
         return await this.fetchFromNpm(version, cachePath);
@@ -58,16 +85,12 @@ class TemplateFetcher {
     }
   }
 
-  /**
-   * Fetch from npm registry
-   */
-  async fetchFromNpm(version, cachePath) {
+  async fetchFromNpm(version: string, cachePath: string): Promise<FetchResult> {
     if (this.verbose) {
       console.log(`Fetching templates from npm: ${version}`);
     }
 
     try {
-      // Get package info from npm
       const packageInfo = await this.getNpmPackageInfo(
         'supernal-coding',
         version
@@ -79,19 +102,16 @@ class TemplateFetcher {
         console.log(`Downloading: ${tarballUrl}`);
       }
 
-      // Download and extract tarball
       const tempTarball = path.join(this.cacheDir, `temp-${Date.now()}.tgz`);
       await this.downloadFile(tarballUrl, tempTarball);
 
-      // Extract to cache
       await fs.ensureDir(cachePath);
       await tar.extract({
         file: tempTarball,
         cwd: cachePath,
-        strip: 1, // Remove 'package/' prefix from npm tarballs
+        strip: 1,
       });
 
-      // Cleanup temp tarball
       await fs.remove(tempTarball);
 
       if (this.verbose) {
@@ -106,14 +126,11 @@ class TemplateFetcher {
         source: 'npm',
       };
     } catch (error) {
-      throw new Error(`Failed to fetch from npm: ${error.message}`);
+      throw new Error(`Failed to fetch from npm: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Fetch from git repository
-   */
-  async fetchFromGit(version, cachePath) {
+  async fetchFromGit(version: string, cachePath: string): Promise<FetchResult> {
     if (this.verbose) {
       console.log(`Fetching templates from git: ${version}`);
     }
@@ -124,7 +141,6 @@ class TemplateFetcher {
     try {
       await fs.ensureDir(cachePath);
 
-      // Clone specific ref
       execSync(`git clone --depth 1 --branch ${ref} ${gitUrl} ${cachePath}`, {
         stdio: this.verbose ? 'inherit' : 'ignore',
       });
@@ -141,26 +157,21 @@ class TemplateFetcher {
         source: 'git',
       };
     } catch (error) {
-      throw new Error(`Failed to fetch from git: ${error.message}`);
+      throw new Error(`Failed to fetch from git: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Fetch from local development directory
-   */
-  async fetchFromLocal(_version, cachePath) {
+  async fetchFromLocal(_version: string, cachePath: string): Promise<FetchResult> {
     if (this.verbose) {
       console.log(`Using local templates`);
     }
 
-    // Find local SC package directory
     const localPath = this.findLocalScPackage();
 
     if (!localPath) {
       throw new Error('Local SC package not found');
     }
 
-    // Copy to cache
     await fs.copy(localPath, cachePath);
 
     return {
@@ -172,10 +183,7 @@ class TemplateFetcher {
     };
   }
 
-  /**
-   * Get package info from npm registry
-   */
-  async getNpmPackageInfo(packageName, version) {
+  async getNpmPackageInfo(packageName: string, version: string): Promise<NpmPackageInfo> {
     return new Promise((resolve, reject) => {
       const url =
         version === 'latest'
@@ -204,18 +212,14 @@ class TemplateFetcher {
     });
   }
 
-  /**
-   * Download file from URL
-   */
-  async downloadFile(url, dest) {
+  async downloadFile(url: string, dest: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const file = fs.createWriteStream(dest);
 
       https
         .get(url, (response) => {
-          // Handle redirects
           if (response.statusCode === 302 || response.statusCode === 301) {
-            return this.downloadFile(response.headers.location, dest)
+            return this.downloadFile(response.headers.location!, dest)
               .then(resolve)
               .catch(reject);
           }
@@ -228,26 +232,19 @@ class TemplateFetcher {
           });
         })
         .on('error', (err) => {
-          fs.unlink(dest);
+          fs.unlink(dest, () => {});
           reject(err);
         });
     });
   }
 
-  /**
-   * Check if templates are cached
-   */
-  async isCached(cachePath) {
+  async isCached(cachePath: string): Promise<boolean> {
     return await fs.pathExists(cachePath);
   }
 
-  /**
-   * Find local SC package directory
-   */
-  findLocalScPackage() {
-    // Check common locations
+  findLocalScPackage(): string | null {
     const locations = [
-      path.join(__dirname, '../../..'), // From lib/upgrade
+      path.join(__dirname, '../../..'),
       path.join(process.cwd(), 'node_modules/supernal-coding'),
       path.join(process.cwd(), '../supernal-coding'),
     ];
@@ -268,14 +265,8 @@ class TemplateFetcher {
     return null;
   }
 
-  /**
-   * Extract specific directories from fetched templates
-   * @param {string} fetchedPath - Path to fetched templates
-   * @param {Array<string>} dirs - Directories to extract (e.g., ['.cursor/rules', 'templates'])
-   * @returns {Promise<Object>} Map of directory to extracted path
-   */
-  async extractDirectories(fetchedPath, dirs = []) {
-    const extracted = {};
+  async extractDirectories(fetchedPath: string, dirs: string[] = []): Promise<Record<string, string>> {
+    const extracted: Record<string, string> = {};
 
     const defaultDirs =
       dirs.length > 0
@@ -297,12 +288,8 @@ class TemplateFetcher {
     return extracted;
   }
 
-  /**
-   * Get file list from fetched templates
-   */
-  async getFileList(fetchedPath, patterns = ['**/*']) {
-    const glob = require('glob');
-    const files = [];
+  async getFileList(fetchedPath: string, patterns: string[] = ['**/*']): Promise<string[]> {
+    const files: string[] = [];
 
     for (const pattern of patterns) {
       const matches = glob.sync(pattern, {
@@ -313,13 +300,10 @@ class TemplateFetcher {
       files.push(...matches);
     }
 
-    return [...new Set(files)]; // Remove duplicates
+    return [...new Set(files)];
   }
 
-  /**
-   * Clear cache
-   */
-  async clearCache() {
+  async clearCache(): Promise<void> {
     if (await fs.pathExists(this.cacheDir)) {
       await fs.remove(this.cacheDir);
       if (this.verbose) {
@@ -328,10 +312,7 @@ class TemplateFetcher {
     }
   }
 
-  /**
-   * Get cache info
-   */
-  async getCacheInfo() {
+  async getCacheInfo(): Promise<CacheInfo> {
     if (!(await fs.pathExists(this.cacheDir))) {
       return { exists: false, size: 0, entries: [] };
     }
@@ -339,7 +320,7 @@ class TemplateFetcher {
     const entries = await fs.readdir(this.cacheDir);
     let totalSize = 0;
 
-    const details = [];
+    const details: CacheEntry[] = [];
     for (const entry of entries) {
       const entryPath = path.join(this.cacheDir, entry);
       const stats = await fs.stat(entryPath);
@@ -359,13 +340,5 @@ class TemplateFetcher {
   }
 }
 
-/**
- * @typedef {Object} FetchResult
- * @property {boolean} success - Whether fetch was successful
- * @property {string} path - Path to fetched templates
- * @property {string} version - Version that was fetched
- * @property {boolean} cached - Whether result was from cache
- * @property {string} source - Source of templates (npm, git, local)
- */
-
+export default TemplateFetcher;
 module.exports = TemplateFetcher;

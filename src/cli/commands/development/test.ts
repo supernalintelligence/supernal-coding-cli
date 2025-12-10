@@ -1,40 +1,42 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+import chalk from 'chalk';
 
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
-const chalk = require('chalk');
+interface TestOptions {
+  quick?: boolean;
+  requirement?: string;
+  quiet?: boolean;
+  verbose?: boolean;
+  e2e?: boolean;
+  noBail?: boolean;
+  help?: boolean;
+  h?: boolean;
+}
 
-/**
- * sc test - Test wrapper for ME.sh convention
- * 
- * Behavior:
- * 1. Check for TESTME.sh → run it
- * 2. Else check package.json for test script → npm test
- * 3. Else error: no test runner found
- * 
- * Options:
- * - --quick: fast tests only
- * - --requirement REQ-XXX: specific requirement
- * - --quiet: minimal output
- */
+interface TestRunner {
+  type: 'testme' | 'npm';
+  path?: string;
+  script?: string;
+}
 
-class TestRunner {
-  packageJson: any;
-  projectRoot: any;
-  testmeScript: any;
-  constructor(projectRoot = process.cwd()) {
+interface TestResult {
+  success: boolean;
+  error?: Error;
+}
+
+class TestRunnerClass {
+  protected projectRoot: string;
+  protected testmeScript: string;
+  protected packageJson: string;
+
+  constructor(projectRoot: string = process.cwd()) {
     this.projectRoot = projectRoot;
     this.testmeScript = path.join(projectRoot, 'TESTME.sh');
     this.packageJson = path.join(projectRoot, 'package.json');
   }
 
-  /**
-   * Find test runner (TESTME.sh or package.json test script)
-   */
-  findTestRunner() {
-    // Priority 1: TESTME.sh
+  findTestRunner(): TestRunner | null {
     if (fs.existsSync(this.testmeScript)) {
       return {
         type: 'testme',
@@ -42,7 +44,6 @@ class TestRunner {
       };
     }
 
-    // Priority 2: package.json test script
     if (fs.existsSync(this.packageJson)) {
       const pkg = JSON.parse(fs.readFileSync(this.packageJson, 'utf8'));
       if (pkg.scripts && pkg.scripts.test) {
@@ -56,10 +57,7 @@ class TestRunner {
     return null;
   }
 
-  /**
-   * Run tests with appropriate runner
-   */
-  run(options = {}) {
+  run(options: TestOptions = {}): TestResult {
     const runner = this.findTestRunner();
 
     if (!runner) {
@@ -70,9 +68,8 @@ class TestRunner {
       process.exit(1);
     }
 
-    // Build command based on runner type
-    let command;
-    let commandDescription;
+    let command: string;
+    let commandDescription: string;
 
     if (runner.type === 'testme') {
       commandDescription = 'Running TESTME.sh';
@@ -82,7 +79,6 @@ class TestRunner {
       command = this.buildNpmCommand(options);
     }
 
-    // Display what we're running
     if (!options.quiet) {
       console.log(chalk.blue(`🧪 ${commandDescription}...`));
       if (options.verbose) {
@@ -96,7 +92,6 @@ class TestRunner {
         stdio: options.quiet ? 'pipe' : 'inherit',
         env: {
           ...process.env,
-          // Pass environment variables for test configuration
           SC_QUICK_TESTS: options.quick ? 'true' : 'false',
           SC_TEST_REQUIREMENT: options.requirement || '',
         }
@@ -110,19 +105,15 @@ class TestRunner {
       if (!options.quiet) {
         console.error(chalk.red('❌ Tests failed'));
       }
-      return { success: false, error };
+      return { success: false, error: error as Error };
     }
   }
 
-  /**
-   * Build TESTME.sh command with options
-   */
-  buildTestmeCommand(options) {
+  buildTestmeCommand(options: TestOptions): string {
     const parts = ['bash', this.testmeScript];
 
-    // Map sc test options to TESTME.sh arguments
     if (options.quick) {
-      parts.push('unit'); // Run unit tests only for quick mode
+      parts.push('unit');
     }
 
     if (options.requirement) {
@@ -144,23 +135,17 @@ class TestRunner {
     return parts.join(' ');
   }
 
-  /**
-   * Build npm test command with options
-   */
-  buildNpmCommand(options) {
+  buildNpmCommand(options: TestOptions): string {
     const parts = ['npm', 'test'];
 
-    // Pass options through npm test -- syntax
     if (options.quick || options.requirement) {
-      const npmArgs = [];
+      const npmArgs: string[] = [];
 
       if (options.quick) {
-        // Try to run quick/unit tests if possible
         npmArgs.push('--testPathPattern=unit');
       }
 
       if (options.requirement) {
-        // Filter by requirement ID
         const reqNum = options.requirement.replace(/^REQ-/i, '');
         npmArgs.push(`--testPathPattern=req-${reqNum}`);
       }
@@ -174,10 +159,7 @@ class TestRunner {
     return parts.join(' ');
   }
 
-  /**
-   * Show help
-   */
-  showHelp() {
+  showHelp(): void {
     console.log(chalk.bold('sc test - Test execution wrapper'));
     console.log('');
     console.log(chalk.cyan('Usage:'));
@@ -211,20 +193,15 @@ class TestRunner {
   }
 }
 
-/**
- * CLI handler
- */
-async function handleTestCommand(args = [], options = {}) {
-  // Handle help
+async function handleTestCommand(args: string[] = [], options: TestOptions = {}): Promise<void> {
   if (options.help || options.h || args.includes('--help') || args.includes('-h')) {
-    const runner = new TestRunner();
+    const runner = new TestRunnerClass();
     runner.showHelp();
     return;
   }
 
-  // Parse options from args if not already provided
-  const parsedOptions = { ...options };
-  
+  const parsedOptions: TestOptions = { ...options };
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--quick') parsedOptions.quick = true;
@@ -238,7 +215,7 @@ async function handleTestCommand(args = [], options = {}) {
     if (arg === '--verbose') parsedOptions.verbose = true;
   }
 
-  const runner = new TestRunner();
+  const runner = new TestRunnerClass();
   const result = runner.run(parsedOptions);
 
   if (!result.success) {
@@ -246,13 +223,16 @@ async function handleTestCommand(args = [], options = {}) {
   }
 }
 
-// Export for CLI integration
-module.exports = {
-  TestRunner,
+export {
+  TestRunnerClass as TestRunner,
   handleTestCommand
 };
 
-// Handle direct execution
+module.exports = {
+  TestRunner: TestRunnerClass,
+  handleTestCommand
+};
+
 if (require.main === module) {
   const args = process.argv.slice(2);
   handleTestCommand(args).catch((error) => {

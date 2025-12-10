@@ -1,27 +1,73 @@
-// @ts-nocheck
-const fs = require('node:fs');
-const path = require('node:path');
-const _matter = require('gray-matter');
-const chalk = require('chalk');
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
+
 const { TemplateValidator } = require('../../validation/TemplateValidator');
 
-/**
- * Frontmatter Validator
- *
- * Now leverages the unified TemplateValidator system
- * for consistent validation across all document types
- */
+interface ValidationIssue {
+  file: string;
+  type: string;
+  field?: string;
+  message: string;
+  severity: 'error' | 'warning';
+  details?: any;
+}
+
+interface ValidationError {
+  type?: string;
+  field?: string;
+  message?: string;
+  severity?: string;
+}
+
+interface ValidationWarning {
+  type?: string;
+  message?: string;
+}
+
+interface ValidatorOptions {
+  projectRoot?: string;
+  verbose?: boolean;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  issues: ValidationIssue[];
+  summary: ValidationSummary;
+}
+
+interface ValidationSummary {
+  errorCount: number;
+  warningCount: number;
+  filesWithErrors: string[];
+  filesWithWarnings: string[];
+  totalFiles: number;
+}
+
+interface AutoFixResult {
+  attempted: number;
+  fixed: number;
+  failed: number;
+}
+
+interface TemplateValidatorResult {
+  valid: boolean;
+  errors?: ValidationError[];
+  warnings?: ValidationWarning[];
+  fixed?: boolean;
+}
+
 class FrontmatterValidator {
-  fixedFiles: any;
-  issues: any;
-  projectRoot: any;
-  templateValidator: any;
-  verbose: any;
-  constructor(options = {}) {
+  protected fixedFiles: string[];
+  protected issues: ValidationIssue[];
+  protected projectRoot: string;
+  protected templateValidator: any;
+  protected verbose: boolean;
+
+  constructor(options: ValidatorOptions = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;
 
-    // Initialize the unified template validator
     this.templateValidator = new TemplateValidator({
       projectRoot: this.projectRoot,
       verbose: this.verbose
@@ -31,14 +77,10 @@ class FrontmatterValidator {
     this.fixedFiles = [];
   }
 
-  /**
-   * Validate a single requirement file
-   */
-  async validateFile(filePath) {
+  async validateFile(filePath: string): Promise<boolean> {
     try {
-      const result = await this.templateValidator.validateFile(filePath);
+      const result: TemplateValidatorResult = await this.templateValidator.validateFile(filePath);
 
-      // Convert TemplateValidator results to FrontmatterValidator format
       if (!result.valid) {
         for (const error of result.errors || []) {
           this.issues.push({
@@ -46,13 +88,12 @@ class FrontmatterValidator {
             type: error.type || 'validation_error',
             field: error.field,
             message: error.message || String(error),
-            severity: error.severity || 'error',
+            severity: (error.severity as 'error' | 'warning') || 'error',
             details: error
           });
         }
       }
 
-      // Add warnings
       for (const warning of result.warnings || []) {
         this.issues.push({
           file: filePath,
@@ -68,36 +109,39 @@ class FrontmatterValidator {
       this.issues.push({
         file: filePath,
         type: 'file_error',
-        message: `Error reading file: ${error.message}`,
+        message: `Error reading file: ${(error as Error).message}`,
         severity: 'error'
       });
       return false;
     }
   }
 
-  /**
-   * Validate all requirement files in a directory
-   */
-  async validateRequirements(requirementsDir) {
-    const _issues = [];
-
+  async validateRequirements(requirementsDir: string): Promise<ValidationResult> {
     if (!fs.existsSync(requirementsDir)) {
       return {
         valid: false,
         issues: [
           {
+            file: requirementsDir,
             type: 'directory_error',
             message: `Requirements directory does not exist: ${requirementsDir}`,
             severity: 'error'
           }
-        ]
+        ],
+        summary: {
+          errorCount: 1,
+          warningCount: 0,
+          filesWithErrors: [],
+          filesWithWarnings: [],
+          totalFiles: 0
+        }
       };
     }
 
     const categories = fs
       .readdirSync(requirementsDir, { withFileTypes: true })
       .filter((dirent) => dirent.isDirectory())
-      .filter((dirent) => dirent.name !== 'to-fix') // Exclude to-fix directory
+      .filter((dirent) => dirent.name !== 'to-fix')
       .map((dirent) => dirent.name);
 
     for (const category of categories) {
@@ -120,10 +164,7 @@ class FrontmatterValidator {
     };
   }
 
-  /**
-   * Generate a summary of validation issues
-   */
-  generateSummary() {
+  generateSummary(): ValidationSummary {
     const errorCount = this.issues.filter(
       (issue) => issue.severity === 'error'
     ).length;
@@ -156,49 +197,46 @@ class FrontmatterValidator {
     };
   }
 
-  /**
-   * Print validation report
-   */
-  printReport() {
+  printReport(): void {
     const summary = this.generateSummary();
 
     if (summary.errorCount === 0 && summary.warningCount === 0) {
       console.log(
-        chalk.green('✅ All requirement files have valid frontmatter')
+        chalk.green('[OK] All requirement files have valid frontmatter')
       );
       return;
     }
 
-    console.log(chalk.yellow('\\n🔍 Frontmatter Validation Report'));
+    console.log(chalk.yellow('\nFrontmatter Validation Report'));
     console.log(chalk.yellow('====================================='));
 
     if (summary.errorCount > 0) {
       console.log(
-        chalk.red(`\\n❌ ${summary.errorCount} critical issues found:`)
+        chalk.red(`\n[ERROR] ${summary.errorCount} critical issues found:`)
       );
       this.issues
         .filter((issue) => issue.severity === 'error')
         .forEach((issue) => {
           console.log(
-            chalk.red(`  • ${path.basename(issue.file)}: ${issue.message}`)
+            chalk.red(`  - ${path.basename(issue.file)}: ${issue.message}`)
           );
         });
     }
 
     if (summary.warningCount > 0) {
       console.log(
-        chalk.yellow(`\\n⚠️  ${summary.warningCount} warnings found:`)
+        chalk.yellow(`\n[WARN] ${summary.warningCount} warnings found:`)
       );
       this.issues
         .filter((issue) => issue.severity === 'warning')
         .forEach((issue) => {
           console.log(
-            chalk.yellow(`  • ${path.basename(issue.file)}: ${issue.message}`)
+            chalk.yellow(`  - ${path.basename(issue.file)}: ${issue.message}`)
           );
         });
     }
 
-    console.log(chalk.cyan(`\\n📊 Summary:`));
+    console.log(chalk.cyan(`\nSummary:`));
     console.log(
       chalk.cyan(`  Files with errors: ${summary.filesWithErrors.length}`)
     );
@@ -208,7 +246,7 @@ class FrontmatterValidator {
     console.log(chalk.cyan(`  Total files checked: ${summary.totalFiles}`));
 
     if (summary.errorCount > 0) {
-      console.log(chalk.red(`\\n💡 To fix these issues:`));
+      console.log(chalk.red(`\nTo fix these issues:`));
       console.log(
         chalk.red(
           `  1. Check the files listed above for missing or invalid frontmatter`
@@ -221,17 +259,14 @@ class FrontmatterValidator {
       );
       console.log(chalk.red(`  3. Run validation again to confirm fixes`));
       console.log(
-        chalk.cyan(`\\n  Or use auto-fix: sc docs validate --template --fix`)
+        chalk.cyan(`\n  Or use auto-fix: sc docs validate --template --fix`)
       );
     }
   }
 
-  /**
-   * Auto-fix common frontmatter issues
-   */
-  async autoFix(filePath) {
+  async autoFix(filePath: string): Promise<boolean> {
     try {
-      const fixResult = await this.templateValidator.validateAndFix(filePath, {
+      const fixResult: TemplateValidatorResult = await this.templateValidator.validateAndFix(filePath, {
         autoFix: true
       });
 
@@ -242,15 +277,12 @@ class FrontmatterValidator {
 
       return false;
     } catch (error) {
-      console.error(`Failed to auto-fix ${filePath}:`, error.message);
+      console.error(`Failed to auto-fix ${filePath}:`, (error as Error).message);
       return false;
     }
   }
 
-  /**
-   * Auto-fix all files with issues
-   */
-  async autoFixAll() {
+  async autoFixAll(): Promise<AutoFixResult> {
     const filesToFix = [
       ...new Set(
         this.issues
@@ -276,4 +308,5 @@ class FrontmatterValidator {
   }
 }
 
+export default FrontmatterValidator;
 module.exports = FrontmatterValidator;

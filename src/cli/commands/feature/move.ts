@@ -1,15 +1,32 @@
-// @ts-nocheck
 /**
  * sc feature move - Move feature between domains
  */
 
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import chalk from 'chalk';
+import { execSync } from 'node:child_process';
 const FeatureValidator = require('../../../validation/FeatureValidator');
-const path = require('node:path');
-const fs = require('node:fs').promises;
-const chalk = require('chalk');
-const { execSync } = require('node:child_process');
 
-async function moveFeatureCommand(featureId, targetDomain, options) {
+interface MoveOptions {
+  projectRoot: string;
+}
+
+interface Feature {
+  name: string;
+  path: string;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+async function moveFeatureCommand(
+  featureId: string,
+  targetDomain: string | undefined,
+  options: MoveOptions
+): Promise<void> {
   const validator = new FeatureValidator();
   const { projectRoot } = options;
 
@@ -41,7 +58,6 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
     }
   }
 
-  // Validate target domain
   if (!validDomains.includes(targetDomain)) {
     console.log(chalk.red(`\n❌ Invalid domain: ${targetDomain}\n`));
     console.log(chalk.gray('Available domains:'));
@@ -61,9 +77,8 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
   );
 
   try {
-    // Find feature
     const featuresDir = path.join(projectRoot, 'docs/features');
-    const allFeatures = await validator.getAllFeatures(featuresDir);
+    const allFeatures: Feature[] = await validator.getAllFeatures(featuresDir);
     const feature = allFeatures.find((f) => f.name === featureId);
 
     if (!feature) {
@@ -76,12 +91,10 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
       }
     }
 
-    // Get current domain
-    const relativePath = path.relative(featuresDir, feature.path);
+    const relativePath = path.relative(featuresDir, feature!.path);
     const pathParts = relativePath.split(path.sep);
     const currentDomain = pathParts[0];
 
-    // Check if already in target domain
     if (currentDomain === targetDomain) {
       console.log(chalk.yellow(`⚠️  Feature is already in ${targetDomain}/`));
       console.log();
@@ -95,9 +108,8 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
     console.log(chalk.gray(`Target domain:  ${targetDomain}`));
     console.log();
 
-    // Validate current state first
     console.log(chalk.blue('🔍 Validating current state...\n'));
-    const currentValidation = await validator.validate(feature.path);
+    const currentValidation: ValidationResult = await validator.validate(feature!.path);
 
     if (!currentValidation.valid) {
       console.log(chalk.red('❌ Current feature has validation errors:'));
@@ -120,11 +132,9 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
 
     console.log(chalk.green('✅ Current state valid\n'));
 
-    // Calculate new path - preserve subfolder structure if any
     const featureSubpath = pathParts.slice(1).join(path.sep);
     const newFeaturePath = path.join(featuresDir, targetDomain, featureSubpath);
 
-    // Check if target already exists
     try {
       await fs.access(newFeaturePath);
       console.log(
@@ -140,14 +150,12 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
       // Good, doesn't exist
     }
 
-    // Ensure target domain directory exists
     const targetDomainDir = path.join(featuresDir, targetDomain);
     await fs.mkdir(targetDomainDir, { recursive: true });
 
-    // Use git mv to preserve history
     console.log(chalk.blue('📦 Moving feature folder...\n'));
     try {
-      execSync(`git mv "${feature.path}" "${newFeaturePath}"`, {
+      execSync(`git mv "${feature!.path}" "${newFeaturePath}"`, {
         cwd: projectRoot,
         stdio: 'pipe'
       });
@@ -157,25 +165,22 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
         )
       );
     } catch (err) {
-      console.log(chalk.red(`❌ Git move failed: ${err.message}`));
+      console.log(chalk.red(`❌ Git move failed: ${(err as Error).message}`));
       console.log();
       process.exit(1);
     }
 
-    // Update frontmatter in README.md if it has domain field
     console.log(chalk.blue('📝 Updating frontmatter...\n'));
     const readmePath = path.join(newFeaturePath, 'README.md');
 
     try {
       let content = await fs.readFile(readmePath, 'utf-8');
 
-      // Update domain field in frontmatter if it exists
       const domainRegex = /^domain:\s*\S+$/m;
       if (domainRegex.test(content)) {
         content = content.replace(domainRegex, `domain: ${targetDomain}`);
       }
 
-      // Update updated timestamp
       const now = new Date().toISOString().split('T')[0];
       const updatedRegex = /^updated:\s*\S+$/m;
       if (updatedRegex.test(content)) {
@@ -186,16 +191,15 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
       console.log(chalk.green('✅ Frontmatter updated\n'));
     } catch (err) {
       console.log(
-        chalk.yellow(`⚠️  Could not update frontmatter: ${err.message}`)
+        chalk.yellow(`⚠️  Could not update frontmatter: ${(err as Error).message}`)
       );
       console.log(
         chalk.gray('This is non-fatal, feature was moved successfully\n')
       );
     }
 
-    // Validate new state
     console.log(chalk.blue('🔍 Validating new state...\n'));
-    const newValidation = await validator.validate(newFeaturePath);
+    const newValidation: ValidationResult = await validator.validate(newFeaturePath);
 
     if (!newValidation.valid) {
       console.log(chalk.yellow('⚠️  Validation warnings after move:'));
@@ -209,7 +213,6 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
       console.log(chalk.green('✅ New state valid\n'));
     }
 
-    // Stage the changes
     try {
       execSync(`git add "${readmePath}"`, {
         cwd: projectRoot,
@@ -219,7 +222,6 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
       // Non-fatal if this fails
     }
 
-    // Success summary
     console.log(chalk.green.bold('✅ Feature moved successfully!\n'));
     console.log(chalk.gray('Summary:'));
     console.log(chalk.gray(`  Feature: ${featureId}`));
@@ -236,16 +238,14 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
     );
     console.log();
 
-    // In test environment, don't actually exit (Jest worker will crash)
     if (!process.env.JEST_WORKER_ID) {
       process.exit(0);
     }
   } catch (error) {
-    console.log(chalk.red(`\n❌ Error: ${error.message}\n`));
+    console.log(chalk.red(`\n❌ Error: ${(error as Error).message}\n`));
     if (process.env.DEBUG) {
-      console.log(error.stack);
+      console.log((error as Error).stack);
     }
-    // In test environment, don't actually exit (Jest worker will crash)
     if (!process.env.JEST_WORKER_ID) {
       process.exit(1);
     } else {
@@ -254,6 +254,7 @@ async function moveFeatureCommand(featureId, targetDomain, options) {
   }
 }
 
+export { moveFeatureCommand };
 module.exports = {
   moveFeatureCommand
 };

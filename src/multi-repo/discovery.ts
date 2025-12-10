@@ -1,28 +1,44 @@
-// @ts-nocheck
-const fs = require('node:fs').promises;
-const path = require('node:path');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import yaml from 'yaml';
 const { ConfigLoader } = require('../config');
 
-/**
- * RepoDiscovery - Discover and manage multi-repo structures
- */
+interface RepoConfig {
+  workflow?: {
+    name?: string;
+    defaults?: string;
+  };
+  [key: string]: unknown;
+}
+
+interface DiscoveredRepo {
+  id: string;
+  path: string;
+  config: RepoConfig | null;
+  workflow: string | null;
+  currentPhase: string | null;
+  hasConfig: boolean;
+}
+
+interface DiscoverOptions {
+  maxDepth?: number;
+  exclude?: string[];
+}
+
+interface WorkflowState {
+  currentPhase?: string;
+}
+
 class RepoDiscovery {
-  configLoader: any;
-  discovered: any;
+  protected configLoader: InstanceType<typeof ConfigLoader>;
+  protected discovered: Map<string, DiscoveredRepo>;
+
   constructor() {
     this.configLoader = new ConfigLoader();
     this.discovered = new Map();
   }
 
-  /**
-   * Discover all repos starting from root
-   * @param {string} rootPath - Root directory to scan
-   * @param {Object} options
-   * @param {number} options.maxDepth - Maximum directory depth
-   * @param {Array<string>} options.exclude - Directories to exclude
-   * @returns {Promise<Array<Object>>} Discovered repos
-   */
-  async discover(rootPath, options = {}) {
+  async discover(rootPath: string, options: DiscoverOptions = {}): Promise<DiscoveredRepo[]> {
     const {
       maxDepth = 10,
       exclude = ['node_modules', '.git', 'dist', 'build']
@@ -35,20 +51,19 @@ class RepoDiscovery {
     return Array.from(this.discovered.values());
   }
 
-  /**
-   * Scan directory recursively for .supernal directories
-   * @private
-   */
-  async scanDirectory(dirPath, currentDepth, maxDepth, exclude) {
+  private async scanDirectory(
+    dirPath: string,
+    currentDepth: number,
+    maxDepth: number,
+    exclude: string[]
+  ): Promise<void> {
     if (currentDepth > maxDepth) return;
 
     try {
-      // Check if this directory is a repo
       if (await this.isValidRepo(dirPath)) {
         await this.addRepo(dirPath);
       }
 
-      // Scan subdirectories
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
       for (const entry of entries) {
@@ -60,19 +75,13 @@ class RepoDiscovery {
         await this.scanDirectory(subPath, currentDepth + 1, maxDepth, exclude);
       }
     } catch (error) {
-      // Skip directories we can't read
-      if (error.code !== 'EACCES' && error.code !== 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code !== 'EACCES' && (error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error;
       }
     }
   }
 
-  /**
-   * Check if path is a valid repo
-   * @param {string} repoPath
-   * @returns {Promise<boolean>}
-   */
-  async isValidRepo(repoPath) {
+  async isValidRepo(repoPath: string): Promise<boolean> {
     try {
       const supernalPath = path.join(repoPath, '.supernal');
       const stat = await fs.stat(supernalPath);
@@ -82,26 +91,19 @@ class RepoDiscovery {
     }
   }
 
-  /**
-   * Add discovered repo
-   * @private
-   */
-  async addRepo(repoPath) {
+  private async addRepo(repoPath: string): Promise<void> {
     try {
-      // Generate repo ID from path
       const repoId = this.generateRepoId(repoPath);
 
-      // Load repo config
       const configFile = path.join(repoPath, '.supernal', 'project.yaml');
-      let config = null;
-      let workflow = null;
-      let currentPhase = null;
+      let config: RepoConfig | null = null;
+      let workflow: string | null = null;
+      let currentPhase: string | null = null;
 
       try {
         config = await this.configLoader.load(configFile);
-        workflow = config.workflow?.name || config.workflow?.defaults || null;
+        workflow = config?.workflow?.name || config?.workflow?.defaults || null;
 
-        // Try to load workflow state
         const stateFile = path.join(
           repoPath,
           '.supernal',
@@ -109,8 +111,7 @@ class RepoDiscovery {
         );
         try {
           const stateContent = await fs.readFile(stateFile, 'utf8');
-          const yaml = require('yaml');
-          const state = yaml.parse(stateContent);
+          const state: WorkflowState = yaml.parse(stateContent);
           currentPhase = state.currentPhase || null;
         } catch {
           // No state file - that's ok
@@ -119,7 +120,7 @@ class RepoDiscovery {
         // No config or invalid - still add repo
       }
 
-      const repo = {
+      const repo: DiscoveredRepo = {
         id: repoId,
         path: repoPath,
         config,
@@ -134,12 +135,7 @@ class RepoDiscovery {
     }
   }
 
-  /**
-   * Generate repo ID from path
-   * @private
-   */
-  generateRepoId(repoPath) {
-    // Use relative path from cwd or absolute path
+  private generateRepoId(repoPath: string): string {
     const cwd = process.cwd();
     let id = repoPath;
 
@@ -147,33 +143,18 @@ class RepoDiscovery {
       id = repoPath.slice(cwd.length + 1);
     }
 
-    // Replace path separators with dashes
     return id.replace(/[/\\]/g, '-').replace(/^-+|-+$/g, '') || 'root';
   }
 
-  /**
-   * List all discovered repos
-   * @returns {Array<Object>}
-   */
-  listRepos() {
+  listRepos(): DiscoveredRepo[] {
     return Array.from(this.discovered.values());
   }
 
-  /**
-   * Get specific repo by ID
-   * @param {string} repoId
-   * @returns {Object|null}
-   */
-  getRepo(repoId) {
+  getRepo(repoId: string): DiscoveredRepo | null {
     return this.discovered.get(repoId) || null;
   }
 
-  /**
-   * Get repo by path
-   * @param {string} repoPath
-   * @returns {Object|null}
-   */
-  getRepoByPath(repoPath) {
+  getRepoByPath(repoPath: string): DiscoveredRepo | null {
     for (const repo of this.discovered.values()) {
       if (repo.path === repoPath) {
         return repo;
@@ -182,54 +163,30 @@ class RepoDiscovery {
     return null;
   }
 
-  /**
-   * Get repos by workflow
-   * @param {string} workflowName
-   * @returns {Array<Object>}
-   */
-  getReposByWorkflow(workflowName) {
+  getReposByWorkflow(workflowName: string): DiscoveredRepo[] {
     return this.listRepos().filter((r) => r.workflow === workflowName);
   }
 
-  /**
-   * Get repos by phase
-   * @param {string} phaseId
-   * @returns {Array<Object>}
-   */
-  getReposByPhase(phaseId) {
+  getReposByPhase(phaseId: string): DiscoveredRepo[] {
     return this.listRepos().filter((r) => r.currentPhase === phaseId);
   }
 
-  /**
-   * Get repos with config
-   * @returns {Array<Object>}
-   */
-  getConfiguredRepos() {
+  getConfiguredRepos(): DiscoveredRepo[] {
     return this.listRepos().filter((r) => r.hasConfig);
   }
 
-  /**
-   * Get repos without config
-   * @returns {Array<Object>}
-   */
-  getUnconfiguredRepos() {
+  getUnconfiguredRepos(): DiscoveredRepo[] {
     return this.listRepos().filter((r) => !r.hasConfig);
   }
 
-  /**
-   * Get repo count
-   * @returns {number}
-   */
-  getRepoCount() {
+  getRepoCount(): number {
     return this.discovered.size;
   }
 
-  /**
-   * Clear discovered repos
-   */
-  clear() {
+  clear(): void {
     this.discovered.clear();
   }
 }
 
+export { RepoDiscovery };
 module.exports = { RepoDiscovery };

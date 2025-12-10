@@ -1,21 +1,68 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * Workflow Guard System
  *
  * Prevents common workflow violations and ensures proper requirement-driven development
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const chalk = require('chalk');
-const { execSync } = require('node:child_process');
+import fs from 'fs-extra';
+import path from 'node:path';
+import chalk from 'chalk';
+import { execSync } from 'node:child_process';
+
+interface GuardOptions {
+  projectRoot?: string;
+  verbose?: boolean;
+}
+
+interface WorkflowIssue {
+  type: string;
+  message: string;
+  suggestion: string;
+  details?: ESLintIssue[];
+}
+
+interface ESLintIssue {
+  file: string;
+  line: number;
+  column: number;
+  rule: string;
+  message: string;
+}
+
+interface ESLintResult {
+  filePath: string;
+  messages: Array<{
+    severity: number;
+    line: number;
+    column: number;
+    ruleId: string;
+    message: string;
+  }>;
+}
+
+interface PreCommitResult {
+  issues: WorkflowIssue[];
+  warnings: WorkflowIssue[];
+  onMain: boolean;
+  significantChanges: boolean;
+}
+
+interface ValidationSummary {
+  shouldBlock: boolean;
+  warnings: number;
+}
+
+interface ValidationResults {
+  valid: boolean;
+  file: string;
+  fixed?: boolean;
+}
 
 class WorkflowGuard {
-  projectRoot: any;
-  verbose: any;
-  constructor(options = {}) {
+  readonly projectRoot: string;
+  readonly verbose: boolean;
+
+  constructor(options: GuardOptions = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.verbose = options.verbose || false;
   }
@@ -23,10 +70,10 @@ class WorkflowGuard {
   /**
    * Check if currently on main branch
    */
-  isOnMainBranch() {
+  isOnMainBranch(): boolean {
     try {
       const branch = execSync('git branch --show-current', {
-        encoding: 'utf8',
+        encoding: 'utf8'
       }).trim();
       return branch === 'main' || branch === 'master';
     } catch (_error) {
@@ -37,7 +84,7 @@ class WorkflowGuard {
   /**
    * Check if commit has requirement reference
    */
-  hasRequirementReference(commitMessage) {
+  hasRequirementReference(commitMessage: string): boolean {
     const reqPattern = /\b(REQ-\d+|req-\d+)\b/i;
     return reqPattern.test(commitMessage);
   }
@@ -45,13 +92,13 @@ class WorkflowGuard {
   /**
    * Check if changes are significant (not just docs or minor fixes)
    */
-  areChangesSignificant(files) {
+  areChangesSignificant(files: string[]): boolean {
     const significantPatterns = [
       /^cli\/commands\//,
       /^cli\/index\.js$/,
       /\.js$/,
       /\.ts$/,
-      /package\.json$/,
+      /package\.json$/
     ];
 
     const minorPatterns = [
@@ -59,7 +106,7 @@ class WorkflowGuard {
       /README/i,
       /CHANGELOG/i,
       /\.gitignore$/,
-      /\.txt$/,
+      /\.txt$/
     ];
 
     const significantFiles = files.filter((file) =>
@@ -76,11 +123,11 @@ class WorkflowGuard {
   /**
    * Pre-commit check
    */
-  async preCommitCheck() {
-    console.log(chalk.blue('🔍 Workflow Guard: Pre-commit validation'));
+  async preCommitCheck(): Promise<PreCommitResult> {
+    console.log(chalk.blue('[i] Workflow Guard: Pre-commit validation'));
 
-    const issues = [];
-    const warnings = [];
+    const issues: WorkflowIssue[] = [];
+    const warnings: WorkflowIssue[] = [];
 
     // Check if on main branch
     const onMain = this.isOnMainBranch();
@@ -102,7 +149,7 @@ class WorkflowGuard {
         type: 'MAIN_BRANCH_DEVELOPMENT',
         message: 'Significant development work detected on main branch',
         suggestion:
-          'Create feature branch: git checkout -b feature/req-XXX-description',
+          'Create feature branch: git checkout -b feature/req-XXX-description'
       });
     }
 
@@ -113,7 +160,7 @@ class WorkflowGuard {
         type: 'MISSING_REQUIREMENT_REFERENCE',
         message: 'No requirement reference found in commit message',
         suggestion:
-          'Include REQ-XXX in commit message or create requirement first',
+          'Include REQ-XXX in commit message or create requirement first'
       });
     }
 
@@ -132,7 +179,7 @@ class WorkflowGuard {
         suggestion:
           relatedReqs.length > 0
             ? `Search existing requirements first: ${relatedReqs.slice(0, 3).join(', ')} or create new: sc req new "Feature Name"`
-            : 'Search existing requirements first: sc req search "keywords" or create new: sc req new "Feature Name"',
+            : 'Search existing requirements first: sc req search "keywords" or create new: sc req new "Feature Name"'
       });
     }
 
@@ -143,7 +190,7 @@ class WorkflowGuard {
         type: 'ESLINT_ERRORS',
         message: `ESLint found ${lintIssues.length} error(s) in staged files`,
         suggestion: 'Fix ESLint errors with: npm run lint:fix',
-        details: lintIssues,
+        details: lintIssues
       });
     }
 
@@ -153,7 +200,7 @@ class WorkflowGuard {
   /**
    * Run ESLint check on staged files
    */
-  async runESLintCheck(stagedFiles) {
+  async runESLintCheck(stagedFiles: string[]): Promise<ESLintIssue[]> {
     const jsFiles = stagedFiles.filter(
       (file) =>
         /\.(js|ts|jsx|tsx)$/.test(file) &&
@@ -166,22 +213,22 @@ class WorkflowGuard {
     }
 
     try {
-      const { execSync } = require('node:child_process');
-      const _result = execSync(
+      execSync(
         `npx eslint ${jsFiles.join(' ')} --format json`,
         {
           encoding: 'utf8',
-          stdio: 'pipe',
+          stdio: 'pipe'
         }
       );
 
       // If ESLint returns successfully, there are no errors
       return [];
     } catch (error) {
-      if (error.stdout) {
+      const err = error as { stdout?: string };
+      if (err.stdout) {
         try {
-          const eslintResults = JSON.parse(error.stdout);
-          const issues = [];
+          const eslintResults: ESLintResult[] = JSON.parse(err.stdout);
+          const issues: ESLintIssue[] = [];
 
           eslintResults.forEach((result) => {
             result.messages.forEach((message) => {
@@ -192,7 +239,7 @@ class WorkflowGuard {
                   line: message.line,
                   column: message.column,
                   rule: message.ruleId,
-                  message: message.message,
+                  message: message.message
                 });
               }
             });
@@ -200,13 +247,15 @@ class WorkflowGuard {
 
           return issues;
         } catch (parseError) {
-          console.warn('Failed to parse ESLint output:', parseError.message);
+          const pErr = parseError as Error;
+          console.warn('Failed to parse ESLint output:', pErr.message);
           return [];
         }
       }
 
       // If there's no stdout, assume ESLint isn't configured or available
-      console.warn('ESLint check failed:', error.message);
+      const stdErr = error as Error;
+      console.warn('ESLint check failed:', stdErr.message);
       return [];
     }
   }
@@ -214,10 +263,10 @@ class WorkflowGuard {
   /**
    * Get staged files for commit
    */
-  getStagedFiles() {
+  getStagedFiles(): string[] {
     try {
       const output = execSync('git diff --cached --name-only', {
-        encoding: 'utf8',
+        encoding: 'utf8'
       });
       return output.trim().split('\n').filter(Boolean);
     } catch (_error) {
@@ -228,7 +277,7 @@ class WorkflowGuard {
   /**
    * Get modified (unstaged) files
    */
-  getModifiedFiles() {
+  getModifiedFiles(): string[] {
     try {
       const output = execSync('git diff --name-only', { encoding: 'utf8' });
       return output.trim().split('\n').filter(Boolean);
@@ -240,7 +289,7 @@ class WorkflowGuard {
   /**
    * Get commit message (for pre-commit hooks)
    */
-  getCommitMessage() {
+  getCommitMessage(): string {
     try {
       // Try to read from COMMIT_EDITMSG if available
       const commitMsgFile = path.join(
@@ -260,11 +309,11 @@ class WorkflowGuard {
   /**
    * Detect if staged files indicate new features
    */
-  detectNewFeatures(files) {
+  detectNewFeatures(files: string[]): boolean {
     const newFeatureIndicators = [
       /^cli\/commands\/[^/]+\/[^/]+\.js$/, // New command files
       /^cli\/index\.js$/, // CLI modifications
-      /package\.json$/, // New dependencies
+      /package\.json$/ // New dependencies
     ];
 
     return files.some((file) =>
@@ -275,12 +324,12 @@ class WorkflowGuard {
   /**
    * Display workflow guidance
    */
-  showWorkflowGuidance() {
-    console.log(chalk.blue.bold('📋 Proper Workflow Guide'));
+  showWorkflowGuidance(): void {
+    console.log(chalk.blue.bold('[i] Proper Workflow Guide'));
     console.log(chalk.blue('='.repeat(50)));
     console.log('');
 
-    console.log(chalk.yellow('✅ Correct Process:'));
+    console.log(chalk.yellow('[OK] Correct Process:'));
     console.log('1. Search for existing requirements first:');
     console.log(`   ${chalk.cyan('sc req search "feature keywords"')}`);
     console.log('');
@@ -308,17 +357,17 @@ class WorkflowGuard {
     console.log(`   ${chalk.cyan('sc git-smart merge')}`);
     console.log('');
 
-    console.log(chalk.red('❌ What NOT to do:'));
-    console.log('• Implement features directly on main');
-    console.log('• Create requirements after implementation');
-    console.log('• Skip requirement creation for new features');
+    console.log(chalk.red('[X] What NOT to do:'));
+    console.log('* Implement features directly on main');
+    console.log('* Create requirements after implementation');
+    console.log('* Skip requirement creation for new features');
     console.log('');
   }
 
   /**
    * Install pre-commit hook
    */
-  async installPreCommitHook() {
+  async installPreCommitHook(): Promise<void> {
     const hookPath = path.join(this.projectRoot, '.git', 'hooks', 'pre-commit');
     const hookContent = `#!/bin/sh
 # Supernal Coding Workflow Guard
@@ -327,7 +376,7 @@ sc workflow-guard pre-commit
 
 if [ $? -ne 0 ]; then
   echo ""
-  echo "🔍 Run 'sc workflow guide' for proper workflow guidance"
+  echo "[i] Run 'sc workflow guide' for proper workflow guidance"
   exit 1
 fi
 `;
@@ -335,14 +384,14 @@ fi
     await fs.writeFile(hookPath, hookContent);
     await fs.chmod(hookPath, '755');
 
-    console.log(chalk.green('✅ Pre-commit hook installed'));
+    console.log(chalk.green('[OK] Pre-commit hook installed'));
     console.log(`   ${hookPath}`);
   }
 
   /**
    * Main execution
    */
-  async execute(action) {
+  async execute(action: string): Promise<boolean | void> {
     switch (action) {
       case 'pre-commit':
         return this.runPreCommitValidation();
@@ -362,7 +411,7 @@ fi
   /**
    * Run pre-add validation (prevent staging on main without force)
    */
-  async runPreAddValidation() {
+  async runPreAddValidation(): Promise<void> {
     const onMain = this.isOnMainBranch();
     const filesToAdd = process.argv.slice(3); // Get files to be added
 
@@ -374,7 +423,7 @@ fi
 
       if (this.verbose) {
         console.log(
-          chalk.green('✅ Pre-add: On feature branch, staging allowed')
+          chalk.green('[OK] Pre-add: On feature branch, staging allowed')
         );
       }
       return;
@@ -386,7 +435,7 @@ fi
     if (hasForce) {
       console.log(
         chalk.yellow(
-          '⚠️  Pre-add: Force flag detected, allowing staging on main'
+          '[!] Pre-add: Force flag detected, allowing staging on main'
         )
       );
       return;
@@ -406,13 +455,13 @@ fi
 
     if (significantChanges) {
       console.log(
-        chalk.red('❌ STAGING BLOCKED: Significant changes on main branch')
+        chalk.red('[X] STAGING BLOCKED: Significant changes on main branch')
       );
       console.log(chalk.red('='.repeat(50)));
       console.log('');
       console.log(
         chalk.yellow(
-          '🚫 You are trying to stage significant changes on the main branch.'
+          '[!] You are trying to stage significant changes on the main branch.'
         )
       );
       console.log(
@@ -427,14 +476,14 @@ fi
       );
 
       if (relatedReqs.length > 0) {
-        console.log(chalk.blue('💡 Found potentially related requirements:'));
+        console.log(chalk.blue('[i] Found potentially related requirements:'));
         relatedReqs.slice(0, 3).forEach((req) => {
-          console.log(`   • ${chalk.cyan(req)}`);
+          console.log(`   * ${chalk.cyan(req)}`);
         });
         console.log('');
       }
 
-      console.log(chalk.yellow('✅ Proper workflow:'));
+      console.log(chalk.yellow('[OK] Proper workflow:'));
       console.log('1. Search existing requirements:');
       console.log(`   ${chalk.cyan('sc req search "keywords"')}`);
       console.log('2. Create/update requirement:');
@@ -444,7 +493,7 @@ fi
       console.log('3. Start work on requirement:');
       console.log(`   ${chalk.cyan('sc req start-work REQ-XXX')}`);
       console.log('');
-      console.log(chalk.yellow('🆘 Emergency override:'));
+      console.log(chalk.yellow('[!] Emergency override:'));
       console.log(
         `   ${chalk.cyan('git add --force <files>')} (use with extreme caution)`
       );
@@ -454,20 +503,18 @@ fi
     }
 
     // Allow minor changes (requirements, documentation)
-    console.log(chalk.green('✅ Minor changes on main allowed'));
+    console.log(chalk.green('[OK] Minor changes on main allowed'));
   }
 
   /**
    * Validate templates in requirement files
    */
-  async validateTemplates(files = []) {
+  async validateTemplates(files: string[] = []): Promise<void> {
     try {
-      const {
-        TemplateValidator,
-      } = require('../../../validation/TemplateValidator');
+      const { TemplateValidator } = require('../../../validation/TemplateValidator');
       const validator = new TemplateValidator({
         projectRoot: this.projectRoot,
-        verbose: this.verbose,
+        verbose: this.verbose
       });
 
       // Filter for requirement files
@@ -485,21 +532,21 @@ fi
       if (this.verbose) {
         console.log(
           chalk.blue(
-            `🔍 Validating ${reqFiles.length} requirement template(s)...`
+            `[i] Validating ${reqFiles.length} requirement template(s)...`
           )
         );
       }
 
-      const results = await validator.validateFiles(
+      const results: ValidationResults[] = await validator.validateFiles(
         reqFiles.map((f) =>
           path.isAbsolute(f) ? f : path.join(this.projectRoot, f)
         )
       );
 
-      const summary = validator.getSummary(results);
+      const summary: ValidationSummary = validator.getSummary(results);
 
       if (summary.shouldBlock) {
-        console.log(chalk.red('❌ TEMPLATE VALIDATION FAILED'));
+        console.log(chalk.red('[X] TEMPLATE VALIDATION FAILED'));
         console.log(chalk.red('='.repeat(50)));
         console.log('');
 
@@ -507,7 +554,7 @@ fi
           validator.formatResults(results, { verbose: this.verbose })
         );
 
-        console.log(chalk.yellow('🔧 To fix template issues:'));
+        console.log(chalk.yellow('[>] To fix template issues:'));
         console.log(
           `   ${chalk.cyan('sc req validate REQ-XXX')}     # Validate specific requirement`
         );
@@ -515,7 +562,7 @@ fi
           `   ${chalk.cyan('sc test validate templates')}  # Validate all templates`
         );
         console.log('');
-        console.log(chalk.yellow('🆘 Emergency override:'));
+        console.log(chalk.yellow('[!] Emergency override:'));
         console.log(
           `   ${chalk.cyan('git add --force <files>')}     # Bypass template validation`
         );
@@ -526,16 +573,17 @@ fi
 
       if (this.verbose && summary.warnings > 0) {
         console.log(
-          chalk.yellow(`⚠️  ${summary.warnings} template warnings found`)
+          chalk.yellow(`[!] ${summary.warnings} template warnings found`)
         );
         console.log(validator.formatResults(results, { verbose: false }));
       }
     } catch (error) {
+      const err = error as Error;
       console.log(
-        chalk.yellow(`⚠️  Template validation failed: ${error.message}`)
+        chalk.yellow(`[!] Template validation failed: ${err.message}`)
       );
       if (this.verbose) {
-        console.error(error.stack);
+        console.error(err.stack);
       }
     }
   }
@@ -543,21 +591,19 @@ fi
   /**
    * Validate templates in staged files
    */
-  async validateStagedTemplates() {
+  async validateStagedTemplates(): Promise<void> {
     try {
-      const {
-        TemplateValidator,
-      } = require('../../../validation/TemplateValidator');
+      const { TemplateValidator } = require('../../../validation/TemplateValidator');
       const validator = new TemplateValidator({
         projectRoot: this.projectRoot,
-        verbose: this.verbose,
+        verbose: this.verbose
       });
 
-      const results = await validator.validateStagedFiles();
-      const summary = validator.getSummary(results);
+      const results: ValidationResults[] = await validator.validateStagedFiles();
+      const summary: ValidationSummary = validator.getSummary(results);
 
       if (summary.shouldBlock) {
-        console.log(chalk.red('❌ STAGED TEMPLATE VALIDATION FAILED'));
+        console.log(chalk.red('[X] STAGED TEMPLATE VALIDATION FAILED'));
         console.log(chalk.red('='.repeat(50)));
         console.log('');
 
@@ -565,7 +611,7 @@ fi
           validator.formatResults(results, { verbose: this.verbose })
         );
 
-        console.log(chalk.yellow('🔧 To fix before committing:'));
+        console.log(chalk.yellow('[>] To fix before committing:'));
         console.log(
           `   ${chalk.cyan('sc req validate REQ-XXX')}     # Validate specific requirement`
         );
@@ -573,7 +619,7 @@ fi
           `   ${chalk.cyan('git restore --staged <file>')} # Unstage incomplete template`
         );
         console.log('');
-        console.log(chalk.yellow('🆘 Emergency override:'));
+        console.log(chalk.yellow('[!] Emergency override:'));
         console.log(
           `   ${chalk.cyan('git commit --no-verify')}      # Bypass validation (not recommended)`
         );
@@ -582,10 +628,11 @@ fi
         process.exit(1);
       }
     } catch (error) {
+      const err = error as Error;
       if (this.verbose) {
         console.log(
           chalk.yellow(
-            `⚠️  Staged template validation failed: ${error.message}`
+            `[!] Staged template validation failed: ${err.message}`
           )
         );
       }
@@ -595,7 +642,7 @@ fi
   /**
    * Run pre-commit validation
    */
-  async runPreCommitValidation() {
+  async runPreCommitValidation(): Promise<boolean> {
     // First validate templates in staged files
     await this.validateStagedTemplates();
 
@@ -603,9 +650,9 @@ fi
       await this.preCommitCheck();
 
     if (issues.length > 0) {
-      console.log(chalk.red('❌ Workflow violations detected:'));
+      console.log(chalk.red('[X] Workflow violations detected:'));
       issues.forEach((issue) => {
-        console.log(`  • ${issue.message}`);
+        console.log(`  * ${issue.message}`);
         console.log(`    ${chalk.gray(issue.suggestion)}`);
       });
       console.log('');
@@ -614,9 +661,9 @@ fi
     }
 
     if (warnings.length > 0) {
-      console.log(chalk.yellow('⚠️  Workflow warnings:'));
+      console.log(chalk.yellow('[!] Workflow warnings:'));
       warnings.forEach((warning) => {
-        console.log(`  • ${warning.message}`);
+        console.log(`  * ${warning.message}`);
         console.log(`    ${chalk.gray(warning.suggestion)}`);
       });
       console.log('');
@@ -624,7 +671,7 @@ fi
 
     if (onMain && significantChanges) {
       console.log(
-        chalk.blue('💡 Consider creating a feature branch for this work')
+        chalk.blue('[i] Consider creating a feature branch for this work')
       );
     }
 
@@ -634,8 +681,8 @@ fi
   /**
    * Run workflow check (can be called manually)
    */
-  async runWorkflowCheck() {
-    console.log(chalk.blue('🔍 Workflow Status Check'));
+  async runWorkflowCheck(): Promise<void> {
+    console.log(chalk.blue('[i] Workflow Status Check'));
     console.log(chalk.blue('='.repeat(40)));
 
     const onMain = this.isOnMainBranch();
@@ -644,16 +691,16 @@ fi
     );
 
     if (onMain) {
-      console.log(chalk.yellow('⚠️  You are on the main branch'));
+      console.log(chalk.yellow('[!] You are on the main branch'));
       console.log('   Consider creating a feature branch for development work');
     }
 
     // Check for uncommitted changes
     try {
       execSync('git diff --quiet && git diff --cached --quiet');
-      console.log(chalk.green('✅ No uncommitted changes'));
+      console.log(chalk.green('[OK] No uncommitted changes'));
     } catch (_error) {
-      console.log(chalk.yellow('⚠️  You have uncommitted changes'));
+      console.log(chalk.yellow('[!] You have uncommitted changes'));
       const staged = this.getStagedFiles();
       if (staged.length > 0) {
         console.log(`   Staged files: ${staged.join(', ')}`);
@@ -661,7 +708,7 @@ fi
     }
 
     console.log('');
-    console.log(chalk.blue('💡 Quick actions:'));
+    console.log(chalk.blue('[i] Quick actions:'));
     console.log(
       `  ${chalk.cyan('sc workflow guide')}        # Show workflow guidance`
     );
@@ -676,7 +723,10 @@ fi
   /**
    * Search for related requirements based on files and commit message
    */
-  async searchRelatedRequirements(files, commitMessage) {
+  async searchRelatedRequirements(
+    files: string[],
+    commitMessage: string
+  ): Promise<string[]> {
     try {
       const keywords = this.extractKeywords(files, commitMessage);
       if (keywords.length === 0) return [];
@@ -688,7 +738,6 @@ fi
         '**',
         '*.md'
       );
-      const { execSync } = require('node:child_process');
 
       // Search for requirements containing these keywords
       const searchTerms = keywords.slice(0, 3).join('|'); // Limit to top 3 keywords
@@ -703,7 +752,7 @@ fi
           const match = file.match(/req-(\d+)/i);
           return match ? `REQ-${match[1]}` : null;
         })
-        .filter(Boolean);
+        .filter((id): id is string => id !== null);
 
       return [...new Set(reqIds)]; // Remove duplicates
     } catch (_error) {
@@ -714,8 +763,8 @@ fi
   /**
    * Extract keywords from file paths and commit message for requirement search
    */
-  extractKeywords(files, commitMessage) {
-    const keywords = new Set();
+  extractKeywords(files: string[], commitMessage: string): string[] {
+    const keywords = new Set<string>();
 
     // Extract from file paths
     files.forEach((file) => {
@@ -756,8 +805,8 @@ fi
   /**
    * Show help
    */
-  showHelp() {
-    console.log(chalk.blue.bold('🛡️  Workflow Guard'));
+  showHelp(): void {
+    console.log(chalk.blue.bold('[>] Workflow Guard'));
     console.log(chalk.blue('='.repeat(40)));
     console.log('');
     console.log('Commands:');
@@ -782,7 +831,7 @@ fi
 if (require.main === module) {
   const action = process.argv[2] || 'help';
   const guard = new WorkflowGuard({
-    verbose: process.argv.includes('--verbose'),
+    verbose: process.argv.includes('--verbose')
   });
 
   guard.execute(action).catch((error) => {
@@ -791,4 +840,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = WorkflowGuard;
+export default WorkflowGuard;

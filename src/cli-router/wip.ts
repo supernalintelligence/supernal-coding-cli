@@ -1,9 +1,53 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { Command } from 'commander';
+import chalk from 'chalk';
 
-const { Command } = require('commander');
 const WipManager = require('../wip/WipManager');
-const chalk = require('chalk');
+
+interface WipEntry {
+  path: string;
+  feature: string;
+  requirement: string;
+  reason: string;
+  userid: string;
+  last_modified: string;
+  age?: number;
+}
+
+interface WipStatus {
+  total: number;
+  active: number;
+  old: number;
+  warnDays: number;
+  oldFiles: Array<{ path: string; age: number; feature: string; userid?: string }>;
+}
+
+interface WipStats {
+  [user: string]: {
+    total: number;
+    old: number;
+  };
+}
+
+interface WipRegistry {
+  files: WipEntry[];
+}
+
+interface UntrackCheck {
+  untracked: number;
+  wipTracked: number;
+  notWipTracked: number;
+  files: string[];
+}
+
+interface CleanupResult {
+  cleaned: number;
+  message?: string;
+}
+
+interface ReassignResult {
+  oldUserid?: string;
+  newUserid: string;
+}
 
 const program = new Command();
 
@@ -12,9 +56,6 @@ program
   .description('Manage work-in-progress files via WIP registry')
   .version('1.0.0');
 
-/**
- * Register file in WIP registry
- */
 program
   .command('register <file>')
   .description('Register a file in WIP registry')
@@ -28,10 +69,18 @@ program
   )
   .option('--add-comment', 'Add WIP comment to file')
   .option('--no-auto-cleanup', 'Disable auto-cleanup')
-  .action(async (file, options) => {
+  .action(async (file: string, options: {
+    feature: string;
+    requirement: string;
+    reason?: string;
+    notes?: string;
+    userid?: string;
+    addComment?: boolean;
+    autoCleanup?: boolean;
+  }) => {
     try {
       const manager = new WipManager();
-      const entry = await manager.register(file, {
+      const entry: WipEntry = await manager.register(file, {
         feature: options.feature,
         requirement: options.requirement,
         reason: options.reason,
@@ -47,22 +96,19 @@ program
       console.log(chalk.gray(`   User: @${entry.userid}`));
       console.log(chalk.gray(`   Reason: ${entry.reason}`));
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Unregister file from WIP registry
- */
 program
   .command('unregister <file>')
   .description('Unregister a file from WIP registry')
   .option('--quiet', 'Suppress output')
-  .action(async (file, options) => {
+  .action(async (file: string, options: { quiet?: boolean }) => {
     try {
       const manager = new WipManager();
-      const result = await manager.unregister(file, options);
+      const result: { removed: boolean; message?: string } = await manager.unregister(file, options);
 
       if (!options.quiet) {
         if (result.removed) {
@@ -75,14 +121,11 @@ program
         }
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * List WIP-tracked files
- */
 program
   .command('list')
   .description('List WIP-tracked files')
@@ -91,10 +134,16 @@ program
   .option('--me', 'Show only files registered by current user')
   .option('--unassigned', 'Show only unassigned files')
   .option('--paths-only', 'Output paths only')
-  .action(async (options) => {
+  .action(async (options: {
+    olderThan?: string;
+    userid?: string;
+    me?: boolean;
+    unassigned?: boolean;
+    pathsOnly?: boolean;
+  }) => {
     try {
       const manager = new WipManager();
-      const files = await manager.list({
+      const files: WipEntry[] | string[] = await manager.list({
         olderThan: options.olderThan
           ? options.olderThan.replace('d', '')
           : null,
@@ -105,7 +154,7 @@ program
       });
 
       if (options.pathsOnly) {
-        files.forEach((path) => console.log(path));
+        (files as string[]).forEach((p) => console.log(p));
       } else {
         if (files.length === 0) {
           console.log(chalk.green('✅ No WIP-tracked files'));
@@ -115,9 +164,9 @@ program
         console.log(chalk.bold('\nWIP-Tracked Files:'));
         console.log(chalk.gray('─'.repeat(80)));
 
-        for (const file of files) {
+        for (const file of files as WipEntry[]) {
           const age = Math.floor(
-            (Date.now() - new Date(file.last_modified)) / (1000 * 60 * 60 * 24)
+            (Date.now() - new Date(file.last_modified).getTime()) / (1000 * 60 * 60 * 24)
           );
           const ageStr =
             age > 0 ? chalk.yellow(`${age}d ago`) : chalk.green('today');
@@ -144,22 +193,19 @@ program
         }
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Show WIP registry status
- */
 program
   .command('status')
   .description('Show WIP registry status')
   .action(async () => {
     try {
       const manager = new WipManager();
-      const status = await manager.status();
-      const stats = await manager.getStatsByUser();
+      const status: WipStatus = await manager.status();
+      const stats: WipStats = await manager.getStatsByUser();
 
       console.log(chalk.bold('\nWIP Registry Status:'));
       console.log(chalk.gray('─'.repeat(80)));
@@ -171,7 +217,6 @@ program
         chalk.yellow(`Old (> ${status.warnDays} days): ${status.old}`)
       );
 
-      // Show stats by user
       console.log(chalk.bold('\nBy User:'));
       for (const [user, userStats] of Object.entries(stats)) {
         const userColor = userStats.old > 0 ? chalk.yellow : chalk.green;
@@ -203,32 +248,26 @@ program
         console.log(chalk.green('\n✅ All files are active'));
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Touch file (update timestamp)
- */
 program
   .command('touch <file>')
   .description('Update last modified timestamp (indicate still working)')
-  .action(async (file) => {
+  .action(async (file: string) => {
     try {
       const manager = new WipManager();
       await manager.touch(file);
 
       console.log(chalk.green('✅ Updated timestamp:'), file);
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Cleanup old files
- */
 program
   .command('cleanup')
   .description('Clean up old WIP-tracked files')
@@ -239,10 +278,10 @@ program
   )
   .option('--dry-run', 'Show what would be cleaned without actually doing it')
   .option('--force', 'Skip confirmation prompts')
-  .action(async (options) => {
+  .action(async (options: { olderThan: string; dryRun?: boolean; force?: boolean }) => {
     try {
       const manager = new WipManager();
-      const result = await manager.cleanup({
+      const result: CleanupResult = await manager.cleanup({
         olderThan: options.olderThan.replace('d', ''),
         dryRun: options.dryRun,
         force: options.force
@@ -258,21 +297,18 @@ program
         }
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Check for untracked files
- */
 program
   .command('check')
   .description('Check for untracked files not in WIP registry')
   .action(async () => {
     try {
       const manager = new WipManager();
-      const check = await manager.checkUntracked();
+      const check: UntrackCheck = await manager.checkUntracked();
 
       console.log(chalk.bold('\nUntracked Files Check:'));
       console.log(chalk.gray('─'.repeat(80)));
@@ -295,29 +331,25 @@ program
         console.log(chalk.green('\n✅ All untracked files are WIP-tracked'));
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Show statistics by user
- */
 program
   .command('stats')
   .description('Show WIP registry statistics by user')
   .action(async () => {
     try {
       const manager = new WipManager();
-      const stats = await manager.getStatsByUser();
-      const registry = await manager.loadRegistry();
+      const stats: WipStats = await manager.getStatsByUser();
+      const registry: WipRegistry = await manager.loadRegistry();
 
       console.log(chalk.bold('\nWIP Registry Statistics:'));
       console.log(chalk.gray('─'.repeat(80)));
       console.log(chalk.cyan(`Total files: ${registry.files.length}`));
       console.log(chalk.bold('\nBy User:'));
 
-      // Sort by total files descending
       const sorted = Object.entries(stats).sort(
         ([, a], [, b]) => b.total - a.total
       );
@@ -332,30 +364,29 @@ program
         );
       }
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-/**
- * Reassign file to different user
- */
 program
   .command('reassign <file>')
   .description('Reassign file to different user')
   .requiredOption('--to <userid>', 'New userid')
-  .action(async (file, options) => {
+  .action(async (file: string, options: { to: string }) => {
     try {
       const manager = new WipManager();
-      const result = await manager.reassign(file, options.to);
+      const result: ReassignResult = await manager.reassign(file, options.to);
 
       console.log(chalk.green('✅ Reassigned file:'), file);
       console.log(chalk.gray(`   From: @${result.oldUserid || 'unassigned'}`));
       console.log(chalk.gray(`   To: @${result.newUserid}`));
     } catch (error) {
-      console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), (error as Error).message);
       process.exit(1);
     }
   });
 
 program.parse(process.argv);
+
+export default program;

@@ -1,30 +1,37 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
 
-/**
- * GitHub Issue Response Awaiter - sc monitor await
- * Polls GitHub issue for responses with configurable timeout and retries
- * 
- * Usage:
- *   sc monitor await --issue 22 --interval 2m --timeout 30m --retries 3
- * 
- * Exit codes:
- *   0 - Response received
- *   1 - Timeout (max retries exhausted)
- *   2 - Error
- */
+interface AwaiterOptions {
+  issue: string | number;
+  interval?: string | number;
+  timeout?: string | number;
+  retries?: number;
+}
 
-const { execSync } = require('node:child_process');
-const chalk = require('chalk');
+interface Comment {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+interface AwaitResult {
+  status: 'success' | 'timeout' | 'error';
+  message?: string;
+  responses?: Comment[];
+  attempts?: number;
+  exitCode: number;
+}
 
 class IssueAwaiter {
-  attempts: any;
-  interval: any;
-  issue: any;
-  lastCommentId: any;
-  maxRetries: any;
-  timeout: any;
-  constructor(options = {}) {
+  protected attempts: number;
+  protected interval: number;
+  protected issue: string | number;
+  protected lastCommentId: string | null;
+  protected maxRetries: number;
+  protected timeout: number;
+
+  constructor(options: AwaiterOptions) {
     this.issue = options.issue;
     this.interval = this.parseTimeMs(options.interval || '2m');
     this.timeout = this.parseTimeMs(options.timeout || '30m');
@@ -33,10 +40,7 @@ class IssueAwaiter {
     this.attempts = 0;
   }
 
-  /**
-   * Parse time string (e.g., "2m", "30m", "1h") to milliseconds
-   */
-  parseTimeMs(timeStr) {
+  parseTimeMs(timeStr: string | number): number {
     if (typeof timeStr === 'number') return timeStr;
     
     const match = timeStr.match(/^(\d+)([smh])$/);
@@ -45,9 +49,9 @@ class IssueAwaiter {
     }
     
     const value = parseInt(match[1], 10);
-    const unit = match[2];
+    const unit = match[2] as 's' | 'm' | 'h';
     
-    const units = {
+    const units: Record<'s' | 'm' | 'h', number> = {
       s: 1000,
       m: 60 * 1000,
       h: 60 * 60 * 1000
@@ -56,10 +60,7 @@ class IssueAwaiter {
     return value * units[unit];
   }
 
-  /**
-   * Format milliseconds to human-readable time
-   */
-  formatTime(ms) {
+  formatTime(ms: number): string {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
@@ -73,24 +74,18 @@ class IssueAwaiter {
     }
   }
 
-  /**
-   * Check if GitHub CLI is available and authenticated
-   */
-  checkGhCli() {
+  checkGhCli(): boolean {
     try {
       execSync('gh auth status', { stdio: 'ignore' });
       return true;
     } catch (_error) {
-      console.log(chalk.red('❌ GitHub CLI not authenticated'));
-      console.log(chalk.yellow('💡 Run: gh auth login'));
+      console.log(chalk.red('[ERROR] GitHub CLI not authenticated'));
+      console.log(chalk.yellow('Run: gh auth login'));
       return false;
     }
   }
 
-  /**
-   * Get all comments for the issue
-   */
-  getComments() {
+  getComments(): Comment[] {
     try {
       const output = execSync(
         `gh issue view ${this.issue} --json comments --jq '.comments[] | {id: .id, author: .author.login, body: .body, createdAt: .createdAt}'`,
@@ -101,48 +96,41 @@ class IssueAwaiter {
       
       const comments = output.trim().split('\n').map(line => {
         try {
-          return JSON.parse(line);
+          return JSON.parse(line) as Comment;
         } catch {
           return null;
         }
-      }).filter(Boolean);
+      }).filter((c): c is Comment => c !== null);
       
       return comments;
     } catch (error) {
-      throw new Error(`Failed to fetch comments: ${error.message}`);
+      throw new Error(`Failed to fetch comments: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Check for new comments since last check
-   */
-  checkForNewComments() {
+  checkForNewComments(): Comment[] | null {
     const comments = this.getComments();
     
     if (comments.length === 0) {
       return null;
     }
     
-    // First run - store the most recent comment ID
     if (this.lastCommentId === null) {
       this.lastCommentId = comments[comments.length - 1].id;
       console.log(chalk.gray(`   Tracking from comment ID: ${this.lastCommentId}`));
       return null;
     }
     
-    // Find new comments after the last tracked comment
     const lastIndex = comments.findIndex(c => c.id === this.lastCommentId);
     
     if (lastIndex === -1) {
-      // Last comment ID not found - assume all are new
-      console.log(chalk.yellow('   ⚠️  Comment history changed, checking all comments'));
+      console.log(chalk.yellow('   [WARN] Comment history changed, checking all comments'));
       return comments;
     }
     
     const newComments = comments.slice(lastIndex + 1);
     
     if (newComments.length > 0) {
-      // Update last comment ID
       this.lastCommentId = comments[comments.length - 1].id;
       return newComments;
     }
@@ -150,74 +138,56 @@ class IssueAwaiter {
     return null;
   }
 
-  /**
-   * Detect if a comment is a response from Cursor or relevant party
-   */
-  isResponse(comment) {
-    // Check if comment contains code blocks (typical of Cursor responses)
+  isResponse(comment: Comment): boolean {
     const hasCodeBlock = /```[\s\S]*?```/.test(comment.body);
-    
-    // Check if comment mentions implementation or changes
     const hasImplementationKeywords = /(implement|fix|change|update|add|create|modify)/i.test(comment.body);
-    
-    // Check if it's from an agent/bot or specific user
     const isFromAgent = comment.author.toLowerCase().includes('cursor') || 
                        comment.author.toLowerCase().includes('bot');
     
     return hasCodeBlock || hasImplementationKeywords || isFromAgent;
   }
 
-  /**
-   * Add a re-ping comment to the issue
-   */
-  async addRePingComment() {
+  async addRePingComment(): Promise<void> {
     try {
       const message = `@cursor Awaiting response (attempt ${this.attempts}/${this.maxRetries})`;
       execSync(
         `gh issue comment ${this.issue} --body "${message}"`,
         { stdio: 'pipe' }
       );
-      console.log(chalk.yellow(`   📌 Re-pinged with comment`));
+      console.log(chalk.yellow(`   Re-pinged with comment`));
     } catch (error) {
-      console.log(chalk.yellow(`   ⚠️  Failed to add re-ping comment: ${error.message}`));
+      console.log(chalk.yellow(`   [WARN] Failed to add re-ping comment: ${(error as Error).message}`));
     }
   }
 
-  /**
-   * Sleep for specified milliseconds
-   */
-  sleep(ms) {
+  sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /**
-   * Main await loop
-   */
-  async await() {
+  async await(): Promise<AwaitResult> {
     if (!this.checkGhCli()) {
       return { status: 'error', message: 'GitHub CLI not available', exitCode: 2 };
     }
     
-    console.log(chalk.blue('\n🔍 Awaiting response on GitHub issue'));
+    console.log(chalk.blue('\nAwaiting response on GitHub issue'));
     console.log(chalk.gray(`   Issue: #${this.issue}`));
     console.log(chalk.gray(`   Poll interval: ${this.formatTime(this.interval)}`));
     console.log(chalk.gray(`   Timeout: ${this.formatTime(this.timeout)}`));
     console.log(chalk.gray(`   Max retries: ${this.maxRetries}`));
     console.log('');
     
-    // Initialize by getting current comments
     try {
       this.checkForNewComments();
     } catch (error) {
-      console.log(chalk.red(`❌ Error: ${error.message}`));
-      return { status: 'error', message: error.message, exitCode: 2 };
+      console.log(chalk.red(`[ERROR] ${(error as Error).message}`));
+      return { status: 'error', message: (error as Error).message, exitCode: 2 };
     }
     
     while (this.attempts < this.maxRetries) {
       const attemptStartTime = Date.now();
       let pollCount = 0;
       
-      console.log(chalk.cyan(`\n📊 Attempt ${this.attempts + 1}/${this.maxRetries}`));
+      console.log(chalk.cyan(`\nAttempt ${this.attempts + 1}/${this.maxRetries}`));
       
       while (Date.now() - attemptStartTime < this.timeout) {
         const elapsed = Date.now() - attemptStartTime;
@@ -232,22 +202,20 @@ class IssueAwaiter {
           const newComments = this.checkForNewComments();
           
           if (newComments && newComments.length > 0) {
-            process.stdout.write('\r' + ' '.repeat(80) + '\r'); // Clear line
+            process.stdout.write('\r' + ' '.repeat(80) + '\r');
             
-            console.log(chalk.green(`\n✅ New comments detected (${newComments.length})`));
+            console.log(chalk.green(`\n[OK] New comments detected (${newComments.length})`));
             
-            // Check if any comment is a valid response
             const responses = newComments.filter(c => this.isResponse(c));
             
             if (responses.length > 0) {
-              console.log(chalk.green(`\n🎉 Response received!`));
+              console.log(chalk.green(`\n[OK] Response received!`));
               console.log('');
               
               responses.forEach((response, idx) => {
                 console.log(chalk.cyan(`   Response ${idx + 1} from @${response.author}:`));
                 console.log(chalk.gray(`   Created: ${new Date(response.createdAt).toLocaleString()}`));
                 
-                // Show preview of response (first 200 chars)
                 const preview = response.body.substring(0, 200).replace(/\n/g, ' ');
                 console.log(chalk.white(`   Preview: ${preview}${response.body.length > 200 ? '...' : ''}`));
                 console.log('');
@@ -265,19 +233,18 @@ class IssueAwaiter {
             }
           }
         } catch (error) {
-          process.stdout.write('\r' + ' '.repeat(80) + '\r'); // Clear line
-          console.log(chalk.red(`\n   ❌ Error checking comments: ${error.message}`));
+          process.stdout.write('\r' + ' '.repeat(80) + '\r');
+          console.log(chalk.red(`\n   [ERROR] Error checking comments: ${(error as Error).message}`));
           console.log(chalk.gray('   Retrying...'));
         }
         
         await this.sleep(this.interval);
       }
       
-      // Timeout for this attempt
-      process.stdout.write('\r' + ' '.repeat(80) + '\r'); // Clear line
+      process.stdout.write('\r' + ' '.repeat(80) + '\r');
       
       this.attempts++;
-      console.log(chalk.yellow(`\n   ⏰ Timeout reached for attempt ${this.attempts}`));
+      console.log(chalk.yellow(`\n   Timeout reached for attempt ${this.attempts}`));
       
       if (this.attempts < this.maxRetries) {
         await this.addRePingComment();
@@ -285,9 +252,8 @@ class IssueAwaiter {
       }
     }
     
-    // Max retries exhausted
-    console.log(chalk.red(`\n❌ Max retries exhausted (${this.maxRetries})`));
-    console.log(chalk.yellow('💡 No response received within timeout period'));
+    console.log(chalk.red(`\n[ERROR] Max retries exhausted (${this.maxRetries})`));
+    console.log(chalk.yellow('No response received within timeout period'));
     
     return { 
       status: 'timeout', 
@@ -297,15 +263,11 @@ class IssueAwaiter {
   }
 }
 
-/**
- * CLI Interface
- */
-async function main() {
+async function main(): Promise<number> {
   const args = process.argv.slice(2);
   
-  // Parse arguments
-  const options = {
-    issue: null,
+  const options: AwaiterOptions = {
+    issue: '',
     interval: '2m',
     timeout: '30m',
     retries: 3
@@ -354,8 +316,8 @@ async function main() {
   }
   
   if (!options.issue) {
-    console.log(chalk.red('❌ Error: --issue is required'));
-    console.log(chalk.yellow('💡 Run: sc monitor await --help'));
+    console.log(chalk.red('[ERROR] --issue is required'));
+    console.log(chalk.yellow('Run: sc monitor await --help'));
     return 2;
   }
   
@@ -365,15 +327,14 @@ async function main() {
   return result.exitCode;
 }
 
-// Export for testing and module usage
+export { IssueAwaiter, main };
 module.exports = { IssueAwaiter, main };
 
-// Run if called directly
 if (require.main === module) {
   main().then(exitCode => {
     process.exit(exitCode);
   }).catch(error => {
-    console.error(chalk.red('❌ Fatal error:'), error.message);
+    console.error(chalk.red('[FATAL]'), (error as Error).message);
     process.exit(2);
   });
 }

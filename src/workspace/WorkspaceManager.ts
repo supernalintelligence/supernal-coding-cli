@@ -1,21 +1,118 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import fs from 'fs-extra';
+import path from 'node:path';
+import yaml from 'yaml';
 
-/**
- * Multi-Repo Workspace Manager
- * Manages workspace initialization, repo linking, and coordination
- */
+interface WorkspaceConfig {
+  workspace: {
+    name: string;
+    version: string;
+    type: string;
+    description: string;
+    created: string;
+    updated: string;
+  };
+  repos: RepoInfo[];
+  coordination: {
+    cross_repo_handoffs_dir: string;
+    dependencies_dir: string;
+    blockers_tracking: string;
+    dashboard_url: string | null;
+  };
+}
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const yaml = require('js-yaml');
+interface RepoInfo {
+  name: string;
+  path: string;
+  type: string;
+  primary_language?: string;
+  github?: string | null;
+  related_requirements?: string[];
+  blocked_by?: string[];
+}
+
+interface RepoConfig {
+  project?: {
+    type?: string;
+    primary_language?: string;
+  };
+  github?: string;
+  workspace?: {
+    enabled?: boolean;
+    parent_path?: string;
+    repo_name?: string;
+    sync_handoffs?: boolean;
+    check_dependencies?: boolean;
+  };
+}
+
+interface InitOptions {
+  name: string;
+  type?: string;
+  description?: string;
+}
+
+interface LinkOptions {
+  parent: string;
+}
+
+interface StatusOptions {
+  json?: boolean;
+}
+
+interface InitResult {
+  success: boolean;
+  workspace: string;
+  message: string;
+  structure: {
+    workspace: string;
+    handoffs: string;
+    dependencies: string;
+  };
+}
+
+interface LinkResult {
+  success: boolean;
+  workspace: string;
+  repo: string;
+  message: string;
+}
+
+interface UnlinkResult {
+  success: boolean;
+  repo: string;
+  message: string;
+}
+
+interface RepoStatus {
+  name: string;
+  path: string;
+  exists: boolean;
+  type: string;
+  active_handoffs?: number;
+  blocked_by?: string[];
+}
+
+interface StatusResult {
+  workspace: string;
+  type: string;
+  repos: RepoStatus[];
+  total_repos: number;
+  existing_repos: number;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors?: string[];
+  message?: string;
+}
 
 class WorkspaceManager {
-  crossRepoDir: any;
-  dependenciesDir: any;
-  handoffsDir: any;
-  workspaceDir: any;
-  workspaceFile: any;
+  protected crossRepoDir: string;
+  protected dependenciesDir: string;
+  protected handoffsDir: string;
+  protected workspaceDir: string;
+  protected workspaceFile: string;
+
   constructor(workspaceDir = '.supernal') {
     this.workspaceDir = workspaceDir;
     this.workspaceFile = path.join(workspaceDir, 'workspace.yaml');
@@ -24,28 +121,22 @@ class WorkspaceManager {
     this.dependenciesDir = path.join(this.crossRepoDir, 'dependencies');
   }
 
-  /**
-   * Initialize multi-repo workspace
-   */
-  async init(options) {
+  async init(options: InitOptions): Promise<InitResult> {
     const { name, type = 'multi-repo', description } = options;
 
     if (!name) {
       throw new Error('Workspace name is required');
     }
 
-    // Check if already initialized
     if (await fs.pathExists(this.workspaceFile)) {
       throw new Error(`Workspace already initialized at ${this.workspaceFile}`);
     }
 
-    // Create directory structure
     await fs.ensureDir(this.workspaceDir);
     await fs.ensureDir(this.handoffsDir);
     await fs.ensureDir(this.dependenciesDir);
 
-    // Create workspace.yaml
-    const workspace = {
+    const workspace: WorkspaceConfig = {
       workspace: {
         name,
         version: '1.0',
@@ -63,9 +154,8 @@ class WorkspaceManager {
       }
     };
 
-    await fs.writeFile(this.workspaceFile, yaml.dump(workspace), 'utf8');
+    await fs.writeFile(this.workspaceFile, yaml.stringify(workspace), 'utf8');
 
-    // Create README
     await this.createWorkspaceReadme(name);
 
     return {
@@ -80,10 +170,7 @@ class WorkspaceManager {
     };
   }
 
-  /**
-   * Create workspace README
-   */
-  async createWorkspaceReadme(name) {
+  async createWorkspaceReadme(name: string): Promise<void> {
     const readme = `# ${name} Workspace
 
 This is a Supernal Coding multi-repo workspace.
@@ -135,17 +222,13 @@ sc workspace blockers
     );
   }
 
-  /**
-   * Link repo to workspace
-   */
-  async link(options) {
+  async link(options: LinkOptions): Promise<LinkResult> {
     const { parent } = options;
 
     if (!parent) {
       throw new Error('Parent workspace path is required');
     }
 
-    // Find workspace.yaml in parent
     const workspacePath = path.resolve(parent, '.supernal', 'workspace.yaml');
     if (!(await fs.pathExists(workspacePath))) {
       throw new Error(
@@ -153,15 +236,12 @@ sc workspace blockers
       );
     }
 
-    // Load workspace config
     const workspaceContent = await fs.readFile(workspacePath, 'utf8');
-    const workspace = yaml.load(workspaceContent);
+    const workspace: WorkspaceConfig = yaml.parse(workspaceContent);
 
-    // Get current repo info
     const repoPath = process.cwd();
     const repoName = path.basename(repoPath);
 
-    // Check if repo has Supernal Coding initialized
     const configPath = '.supernal/config.yaml';
     if (!(await fs.pathExists(configPath))) {
       throw new Error(
@@ -169,11 +249,9 @@ sc workspace blockers
       );
     }
 
-    // Load repo config
     const configContent = await fs.readFile(configPath, 'utf8');
-    const config = yaml.load(configContent);
+    const config: RepoConfig = yaml.parse(configContent);
 
-    // Update repo config with workspace link
     config.workspace = {
       enabled: true,
       parent_path: parent,
@@ -182,9 +260,8 @@ sc workspace blockers
       check_dependencies: true
     };
 
-    await fs.writeFile(configPath, yaml.dump(config), 'utf8');
+    await fs.writeFile(configPath, yaml.stringify(config), 'utf8');
 
-    // Register repo in workspace
     const existingRepo = workspace.repos.find((r) => r.name === repoName);
     if (!existingRepo) {
       workspace.repos.push({
@@ -199,7 +276,7 @@ sc workspace blockers
 
       workspace.workspace.updated = new Date().toISOString().split('T')[0];
 
-      await fs.writeFile(workspacePath, yaml.dump(workspace), 'utf8');
+      await fs.writeFile(workspacePath, yaml.stringify(workspace), 'utf8');
     }
 
     return {
@@ -210,30 +287,25 @@ sc workspace blockers
     };
   }
 
-  /**
-   * Unlink repo from workspace
-   */
-  async unlink() {
+  async unlink(): Promise<UnlinkResult> {
     const configPath = '.supernal/config.yaml';
     if (!(await fs.pathExists(configPath))) {
       throw new Error('No Supernal Coding config found');
     }
 
     const configContent = await fs.readFile(configPath, 'utf8');
-    const config = yaml.load(configContent);
+    const config: RepoConfig = yaml.parse(configContent);
 
     if (!config.workspace?.enabled) {
       throw new Error('This repo is not linked to a workspace');
     }
 
-    const parentPath = config.workspace.parent_path;
-    const repoName = config.workspace.repo_name;
+    const parentPath = config.workspace.parent_path!;
+    const repoName = config.workspace.repo_name!;
 
-    // Remove workspace config from repo
     delete config.workspace;
-    await fs.writeFile(configPath, yaml.dump(config), 'utf8');
+    await fs.writeFile(configPath, yaml.stringify(config), 'utf8');
 
-    // Remove repo from workspace
     const workspacePath = path.resolve(
       parentPath,
       '.supernal',
@@ -241,12 +313,12 @@ sc workspace blockers
     );
     if (await fs.pathExists(workspacePath)) {
       const workspaceContent = await fs.readFile(workspacePath, 'utf8');
-      const workspace = yaml.load(workspaceContent);
+      const workspace: WorkspaceConfig = yaml.parse(workspaceContent);
 
       workspace.repos = workspace.repos.filter((r) => r.name !== repoName);
       workspace.workspace.updated = new Date().toISOString().split('T')[0];
 
-      await fs.writeFile(workspacePath, yaml.dump(workspace), 'utf8');
+      await fs.writeFile(workspacePath, yaml.stringify(workspace), 'utf8');
     }
 
     return {
@@ -256,26 +328,22 @@ sc workspace blockers
     };
   }
 
-  /**
-   * Get workspace status
-   */
-  async status(options = {}) {
-    const { json = false } = options;
+  async status(options: StatusOptions = {}): Promise<StatusResult> {
+    const { json: _json = false } = options;
 
     if (!(await fs.pathExists(this.workspaceFile))) {
       throw new Error('No workspace found in current directory');
     }
 
     const workspaceContent = await fs.readFile(this.workspaceFile, 'utf8');
-    const workspace = yaml.load(workspaceContent);
+    const workspace: WorkspaceConfig = yaml.parse(workspaceContent);
 
-    const repos = [];
+    const repos: RepoStatus[] = [];
     for (const repo of workspace.repos) {
       const repoPath = path.resolve(repo.path);
       const exists = await fs.pathExists(repoPath);
 
       if (exists) {
-        // Count handoffs
         const handoffsPath = path.join(repoPath, 'docs/handoffs');
         let activeHandoffs = 0;
         if (await fs.pathExists(handoffsPath)) {
@@ -301,7 +369,7 @@ sc workspace blockers
       }
     }
 
-    const result = {
+    const result: StatusResult = {
       workspace: workspace.workspace.name,
       type: workspace.workspace.type,
       repos,
@@ -309,42 +377,30 @@ sc workspace blockers
       existing_repos: repos.filter((r) => r.exists).length
     };
 
-    if (json) {
-      return result;
-    }
-
     return result;
   }
 
-  /**
-   * Load workspace config
-   */
-  async loadWorkspace() {
+  async loadWorkspace(): Promise<WorkspaceConfig> {
     if (!(await fs.pathExists(this.workspaceFile))) {
       throw new Error('No workspace found');
     }
 
     const content = await fs.readFile(this.workspaceFile, 'utf8');
-    return yaml.load(content);
+    return yaml.parse(content);
   }
 
-  /**
-   * Validate workspace
-   */
-  async validate() {
+  async validate(): Promise<ValidationResult> {
     if (!(await fs.pathExists(this.workspaceFile))) {
       throw new Error('No workspace found');
     }
 
     const workspace = await this.loadWorkspace();
-    const errors = [];
+    const errors: string[] = [];
 
-    // Check required fields
     if (!workspace.workspace?.name) {
       errors.push('workspace.name is required');
     }
 
-    // Check repos
     if (!Array.isArray(workspace.repos)) {
       errors.push('repos must be an array');
     } else {
@@ -372,4 +428,5 @@ sc workspace blockers
   }
 }
 
+export default WorkspaceManager;
 module.exports = WorkspaceManager;

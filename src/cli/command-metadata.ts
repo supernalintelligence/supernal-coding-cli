@@ -1,26 +1,44 @@
-// @ts-nocheck
 /**
  * Centralized Command Metadata
  * Single source of truth for all CLI command definitions
- * Prevents duplication across command-registry.js, command classes, and tests
  */
 
-const COMMAND_METADATA = {
+import chalk from 'chalk';
+
+type CommandOption = [string, string];
+
+interface CommandMeta {
+  description: string;
+  actions?: string[];
+  actionsSummary?: string;
+  options?: CommandOption[];
+  arguments?: string[];
+  examples?: string[];
+}
+
+interface CommandRegistry {
+  description: string;
+  options?: CommandOption[];
+  arguments?: string[];
+}
+
+interface CommandHelp extends CommandMeta {
+  // Same as CommandMeta but for help display
+}
+
+const COMMAND_METADATA: Record<string, CommandMeta> = {
   init: {
     description: 'Equip current repository with specific preset or content modules',
     actions: ['minimal', 'standard', 'full', 'development', 'interactive'],
     options: [
-      // Presets (full installation)
       ['--minimal', 'Install minimal preset (just essentials)'],
       ['--standard', 'Install standard preset (recommended)'],
       ['--full', 'Install full preset (complete ecosystem)'],
       ['--development', 'Install development preset (for contributors)'],
       ['--interactive', 'Interactive setup mode'],
-      // Content modules (standalone installation for docs sites)
       ['--guides', 'Install guides/tutorials to docs/guides/'],
       ['--compliance', 'Install compliance templates to docs/compliance/'],
       ['--workflow', 'Install workflow/SOPs to docs/workflow/'],
-      // Options
       ['--dry-run', 'Show what would be installed without doing it'],
       ['--overwrite', 'Overwrite existing files without confirmation'],
       ['--skip-upgrade-check', 'Skip checking for package upgrades'],
@@ -93,10 +111,7 @@ const COMMAND_METADATA = {
   }
 };
 
-/**
- * Get command metadata for registry registration
- */
-function getCommandForRegistry(commandName) {
+function getCommandForRegistry(commandName: string): CommandRegistry | null {
   const meta = COMMAND_METADATA[commandName];
   if (!meta) return null;
 
@@ -109,10 +124,7 @@ function getCommandForRegistry(commandName) {
   };
 }
 
-/**
- * Get command metadata for help text generation
- */
-function getCommandHelp(commandName) {
+function getCommandHelp(commandName: string): CommandHelp | null {
   const meta = COMMAND_METADATA[commandName];
   if (!meta) return null;
 
@@ -126,14 +138,31 @@ function getCommandHelp(commandName) {
   };
 }
 
-/**
- * Generate standardized help text
- */
-function generateHelpText(commandName, customTitle = null) {
+function getActionDescription(commandName: string, action: string): string {
+  const descriptions: Record<string, Record<string, string>> = {
+    test: {
+      guide: 'Show testing guidance',
+      setup: 'Setup testing environment',
+      validate: 'Validate test quality',
+      plan: 'Generate test plan for requirement',
+      run: 'Run tests (unit, e2e, integration)',
+      doctor: 'Diagnose testing issues',
+      map: 'Generate test mapping',
+      structure: 'Show test structure guidance'
+    },
+    sync: {
+      check: 'Check version sync between local repo and global sc (default)',
+      report: 'Same as check - shows version comparison',
+      update: 'Update global sc to match local repository version'
+    }
+  };
+
+  return descriptions[commandName]?.[action] || `Execute ${action} action`;
+}
+
+function generateHelpText(commandName: string, customTitle: string | null = null): string {
   const meta = getCommandHelp(commandName);
   if (!meta) return 'Help not available for this command';
-
-  const chalk = require('chalk');
 
   let help = '';
   help += chalk.blue.bold(
@@ -170,30 +199,13 @@ function generateHelpText(commandName, customTitle = null) {
   return help;
 }
 
-/**
- * Get description for a specific action (can be customized per command)
- */
-function getActionDescription(commandName, action) {
-  const descriptions = {
-    test: {
-      guide: 'Show testing guidance',
-      setup: 'Setup testing environment',
-      validate: 'Validate test quality',
-      plan: 'Generate test plan for requirement',
-      run: 'Run tests (unit, e2e, integration)',
-      doctor: 'Diagnose testing issues',
-      map: 'Generate test mapping',
-      structure: 'Show test structure guidance'
-    },
-    sync: {
-      check: 'Check version sync between local repo and global sc (default)',
-      report: 'Same as check - shows version comparison',
-      update: 'Update global sc to match local repository version'
-    }
-  };
-
-  return descriptions[commandName]?.[action] || `Execute ${action} action`;
-}
+export {
+  COMMAND_METADATA,
+  getCommandForRegistry,
+  getCommandHelp,
+  generateHelpText,
+  getActionDescription
+};
 
 module.exports = {
   COMMAND_METADATA,

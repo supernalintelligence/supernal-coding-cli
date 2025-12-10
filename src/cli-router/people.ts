@@ -1,29 +1,55 @@
-// @ts-nocheck
-/**
- * People Management CLI
- *
- * Manage team contributors, roles, GPG keys, and approval permissions.
- *
- * Usage:
- *   sc people list                # List all contributors
- *   sc people add <email>         # Add new contributor
- *   sc people me                  # Register yourself
- *   sc people remove <id>         # Remove a contributor
- *   sc people gpg-status          # Check GPG status
- *   sc people verify <id>         # Verify GitHub key
- *   sc people set-role <id> <role> # Update role
- */
+import { Command } from 'commander';
+import readline from 'node:readline';
+import chalk from 'chalk';
 
-const { Command } = require('commander');
 const { PeopleManager } = require('../people/PeopleManager');
-const readline = require('node:readline');
 
-const people = new Command('people').description(
-  'Manage team contributors and approval permissions'
-);
+interface ListOptions {
+  json?: boolean;
+  role?: string;
+  activeOnly?: boolean;
+}
 
-// Utility for interactive prompts
-async function prompt(question, defaultValue = '') {
+interface AddOptions {
+  name?: string;
+  role?: string;
+  gpgKey?: string;
+  github?: string;
+  nonInteractive?: boolean;
+}
+
+interface Contributor {
+  id: string;
+  name: string;
+  email: string;
+  github?: string;
+  role: string;
+  active: boolean;
+  gpgStatus: 'verified' | 'unverified' | 'missing';
+  gpgKeyId?: string;
+  canApprove?: string[];
+}
+
+interface GpgStatus {
+  name: string;
+  email: string;
+  gpgKeyId?: string;
+  status: 'verified' | 'unverified' | 'missing';
+}
+
+interface VerifyResult {
+  onGitHub: boolean | null;
+  message: string;
+  keyId?: string;
+}
+
+interface Summary {
+  total: number;
+  active: number;
+  gpgConfigured: number;
+}
+
+async function prompt(question: string, defaultValue = ''): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -39,20 +65,21 @@ async function prompt(question, defaultValue = '') {
   });
 }
 
-// ============================================================================
+const people = new Command('people').description(
+  'Manage team contributors and approval permissions'
+);
+
 // sc people list
-// ============================================================================
 people
   .command('list')
   .description('List all contributors with roles and GPG status')
   .option('--json', 'Output as JSON')
   .option('--role <role>', 'Filter by role')
   .option('--active-only', 'Show only active contributors')
-  .action((options) => {
+  .action((options: ListOptions) => {
     const manager = new PeopleManager();
-    let contributors = manager.list();
+    let contributors: Contributor[] = manager.list();
 
-    // Apply filters
     if (options.role) {
       contributors = contributors.filter((c) => c.role === options.role);
     }
@@ -75,49 +102,45 @@ people
       return;
     }
 
-    console.log('\n📋 Team Contributors\n');
-    console.log('─'.repeat(80));
+    console.log(chalk.bold('\nTeam Contributors\n'));
+    console.log(chalk.gray('-'.repeat(80)));
 
     contributors.forEach((c) => {
-      const gpgIcon =
-        {
-          verified: '✅',
-          unverified: '⚠️',
-          missing: '❌'
-        }[c.gpgStatus] || '❓';
+      const gpgIcon: Record<string, string> = {
+        verified: chalk.green('[OK]'),
+        unverified: chalk.yellow('[WARN]'),
+        missing: chalk.red('[MISSING]')
+      };
 
-      const roleIcon =
-        {
-          owner: '👑',
-          admin: '🛡️',
-          approver: '✓',
-          contributor: '👤'
-        }[c.role] || '•';
+      const roleIcon: Record<string, string> = {
+        owner: chalk.yellow('[OWNER]'),
+        admin: chalk.cyan('[ADMIN]'),
+        approver: chalk.green('[APPROVER]'),
+        contributor: chalk.gray('[CONTRIB]')
+      };
 
-      const status = c.active ? '' : ' (inactive)';
+      const status = c.active ? '' : chalk.gray(' (inactive)');
 
-      console.log(`${roleIcon} ${c.name}${status}`);
+      console.log(`${roleIcon[c.role] || '[*]'} ${c.name}${status}`);
       console.log(`   Email: ${c.email}`);
       if (c.github) console.log(`   GitHub: ${c.github}`);
       console.log(`   Role: ${c.role}`);
-      console.log(`   GPG: ${gpgIcon} ${c.gpgKeyId || 'Not configured'}`);
+      console.log(`   GPG: ${gpgIcon[c.gpgStatus] || '[?]'} ${c.gpgKeyId || 'Not configured'}`);
       if (c.canApprove && c.canApprove.length > 0) {
         console.log(`   Can Approve: ${c.canApprove.join(', ')}`);
       }
       console.log('');
     });
 
-    const summary = manager.getSummary();
-    console.log('─'.repeat(80));
+    const summary: Summary = manager.getSummary();
+    console.log(chalk.gray('-'.repeat(80)));
     console.log(
       `Total: ${summary.total} | Active: ${summary.active} | GPG Configured: ${summary.gpgConfigured}/${summary.total}`
     );
     console.log('');
   });
 
-// ============================================================================
-// sc people add <email>
-// ============================================================================
+// sc people add [email]
 people
   .command('add [email]')
   .description('Add a new contributor (interactive)')
@@ -130,17 +153,17 @@ people
   .option('--gpg-key <keyId>', 'GPG Key ID')
   .option('--github <username>', 'GitHub username')
   .option('--non-interactive', 'Use provided options without prompts')
-  .action(async (emailArg, options) => {
+  .action(async (emailArg: string | undefined, options: AddOptions) => {
     const manager = new PeopleManager();
 
     let email = emailArg;
     let name = options.name;
-    let role = options.role;
+    let role = options.role || 'contributor';
     let gpgKeyId = options.gpgKey;
     let github = options.github;
 
     if (!options.nonInteractive) {
-      console.log('\n📝 Add New Contributor\n');
+      console.log(chalk.bold('\nAdd New Contributor\n'));
 
       if (!email) {
         email = await prompt('Email address');
@@ -166,7 +189,7 @@ people
     }
 
     try {
-      const contributor = manager.add({
+      const contributor: Contributor = manager.add({
         name,
         email,
         role,
@@ -175,7 +198,7 @@ people
       });
 
       console.log(
-        `\n✅ Added contributor: ${contributor.name} (${contributor.id})`
+        chalk.green(`\n[OK] Added contributor: ${contributor.name} (${contributor.id})`)
       );
       console.log(`   Role: ${contributor.role}`);
       if (contributor.gpgKeyId) {
@@ -183,26 +206,24 @@ people
       }
       console.log('');
     } catch (e) {
-      console.error(`\n❌ ${e.message}\n`);
+      console.error(chalk.red(`\n[ERROR] ${(e as Error).message}\n`));
       process.exit(1);
     }
   });
 
-// ============================================================================
 // sc people me
-// ============================================================================
 people
   .command('me')
   .description('Register yourself from git config and GPG key')
   .action(() => {
     const manager = new PeopleManager();
 
-    console.log('\n🔐 Registering from git config...\n');
+    console.log(chalk.blue('\nRegistering from git config...\n'));
 
     try {
-      const contributor = manager.registerSelf();
+      const contributor: Contributor = manager.registerSelf();
 
-      console.log('✅ Successfully registered!\n');
+      console.log(chalk.green('[OK] Successfully registered!\n'));
       console.log(`   Name: ${contributor.name}`);
       console.log(`   Email: ${contributor.email}`);
       if (contributor.github) console.log(`   GitHub: ${contributor.github}`);
@@ -210,29 +231,27 @@ people
       if (contributor.gpgKeyId) {
         console.log(`   GPG Key: ${contributor.gpgKeyId}`);
       } else {
-        console.log('   GPG Key: ⚠️ Not configured');
+        console.log(chalk.yellow('   GPG Key: [WARN] Not configured'));
         console.log('\n   To enable signed commits, run: sc gpg setup');
       }
       console.log('');
     } catch (e) {
-      console.error(`\n❌ ${e.message}\n`);
+      console.error(chalk.red(`\n[ERROR] ${(e as Error).message}\n`));
       process.exit(1);
     }
   });
 
-// ============================================================================
 // sc people remove <id>
-// ============================================================================
 people
   .command('remove <id>')
   .description('Remove a contributor')
   .option('--force', 'Skip confirmation')
-  .action(async (id, options) => {
+  .action(async (id: string, options: { force?: boolean }) => {
     const manager = new PeopleManager();
 
-    const contributor = manager.get(id);
+    const contributor: Contributor | null = manager.get(id);
     if (!contributor) {
-      console.error(`\n❌ Contributor "${id}" not found.\n`);
+      console.error(chalk.red(`\n[ERROR] Contributor "${id}" not found.\n`));
       process.exit(1);
     }
 
@@ -249,44 +268,42 @@ people
 
     try {
       manager.remove(id);
-      console.log(`\n✅ Removed: ${contributor.name}\n`);
+      console.log(chalk.green(`\n[OK] Removed: ${contributor.name}\n`));
     } catch (e) {
-      console.error(`\n❌ ${e.message}\n`);
+      console.error(chalk.red(`\n[ERROR] ${(e as Error).message}\n`));
       process.exit(1);
     }
   });
 
-// ============================================================================
 // sc people gpg-status
-// ============================================================================
 people
   .command('gpg-status')
   .description('Check GPG key status for all contributors')
   .option('--json', 'Output as JSON')
-  .action((options) => {
+  .action((options: { json?: boolean }) => {
     const manager = new PeopleManager();
-    const statuses = manager.getGpgStatus();
+    const statuses: GpgStatus[] = manager.getGpgStatus();
 
     if (options.json) {
       console.log(JSON.stringify(statuses, null, 2));
       return;
     }
 
-    console.log('\n🔐 GPG Key Status\n');
-    console.log('─'.repeat(60));
+    console.log(chalk.bold('\nGPG Key Status\n'));
+    console.log(chalk.gray('-'.repeat(60)));
 
     let verified = 0;
     let unverified = 0;
     let missing = 0;
 
     statuses.forEach((s) => {
-      const icon = {
-        verified: '✅',
-        unverified: '⚠️',
-        missing: '❌'
-      }[s.status];
+      const icon: Record<string, string> = {
+        verified: chalk.green('[OK]'),
+        unverified: chalk.yellow('[WARN]'),
+        missing: chalk.red('[MISSING]')
+      };
 
-      console.log(`${icon} ${s.name}`);
+      console.log(`${icon[s.status]} ${s.name}`);
       console.log(`   Email: ${s.email}`);
       console.log(`   Key: ${s.gpgKeyId || 'Not configured'}`);
       console.log(`   Status: ${s.status}`);
@@ -297,101 +314,95 @@ people
       else missing++;
     });
 
-    console.log('─'.repeat(60));
+    console.log(chalk.gray('-'.repeat(60)));
     console.log(
-      `Summary: ✅ ${verified} verified | ⚠️ ${unverified} unverified | ❌ ${missing} missing`
+      `Summary: ${chalk.green(`${verified} verified`)} | ${chalk.yellow(`${unverified} unverified`)} | ${chalk.red(`${missing} missing`)}`
     );
 
     if (missing > 0 || unverified > 0) {
       console.log(
-        '\n💡 To set up GPG for a contributor, they should run: sc gpg setup'
+        chalk.gray('\nTo set up GPG for a contributor, they should run: sc gpg setup')
       );
     }
     console.log('');
   });
 
-// ============================================================================
 // sc people verify <id>
-// ============================================================================
 people
   .command('verify <id>')
   .description("Verify a contributor's GPG key is on GitHub")
-  .action(async (id) => {
+  .action(async (id: string) => {
     const manager = new PeopleManager();
 
-    console.log(`\n🔍 Verifying GPG key for "${id}"...\n`);
+    console.log(chalk.blue(`\nVerifying GPG key for "${id}"...\n`));
 
     try {
-      const result = await manager.verifyGitHubKey(id);
+      const result: VerifyResult = await manager.verifyGitHubKey(id);
 
       if (result.onGitHub === true) {
-        console.log(`✅ ${result.message}`);
+        console.log(chalk.green(`[OK] ${result.message}`));
         console.log(`   Key ID: ${result.keyId}`);
       } else if (result.onGitHub === false) {
-        console.log(`⚠️ ${result.message}`);
+        console.log(chalk.yellow(`[WARN] ${result.message}`));
         console.log(`   Key ID: ${result.keyId}`);
         console.log(
           '\n   To add to GitHub: https://github.com/settings/gpg/new'
         );
       } else {
-        console.log(`❓ ${result.message}`);
+        console.log(chalk.gray(`[?] ${result.message}`));
       }
       console.log('');
     } catch (e) {
-      console.error(`\n❌ ${e.message}\n`);
+      console.error(chalk.red(`\n[ERROR] ${(e as Error).message}\n`));
       process.exit(1);
     }
   });
 
-// ============================================================================
 // sc people set-role <id> <role>
-// ============================================================================
 people
   .command('set-role <id> <role>')
   .description("Update a contributor's role")
-  .action((id, role) => {
+  .action((id: string, role: string) => {
     const manager = new PeopleManager();
 
     const validRoles = ['owner', 'admin', 'approver', 'contributor'];
     if (!validRoles.includes(role)) {
       console.error(
-        `\n❌ Invalid role "${role}". Must be one of: ${validRoles.join(', ')}\n`
+        chalk.red(`\n[ERROR] Invalid role "${role}". Must be one of: ${validRoles.join(', ')}\n`)
       );
       process.exit(1);
     }
 
     try {
-      const updated = manager.update(id, { role });
-      console.log(`\n✅ Updated ${updated.name}'s role to: ${role}\n`);
+      const updated: Contributor = manager.update(id, { role });
+      console.log(chalk.green(`\n[OK] Updated ${updated.name}'s role to: ${role}\n`));
     } catch (e) {
-      console.error(`\n❌ ${e.message}\n`);
+      console.error(chalk.red(`\n[ERROR] ${(e as Error).message}\n`));
       process.exit(1);
     }
   });
 
-// ============================================================================
 // sc people can-approve <id> <path>
-// ============================================================================
 people
   .command('can-approve <id> <documentPath>')
   .description('Check if a contributor can approve a document')
-  .action((id, documentPath) => {
+  .action((id: string, documentPath: string) => {
     const manager = new PeopleManager();
 
-    const contributor = manager.get(id);
+    const contributor: Contributor | null = manager.get(id);
     if (!contributor) {
-      console.error(`\n❌ Contributor "${id}" not found.\n`);
+      console.error(chalk.red(`\n[ERROR] Contributor "${id}" not found.\n`));
       process.exit(1);
     }
 
-    const canApprove = manager.canApprove(id, documentPath);
+    const canApprove: boolean = manager.canApprove(id, documentPath);
 
     if (canApprove) {
-      console.log(`\n✅ ${contributor.name} CAN approve: ${documentPath}\n`);
+      console.log(chalk.green(`\n[OK] ${contributor.name} CAN approve: ${documentPath}\n`));
     } else {
-      console.log(`\n❌ ${contributor.name} CANNOT approve: ${documentPath}\n`);
+      console.log(chalk.red(`\n[NO] ${contributor.name} CANNOT approve: ${documentPath}\n`));
 
-      const approvers = manager.getApproversFor(documentPath);
+      const approvers: Contributor[] = manager.getApproversFor(documentPath);
       if (approvers.length > 0) {
         console.log('   Eligible approvers:');
         approvers.forEach((a) => console.log(`     - ${a.name} (${a.role})`));
@@ -402,17 +413,15 @@ people
     }
   });
 
-// ============================================================================
 // sc people approvers-for <path>
-// ============================================================================
 people
   .command('approvers-for <documentPath>')
   .description('List contributors who can approve a document')
-  .action((documentPath) => {
+  .action((documentPath: string) => {
     const manager = new PeopleManager();
-    const approvers = manager.getApproversFor(documentPath);
+    const approvers: Contributor[] = manager.getApproversFor(documentPath);
 
-    console.log(`\n📋 Approvers for: ${documentPath}\n`);
+    console.log(chalk.bold(`\nApprovers for: ${documentPath}\n`));
 
     if (approvers.length === 0) {
       console.log('   No contributors configured to approve this path.');
@@ -421,24 +430,23 @@ people
     }
 
     approvers.forEach((a) => {
-      console.log(`   • ${a.name} (${a.role})`);
+      console.log(`   - ${a.name} (${a.role})`);
       if (a.email) console.log(`     ${a.email}`);
     });
     console.log('');
   });
 
-// ============================================================================
 // sc people init
-// ============================================================================
 people
   .command('init')
   .description('Initialize people.yaml with default structure')
   .option('--force', 'Overwrite existing file')
-  .action((options) => {
+  .action((options: { force?: boolean }) => {
     const manager = new PeopleManager();
+    const fs = require('node:fs');
 
-    if (require('node:fs').existsSync(manager.peoplePath) && !options.force) {
-      console.log(`\n⚠️ ${manager.peoplePath} already exists.`);
+    if (fs.existsSync(manager.peoplePath) && !options.force) {
+      console.log(chalk.yellow(`\n[WARN] ${manager.peoplePath} already exists.`));
       console.log('   Use --force to overwrite.\n');
       return;
     }
@@ -446,7 +454,7 @@ people
     const defaultData = manager.getDefaultStructure();
     manager.save(defaultData);
 
-    console.log(`\n✅ Created ${manager.peoplePath}`);
+    console.log(chalk.green(`\n[OK] Created ${manager.peoplePath}`));
     console.log('\nNext steps:');
     console.log('  1. Run "sc people me" to register yourself');
     console.log('  2. Run "sc people add" to add team members');
@@ -455,4 +463,5 @@ people
     );
   });
 
+export default people;
 module.exports = people;

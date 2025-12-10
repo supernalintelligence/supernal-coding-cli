@@ -1,18 +1,46 @@
-// @ts-nocheck
 /**
  * Document Schema Validator for REQ-075
- * Validates document frontmatter against defined schemas
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const yaml = require('js-yaml');
-const Ajv = require('ajv');
-const addFormats = require('ajv-formats');
+import fs from 'fs-extra';
+import path from 'node:path';
+import yaml from 'js-yaml';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
+
+interface Frontmatter {
+  id?: string;
+  title?: string;
+  created?: string;
+  problem?: string;
+  domains?: string[];
+  [key: string]: unknown;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+interface DirectoryValidationResult {
+  totalFiles: number;
+  validFiles: number;
+  invalidFiles: number;
+  errors: string[];
+  warnings: string[];
+  fileResults: Record<string, ValidationResult>;
+}
+
+interface ValidateFunction {
+  (data: unknown): boolean;
+  errors?: Array<{ instancePath?: string; message?: string }>;
+}
 
 class SchemaValidator {
-  ajv: any;
-  schemas: any;
+  protected ajv: Ajv;
+  protected schemas: Record<string, ValidateFunction>;
+
   constructor() {
     this.ajv = new Ajv({ allErrors: true });
     addFormats(this.ajv);
@@ -20,19 +48,15 @@ class SchemaValidator {
     this.loadSchemas();
   }
 
-  /**
-   * Load document schemas from YAML file
-   */
-  loadSchemas() {
+  loadSchemas(): void {
     try {
       const schemasPath = path.join(
         __dirname,
         '../schemas/document-schemas.yml'
       );
       const schemasContent = fs.readFileSync(schemasPath, 'utf8');
-      const schemas = yaml.load(schemasContent);
+      const schemas = yaml.load(schemasContent) as Record<string, object>;
 
-      // Compile all schemas
       Object.keys(schemas).forEach((schemaName) => {
         this.schemas[schemaName] = this.ajv.compile(schemas[schemaName]);
       });
@@ -41,18 +65,12 @@ class SchemaValidator {
         `Loaded ${Object.keys(this.schemas).length} document schemas`
       );
     } catch (error) {
-      console.error('Failed to load document schemas:', error.message);
+      console.error('Failed to load document schemas:', (error as Error).message);
       throw error;
     }
   }
 
-  /**
-   * Validate document frontmatter against appropriate schema
-   * @param {Object} frontmatter - Document frontmatter object
-   * @param {string} documentType - Type of document (evidence, problem, etc.)
-   * @returns {Object} Validation result
-   */
-  validateDocument(frontmatter, documentType) {
+  validateDocument(frontmatter: Frontmatter, documentType: string): ValidationResult {
     const schemaName = `${documentType}_schema`;
     const validator = this.schemas[schemaName];
 
@@ -70,23 +88,16 @@ class SchemaValidator {
       valid,
       errors: valid
         ? []
-        : validator.errors.map(
+        : (validator.errors || []).map(
             (err) => `${err.instancePath || 'root'}: ${err.message}`
           ),
       warnings: this.generateWarnings(frontmatter, documentType)
     };
   }
 
-  /**
-   * Generate warnings for best practices
-   * @param {Object} frontmatter - Document frontmatter
-   * @param {string} documentType - Document type
-   * @returns {Array} Array of warning messages
-   */
-  generateWarnings(frontmatter, documentType) {
-    const warnings = [];
+  generateWarnings(frontmatter: Frontmatter, documentType: string): string[] {
+    const warnings: string[] = [];
 
-    // Check for missing optional but recommended fields
     if (documentType === 'problem' && !frontmatter.created) {
       warnings.push('Consider adding "created" date for better tracking');
     }
@@ -106,7 +117,6 @@ class SchemaValidator {
       );
     }
 
-    // Check title length recommendations
     if (frontmatter.title && frontmatter.title.length > 100) {
       warnings.push(
         'Title is quite long - consider shortening for better readability'
@@ -116,12 +126,7 @@ class SchemaValidator {
     return warnings;
   }
 
-  /**
-   * Detect document type from ID pattern
-   * @param {string} id - Document ID
-   * @returns {string|null} Document type or null if not recognized
-   */
-  detectDocumentType(id) {
+  detectDocumentType(id: string | undefined): string | null {
     if (!id) return null;
 
     if (id.match(/^\d{4}-\d{2}-\d{2}-.+$/)) return 'evidence';
@@ -135,12 +140,7 @@ class SchemaValidator {
     return null;
   }
 
-  /**
-   * Validate a markdown file with frontmatter
-   * @param {string} filePath - Path to markdown file
-   * @returns {Object} Validation result
-   */
-  async validateFile(filePath) {
+  async validateFile(filePath: string): Promise<ValidationResult> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
       const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
@@ -153,7 +153,7 @@ class SchemaValidator {
         };
       }
 
-      const frontmatter = yaml.load(frontmatterMatch[1]);
+      const frontmatter = yaml.load(frontmatterMatch[1]) as Frontmatter;
       const documentType = this.detectDocumentType(frontmatter.id);
 
       if (!documentType) {
@@ -168,20 +168,14 @@ class SchemaValidator {
     } catch (error) {
       return {
         valid: false,
-        errors: [`Failed to validate file: ${error.message}`],
+        errors: [`Failed to validate file: ${(error as Error).message}`],
         warnings: []
       };
     }
   }
 
-  /**
-   * Validate all documents in a directory
-   * @param {string} dirPath - Directory path
-   * @param {Object} options - Validation options
-   * @returns {Object} Validation summary
-   */
-  async validateDirectory(dirPath, options = {}) {
-    const results = {
+  async validateDirectory(dirPath: string, options: { recursive?: boolean } = {}): Promise<DirectoryValidationResult> {
+    const results: DirectoryValidationResult = {
       totalFiles: 0,
       validFiles: 0,
       invalidFiles: 0,
@@ -217,22 +211,16 @@ class SchemaValidator {
         }
       }
     } catch (error) {
-      results.errors.push(`Directory validation failed: ${error.message}`);
+      results.errors.push(`Directory validation failed: ${(error as Error).message}`);
     }
 
     return results;
   }
 
-  /**
-   * Find all markdown files in directory
-   * @param {string} dirPath - Directory path
-   * @param {boolean} recursive - Search recursively
-   * @returns {Array} Array of file paths
-   */
-  async findMarkdownFiles(dirPath, recursive = true) {
-    const files = [];
+  async findMarkdownFiles(dirPath: string, recursive: boolean = true): Promise<string[]> {
+    const files: string[] = [];
 
-    const processDir = async (currentDir) => {
+    const processDir = async (currentDir: string): Promise<void> => {
       const entries = await fs.readdir(currentDir, { withFileTypes: true });
 
       for (const entry of entries) {
@@ -251,4 +239,5 @@ class SchemaValidator {
   }
 }
 
+export default SchemaValidator;
 module.exports = SchemaValidator;

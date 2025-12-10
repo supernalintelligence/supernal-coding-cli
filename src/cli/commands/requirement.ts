@@ -1,35 +1,42 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * Requirement Command Handler - Simplified
- *
- * This is the routing layer between CLI and business logic.
- * Commander has already parsed all arguments and options correctly.
  */
 
-const chalk = require('chalk');
+import chalk from 'chalk';
 const RequirementManager = require('./requirement/RequirementManager');
 const SearchManager = require('./requirement/SearchManager');
 const ValidationManager = require('./requirement/ValidationManager');
 const TestManager = require('./requirement/TestManager');
 const GitManager = require('./requirement/GitManager');
 
-/**
- * Handle requirement command with pre-parsed arguments
- * @param {string} action - The action to perform (new, list, show, etc)
- * @param {string[]} args - Additional arguments (already parsed by Commander)
- * @param {object} options - Options (already parsed by Commander)
- */
-async function handleRequirementCommand(action, args, options) {
-  // Initialize managers
+interface RequirementOptions {
+  feature?: string;
+  featurePath?: string;
+  category?: string;
+  epic?: string;
+  status?: string;
+  format?: string;
+  verbose?: boolean;
+  force?: boolean;
+  [key: string]: unknown;
+}
+
+interface CreatedRequirement {
+  id: string;
+  filePath: string;
+}
+
+async function handleRequirementCommand(
+  action: string | undefined,
+  args: string[],
+  options: RequirementOptions
+): Promise<void> {
   const requirementManager = new RequirementManager();
   const searchManager = new SearchManager(requirementManager);
   const validationManager = new ValidationManager(requirementManager);
   const testManager = new TestManager(requirementManager);
   const gitManager = new GitManager(requirementManager);
 
-  // Default action is 'list'
   if (!action) {
     action = 'list';
   }
@@ -37,19 +44,16 @@ async function handleRequirementCommand(action, args, options) {
   switch (action) {
     case 'new':
     case 'create': {
-      // For 'new', first arg is the title
       const title = args[0];
       if (!title) {
         throw new Error('Title is required for new requirement');
       }
 
-      // Normalize: --feature is legacy, prefer --feature-path
       if (options.feature && !options.featurePath) {
         options.featurePath = options.feature;
         delete options.feature;
       }
 
-      // Validate mutually exclusive options
       if (options.featurePath && options.category) {
         throw new Error(
           'Cannot use both --feature-path and --category.\n' +
@@ -64,11 +68,9 @@ async function handleRequirementCommand(action, args, options) {
         );
       }
 
-      // Check for similar requirements before creating
       await searchManager.checkForSimilarRequirements(title, options);
 
-      // Create the requirement
-      const requirement = await requirementManager.createRequirement(
+      const requirement: CreatedRequirement = await requirementManager.createRequirement(
         title,
         options
       );
@@ -134,7 +136,6 @@ async function handleRequirementCommand(action, args, options) {
       }
 
       if (!options.force) {
-        // In real implementation, would prompt for confirmation
         console.log(chalk.yellow('⚠️  Use --force to confirm deletion'));
         return;
       }
@@ -192,35 +193,7 @@ async function handleRequirementCommand(action, args, options) {
   }
 }
 
-// CLI wrapper for backwards compatibility
-async function _handleRequirementCommand_CLI(...rawArgs) {
-  // This is called from old code that passes raw args
-  // Parse them simply
-  const action = rawArgs[0];
-  const args = [];
-  const options = {};
-
-  let i = 1;
-  while (i < rawArgs.length) {
-    const arg = rawArgs[i];
-    if (arg.startsWith('--')) {
-      const key = arg.slice(2);
-      if (i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('--')) {
-        options[key] = rawArgs[i + 1];
-        i += 2;
-      } else {
-        options[key] = true;
-        i++;
-      }
-    } else {
-      args.push(arg);
-      i++;
-    }
-  }
-
-  await handleRequirementCommand(action, args, options);
-}
-
+export { handleRequirementCommand };
 module.exports = {
   handleRequirementCommand
 };

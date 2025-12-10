@@ -1,21 +1,40 @@
-// @ts-nocheck
-/**
- * Compliance Configuration Checks CLI
- * 
- * Validates security configuration for credential storage:
- * - .gitignore patterns for sensitive files
- * - Credential file locations
- * - File permissions
- * - Encryption configuration
- */
+import { Command } from 'commander';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
+import chalk from 'chalk';
 
-const { Command } = require('commander');
-const path = require('node:path');
-const fs = require('node:fs/promises');
-const crypto = require('node:crypto');
+interface PatternInfo {
+  pattern: string;
+  description: string;
+}
 
-// Required patterns that should be in .gitignore for credential protection
-const REQUIRED_GITIGNORE_PATTERNS = [
+interface CheckResult {
+  status: 'pass' | 'fail' | 'warning' | 'skipped';
+  message: string;
+  details?: string[];
+}
+
+interface CheckCategory {
+  category: string;
+  results: CheckResult[];
+}
+
+interface ComplianceReport {
+  checks: CheckCategory[];
+  hasFailures: boolean;
+  hasWarnings: boolean;
+  proofHash: string;
+  timestamp: string;
+}
+
+interface RunOptions {
+  quiet?: boolean;
+  json?: boolean;
+  strict?: boolean;
+}
+
+const REQUIRED_GITIGNORE_PATTERNS: PatternInfo[] = [
   { pattern: '.supernal-coding/sessions/', description: 'Session directories' },
   { pattern: '.supernal-coding/integrations/', description: 'Integration credentials' },
   { pattern: '*.credentials.json', description: 'Credential files' },
@@ -25,7 +44,6 @@ const REQUIRED_GITIGNORE_PATTERNS = [
   { pattern: '.env*.local', description: 'Local environment files' }
 ];
 
-// Paths where credentials should NOT be stored
 const FORBIDDEN_CREDENTIAL_PATHS = [
   'src/',
   'apps/',
@@ -34,7 +52,7 @@ const FORBIDDEN_CREDENTIAL_PATHS = [
   'public/'
 ];
 
-async function fileExists(filePath) {
+async function fileExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);
     return true;
@@ -43,7 +61,7 @@ async function fileExists(filePath) {
   }
 }
 
-async function readGitignore(repoPath) {
+async function readGitignore(repoPath: string): Promise<string[]> {
   const gitignorePath = path.join(repoPath, '.gitignore');
   try {
     const content = await fs.readFile(gitignorePath, 'utf-8');
@@ -53,10 +71,10 @@ async function readGitignore(repoPath) {
   }
 }
 
-async function checkGitignorePatterns(repoPath) {
+async function checkGitignorePatterns(repoPath: string): Promise<CheckCategory> {
   const gitignorePatterns = await readGitignore(repoPath);
-  const results = [];
-  const missingPatterns = [];
+  const results: CheckResult[] = [];
+  const missingPatterns: PatternInfo[] = [];
 
   for (const { pattern, description } of REQUIRED_GITIGNORE_PATTERNS) {
     const hasPattern = gitignorePatterns.some(p =>
@@ -83,10 +101,10 @@ async function checkGitignorePatterns(repoPath) {
   return { category: 'gitignore', results };
 }
 
-async function checkCredentialLocations(repoPath) {
-  const results = [];
+async function checkCredentialLocations(repoPath: string): Promise<CheckCategory> {
+  const results: CheckResult[] = [];
   const credentialPatterns = ['*.credentials.json', 'tokens.json', '*.key', '*.pem'];
-  const foundInForbidden = [];
+  const foundInForbidden: string[] = [];
 
   for (const forbiddenPath of FORBIDDEN_CREDENTIAL_PATHS) {
     const fullPath = path.join(repoPath, forbiddenPath);
@@ -123,7 +141,6 @@ async function checkCredentialLocations(repoPath) {
     });
   }
 
-  // Check credential directory exists
   const credentialDir = path.join(repoPath, '.supernal-coding/integrations');
   if (await fileExists(credentialDir)) {
     results.push({ status: 'pass', message: 'Credential directory properly configured' });
@@ -134,10 +151,10 @@ async function checkCredentialLocations(repoPath) {
   return { category: 'credentials', results };
 }
 
-async function checkFilePermissions(repoPath) {
-  const results = [];
+async function checkFilePermissions(repoPath: string): Promise<CheckCategory> {
+  const results: CheckResult[] = [];
   const credentialDir = path.join(repoPath, '.supernal-coding/integrations');
-  const broadPermissions = [];
+  const broadPermissions: string[] = [];
 
   if (await fileExists(credentialDir)) {
     try {
@@ -173,7 +190,7 @@ async function checkFilePermissions(repoPath) {
   return { category: 'permissions', results };
 }
 
-async function runComplianceChecks(repoPath, options = {}) {
+async function runComplianceChecks(repoPath: string, _options: RunOptions = {}): Promise<ComplianceReport> {
   const checks = await Promise.all([
     checkGitignorePatterns(repoPath),
     checkCredentialLocations(repoPath),
@@ -190,7 +207,6 @@ async function runComplianceChecks(repoPath, options = {}) {
     }
   }
 
-  // Generate proof hash
   const proofContent = JSON.stringify({
     timestamp: new Date().toISOString(),
     checks: checks.map(c => ({
@@ -209,33 +225,33 @@ async function runComplianceChecks(repoPath, options = {}) {
   };
 }
 
-function formatResults(report, options = {}) {
+function formatResults(report: ComplianceReport, options: RunOptions = {}): number {
   const { quiet, json } = options;
 
   if (json) {
     console.log(JSON.stringify(report, null, 2));
-    return;
+    return report.hasFailures ? 1 : 0;
   }
 
   if (!quiet) {
-    console.log('\n📋 Compliance Configuration Checks');
-    console.log('═'.repeat(50));
+    console.log(chalk.bold('\nCompliance Configuration Checks'));
+    console.log(chalk.gray('='.repeat(50)));
   }
 
-  const statusSymbols = {
-    pass: '✅',
-    fail: '❌',
-    warning: '⚠️',
-    skipped: '⏭️'
+  const statusSymbols: Record<string, string> = {
+    pass: chalk.green('[PASS]'),
+    fail: chalk.red('[FAIL]'),
+    warning: chalk.yellow('[WARN]'),
+    skipped: chalk.gray('[SKIP]')
   };
 
   for (const check of report.checks) {
     if (!quiet) {
-      console.log(`\n${check.category.toUpperCase()}`);
+      console.log(chalk.bold(`\n${check.category.toUpperCase()}`));
     }
 
     for (const result of check.results) {
-      const symbol = statusSymbols[result.status] || '❓';
+      const symbol = statusSymbols[result.status] || '[?]';
       
       if (quiet && result.status === 'pass') continue;
 
@@ -243,26 +259,26 @@ function formatResults(report, options = {}) {
       
       if (result.details && !quiet) {
         for (const detail of result.details) {
-          console.log(`     → ${detail}`);
+          console.log(chalk.gray(`     -> ${detail}`));
         }
       }
     }
   }
 
   if (!quiet) {
-    console.log('\n' + '═'.repeat(50));
-    console.log(`Proof Hash: ${report.proofHash}`);
-    console.log(`Timestamp: ${report.timestamp}`);
+    console.log('\n' + chalk.gray('='.repeat(50)));
+    console.log(chalk.gray(`Proof Hash: ${report.proofHash}`));
+    console.log(chalk.gray(`Timestamp: ${report.timestamp}`));
   }
 
   if (report.hasFailures) {
-    console.log('\n❌ COMPLIANCE CHECK FAILED');
+    console.log(chalk.red('\n[FAIL] COMPLIANCE CHECK FAILED'));
     return 1;
   } else if (report.hasWarnings) {
-    console.log('\n⚠️  Compliance check passed with warnings');
+    console.log(chalk.yellow('\n[WARN] Compliance check passed with warnings'));
     return 0;
   } else {
-    if (!quiet) console.log('\n✅ All compliance checks passed');
+    if (!quiet) console.log(chalk.green('\n[PASS] All compliance checks passed'));
     return 0;
   }
 }
@@ -272,7 +288,7 @@ const program = new Command('compliance')
   .option('-q, --quiet', 'Only show failures and warnings')
   .option('--json', 'Output as JSON')
   .option('--strict', 'Exit with error on warnings')
-  .action(async (options) => {
+  .action(async (options: RunOptions) => {
     try {
       const repoPath = process.cwd();
       const report = await runComplianceChecks(repoPath, options);
@@ -284,15 +300,10 @@ const program = new Command('compliance')
 
       process.exit(exitCode);
     } catch (error) {
-      console.error('Error running compliance checks:', error.message);
+      console.error(chalk.red('Error running compliance checks:'), (error as Error).message);
       process.exit(1);
     }
   });
 
-// Export for use in other modules
-module.exports = {
-  program,
-  runComplianceChecks,
-  formatResults
-};
-
+export { program, runComplianceChecks, formatResults };
+module.exports = { program, runComplianceChecks, formatResults };

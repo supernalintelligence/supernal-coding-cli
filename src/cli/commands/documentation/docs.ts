@@ -1,26 +1,37 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+import chalk from 'chalk';
 
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
+interface DocsOptions {
+  file?: string;
+  _?: string;
+  autoFix?: boolean;
+  interactive?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+  format?: string;
+  output?: string;
+  structure?: boolean;
+  template?: boolean;
+  all?: boolean;
+  fix?: boolean;
+}
 
-// Colors for output
-const colors = {
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  purple: '\x1b[35m',
-  cyan: '\x1b[36m',
-  bold: '\x1b[1m',
-  reset: '\x1b[0m'
-};
+interface ValidationResult {
+  success: boolean;
+}
+
+interface FixResult {
+  fixed: number;
+  failed: number;
+}
 
 class DocsWrapper {
-  docSystemScript: any;
-  generateScript: any;
-  scriptsDir: any;
+  readonly docSystemScript: string;
+  readonly generateScript: string;
+  readonly scriptsDir: string;
+
   constructor() {
     this.scriptsDir = path.join(__dirname, 'docs-scripts');
     this.generateScript = path.join(this.scriptsDir, 'generate-docs.cjs');
@@ -28,11 +39,11 @@ class DocsWrapper {
   }
 
   // Execute documentation scripts
-  runScript(scriptPath, args = []) {
+  runScript(scriptPath: string, args: string[] = []): void {
     try {
       if (!fs.existsSync(scriptPath)) {
         console.error(
-          `${colors.red}❌ Documentation script not found: ${scriptPath}${colors.reset}`
+          chalk.red(`[X] Documentation script not found: ${scriptPath}`)
         );
         return;
       }
@@ -43,21 +54,22 @@ class DocsWrapper {
         cwd: process.cwd()
       });
     } catch (error) {
-      if (error.status !== 0) {
-        process.exit(error.status);
+      const err = error as { status?: number };
+      if (err.status !== 0) {
+        process.exit(err.status || 1);
       }
     }
   }
 
   // Route commands to appropriate scripts
-  async execute(action, options = {}) {
+  async execute(action: string, options: DocsOptions = {}): Promise<ValidationResult | void> {
     switch (action) {
       case 'process': {
         console.log(
-          `${colors.blue}📖 Processing documentation file...${colors.reset}`
+          chalk.blue('[i] Processing documentation file...')
         );
         // Load process command dynamically
-        const processCmd = require(
+        const processCmd = await import(
           path.join(__dirname, '..', 'docs', 'process')
         );
         const docFile = options.file || options._ || process.argv[3];
@@ -71,10 +83,10 @@ class DocsWrapper {
 
       case 'cleanup': {
         console.log(
-          `${colors.blue}🔍 Scanning documentation structure...${colors.reset}`
+          chalk.blue('[i] Scanning documentation structure...')
         );
         // Load cleanup command dynamically
-        const cleanupCmd = require(
+        const cleanupCmd = await import(
           path.join(__dirname, '..', 'docs', 'cleanup')
         );
         await cleanupCmd.run({
@@ -88,7 +100,7 @@ class DocsWrapper {
 
       case 'generate':
         console.log(
-          `${colors.blue}📝 Generating documentation...${colors.reset}`
+          chalk.blue('[i] Generating documentation...')
         );
         this.runScript(
           this.generateScript,
@@ -98,28 +110,27 @@ class DocsWrapper {
 
       case 'validate':
         console.log(
-          `${colors.blue}🔍 Validating documentation...${colors.reset}`
+          chalk.blue('[i] Validating documentation...')
         );
-        await this.validateDocumentation(options);
-        break;
+        return await this.validateDocumentation(options);
 
       case 'build':
         console.log(
-          `${colors.blue}🏗️  Building documentation system...${colors.reset}`
+          chalk.blue('[>] Building documentation system...')
         );
         this.runScript(this.docSystemScript, ['build']);
         break;
 
       case 'init':
         console.log(
-          `${colors.blue}🏗️  Initializing documentation system...${colors.reset}`
+          chalk.blue('[>] Initializing documentation system...')
         );
         this.runScript(this.docSystemScript, ['init']);
         break;
 
       case 'check':
         console.log(
-          `${colors.blue}🔍 Checking documentation system status...${colors.reset}`
+          chalk.blue('[i] Checking documentation system status...')
         );
         this.runScript(this.docSystemScript, ['check']);
         break;
@@ -130,7 +141,7 @@ class DocsWrapper {
     }
   }
 
-  async validateDocumentation(options = {}) {
+  async validateDocumentation(options: DocsOptions = {}): Promise<ValidationResult> {
     // Determine which validators to run
     const runStructure =
       options.structure ||
@@ -143,33 +154,33 @@ class DocsWrapper {
     // Run structure validation (DocumentationValidator)
     if (runStructure) {
       console.log(
-        `${colors.blue}📋 Running structure validation...${colors.reset}`
+        chalk.blue('[i] Running structure validation...')
       );
-      const DocumentationValidator = require('../../../validation/DocumentationValidator');
+      const { DocumentationValidator } = require('../../../validation/DocumentationValidator');
       const structureValidator = new DocumentationValidator();
-      const result = await structureValidator.validate();
+      const result: ValidationResult = await structureValidator.validate();
 
       if (options.fix && !result.success) {
         console.log(
-          `${colors.blue}\n🔧 Applying structure fixes...${colors.reset}`
+          chalk.blue('\n[>] Applying structure fixes...')
         );
-        const fixResult = await structureValidator.fixIdFilenameMismatches();
+        const fixResult: FixResult = await structureValidator.fixIdFilenameMismatches();
 
-        console.log(`${colors.blue}\n📊 Fix Summary:${colors.reset}`);
+        console.log(chalk.blue('\n[i] Fix Summary:'));
         console.log(
-          `${colors.green}   ✅ Fixed: ${fixResult.fixed}${colors.reset}`
+          chalk.green(`   [OK] Fixed: ${fixResult.fixed}`)
         );
         if (fixResult.failed > 0) {
           console.log(
-            `${colors.red}   ❌ Failed: ${fixResult.failed}${colors.reset}`
+            chalk.red(`   [X] Failed: ${fixResult.failed}`)
           );
         }
 
         // Re-validate
         console.log(
-          `${colors.blue}\n🔍 Re-validating structure...${colors.reset}`
+          chalk.blue('\n[i] Re-validating structure...')
         );
-        const finalResult = await structureValidator.validate();
+        const finalResult: ValidationResult = await structureValidator.validate();
         hasErrors = !finalResult.success;
       } else {
         hasErrors = !result.success;
@@ -179,11 +190,9 @@ class DocsWrapper {
     // Run template validation (TemplateValidator)
     if (runTemplate) {
       console.log(
-        `${colors.blue}\n📝 Running template validation...${colors.reset}`
+        chalk.blue('\n[i] Running template validation...')
       );
-      const {
-        TemplateValidator
-      } = require('../../../validation/TemplateValidator');
+      const { TemplateValidator } = require('../../../validation/TemplateValidator');
 
       const validator = new TemplateValidator({
         projectRoot: process.cwd(),
@@ -195,9 +204,15 @@ class DocsWrapper {
         .map((dir) => path.join(process.cwd(), dir))
         .filter((dir) => fs.existsSync(dir));
 
-      let allResults = [];
+      interface ValidationResultItem {
+        valid: boolean;
+        file: string;
+        fixed?: boolean;
+      }
+
+      let allResults: ValidationResultItem[] = [];
       for (const dir of dirsToValidate) {
-        const results = await validator.validateDirectory(dir);
+        const results: ValidationResultItem[] = await validator.validateDirectory(dir);
         allResults = allResults.concat(results);
       }
 
@@ -205,7 +220,7 @@ class DocsWrapper {
         const invalidResults = allResults.filter((r) => !r.valid);
         if (invalidResults.length > 0) {
           console.log(
-            `${colors.blue}\n🔧 Applying template fixes...${colors.reset}`
+            chalk.blue('\n[>] Applying template fixes...')
           );
           for (const result of invalidResults) {
             const fixResult = await validator.validateAndFix(result.file, {
@@ -213,7 +228,7 @@ class DocsWrapper {
             });
             if (fixResult.fixed) {
               console.log(
-                `${colors.green}✅ Fixed: ${path.relative(process.cwd(), result.file)}${colors.reset}`
+                chalk.green(`[OK] Fixed: ${path.relative(process.cwd(), result.file)}`)
               );
             }
           }
@@ -229,63 +244,63 @@ class DocsWrapper {
     return { success: !hasErrors };
   }
 
-  showHelp() {
+  showHelp(): void {
     console.log(
-      `${colors.bold}Supernal Coding - Documentation System${colors.reset}`
+      chalk.bold('Supernal Coding - Documentation System')
     );
     console.log('======================================');
     console.log('');
     console.log(
-      `${colors.bold}Usage:${colors.reset} sc docs <action> [options]`
+      `${chalk.bold('Usage:')} sc docs <action> [options]`
     );
     console.log('');
-    console.log(`${colors.bold}Actions:${colors.reset}`);
+    console.log(`${chalk.bold('Actions:')}`);
     console.log(
-      `  ${colors.green}process <file>${colors.reset}          Extract and implement code blocks from documentation`
+      `  ${chalk.green('process <file>')}          Extract and implement code blocks from documentation`
     );
     console.log(
-      `  ${colors.green}cleanup${colors.reset}                  Scan and cleanup documentation structure (ADR-001)`
+      `  ${chalk.green('cleanup')}                  Scan and cleanup documentation structure (ADR-001)`
     );
     console.log(
-      `  ${colors.green}generate${colors.reset}                 Generate documentation from templates`
+      `  ${chalk.green('generate')}                 Generate documentation from templates`
     );
     console.log(
-      `  ${colors.green}validate${colors.reset}                 Validate documentation structure and content`
-    );
-    console.log('');
-    console.log(`${colors.bold}Options:${colors.reset}`);
-    console.log(
-      `  ${colors.yellow}--structure${colors.reset}              Run structure validation (organization, naming, references)`
-    );
-    console.log(
-      `  ${colors.yellow}--template${colors.reset}               Run template validation (frontmatter against .template.md)`
-    );
-    console.log(
-      `  ${colors.yellow}--all${colors.reset}                    Run both structure and template validation`
-    );
-    console.log(
-      `  ${colors.yellow}--fix${colors.reset}                    Automatically fix issues where possible`
-    );
-    console.log(
-      `  ${colors.yellow}--auto-fix${colors.reset}               Automatically fix documentation issues`
-    );
-    console.log(
-      `  ${colors.yellow}--interactive${colors.reset}            Review each change interactively`
-    );
-    console.log(
-      `  ${colors.yellow}--dry-run${colors.reset}                Show what would be done without making changes`
-    );
-    console.log(
-      `  ${colors.yellow}--format <format>${colors.reset}        Output format (html, pdf, markdown)`
-    );
-    console.log(
-      `  ${colors.yellow}--output <path>${colors.reset}          Output directory`
-    );
-    console.log(
-      `  ${colors.yellow}--verbose${colors.reset}                Verbose output`
+      `  ${chalk.green('validate')}                 Validate documentation structure and content`
     );
     console.log('');
-    console.log(`${colors.bold}Examples:${colors.reset}`);
+    console.log(`${chalk.bold('Options:')}`);
+    console.log(
+      `  ${chalk.yellow('--structure')}              Run structure validation (organization, naming, references)`
+    );
+    console.log(
+      `  ${chalk.yellow('--template')}               Run template validation (frontmatter against .template.md)`
+    );
+    console.log(
+      `  ${chalk.yellow('--all')}                    Run both structure and template validation`
+    );
+    console.log(
+      `  ${chalk.yellow('--fix')}                    Automatically fix issues where possible`
+    );
+    console.log(
+      `  ${chalk.yellow('--auto-fix')}               Automatically fix documentation issues`
+    );
+    console.log(
+      `  ${chalk.yellow('--interactive')}            Review each change interactively`
+    );
+    console.log(
+      `  ${chalk.yellow('--dry-run')}                Show what would be done without making changes`
+    );
+    console.log(
+      `  ${chalk.yellow('--format <format>')}        Output format (html, pdf, markdown)`
+    );
+    console.log(
+      `  ${chalk.yellow('--output <path>')}          Output directory`
+    );
+    console.log(
+      `  ${chalk.yellow('--verbose')}                Verbose output`
+    );
+    console.log('');
+    console.log(`${chalk.bold('Examples:')}`);
     console.log(
       `  sc docs process docs/features/{domain}/my-feature/planning/implementation.md`
     );
@@ -306,14 +321,14 @@ class DocsWrapper {
 }
 
 // CLI Interface
-async function main(action, options) {
+async function main(action: string, options: DocsOptions): Promise<void> {
   const docs = new DocsWrapper();
   await docs.execute(action, options);
 }
 
 if (require.main === module) {
   const action = process.argv[2];
-  const options = {};
+  const options: DocsOptions = {};
 
   // Parse simple options
   for (let i = 3; i < process.argv.length; i++) {
@@ -338,4 +353,4 @@ if (require.main === module) {
   main(action, options);
 }
 
-module.exports = DocsWrapper;
+export default DocsWrapper;

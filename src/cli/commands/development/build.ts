@@ -1,10 +1,39 @@
-#!/usr/bin/env node
-// @ts-nocheck
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+import chalk from 'chalk';
 
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
-const chalk = require('chalk');
+interface BuildOptions {
+  quiet?: boolean;
+  verbose?: boolean;
+  skipDocs?: boolean;
+  skipValidate?: boolean;
+  noColors?: boolean;
+  noSmokeTests?: boolean;
+  skipVersionCheck?: boolean;
+  help?: boolean;
+  h?: boolean;
+}
+
+interface BuildResult {
+  success: boolean;
+  warning?: string;
+  warnings?: string[];
+  error?: Error;
+}
+
+interface BuildResults {
+  versionCheck: { needsPublish: boolean; message?: string } | null;
+  docsGeneration: BuildResult | null;
+  templateValidation: BuildResult | null;
+  build: BuildResult | null;
+}
+
+interface BuildRunner {
+  type: 'buildme' | 'npm';
+  path?: string;
+  script?: string;
+}
 
 /**
  * sc build - Unified build command with docs generation and validation
@@ -22,10 +51,11 @@ const chalk = require('chalk');
  */
 
 class BuildRunner {
-  buildmeScript: any;
-  packageJson: any;
-  projectRoot: any;
-  constructor(projectRoot = process.cwd()) {
+  projectRoot: string;
+  buildmeScript: string;
+  packageJson: string;
+
+  constructor(projectRoot: string = process.cwd()) {
     this.projectRoot = projectRoot;
     this.buildmeScript = path.join(projectRoot, 'BUILDME.sh');
     this.packageJson = path.join(projectRoot, 'package.json');
@@ -34,7 +64,7 @@ class BuildRunner {
   /**
    * Check if this is a docs site that needs CLI docs generation
    */
-  isDocsSite() {
+  isDocsSite(): boolean {
     // Check for Next.js + docs directory pattern
     const nextConfig = path.join(this.projectRoot, 'next.config.js');
     const docsDir = path.join(this.projectRoot, 'docs');
@@ -48,7 +78,7 @@ class BuildRunner {
   /**
    * Generate CLI reference documentation
    */
-  async generateDocs(options = {}) {
+  async generateDocs(options: BuildOptions = {}): Promise<BuildResult> {
     if (options.skipDocs) {
       if (!options.quiet) {
         console.log(chalk.gray('   Skipping docs generation (--skip-docs)'));
@@ -64,7 +94,7 @@ class BuildRunner {
     }
 
     if (!options.quiet) {
-      console.log(chalk.blue('📚 Generating CLI reference docs...'));
+      console.log(chalk.blue('[DOCS] Generating CLI reference docs...'));
     }
 
     try {
@@ -76,18 +106,19 @@ class BuildRunner {
       
       return await generator.generate();
     } catch (error) {
+      const err = error as Error;
       if (!options.quiet) {
-        console.log(chalk.yellow(`⚠️ Docs generation skipped: ${error.message}`));
+        console.log(chalk.yellow(`[WARN] Docs generation skipped: ${err.message}`));
       }
       // Don't fail build for docs generation issues
-      return { success: true, warning: error.message };
+      return { success: true, warning: err.message };
     }
   }
 
   /**
    * Validate required templates are installed
    */
-  validateTemplates(options = {}) {
+  validateTemplates(options: BuildOptions = {}): BuildResult {
     if (options.skipValidate) {
       if (!options.quiet) {
         console.log(chalk.gray('   Skipping template validation (--skip-validate)'));
@@ -99,7 +130,7 @@ class BuildRunner {
       return { success: true, warnings: [] };
     }
 
-    const warnings = [];
+    const warnings: string[] = [];
     const requiredDirs = [
       { path: 'docs/guides', name: 'Guides', install: 'sc init --guides' },
       { path: 'docs/compliance', name: 'Compliance', install: 'sc init --compliance' },
@@ -107,7 +138,7 @@ class BuildRunner {
     ];
 
     if (!options.quiet) {
-      console.log(chalk.blue('🔍 Validating installed templates...'));
+      console.log(chalk.blue('[CHECK] Validating installed templates...'));
     }
 
     for (const dir of requiredDirs) {
@@ -115,17 +146,17 @@ class BuildRunner {
       if (!fs.existsSync(fullPath)) {
         warnings.push(`Missing ${dir.name}: Run "${dir.install}"`);
       } else if (options.verbose) {
-        console.log(chalk.gray(`   ✓ ${dir.name} installed`));
+        console.log(chalk.gray(`   [OK] ${dir.name} installed`));
       }
     }
 
     if (warnings.length > 0 && !options.quiet) {
-      console.log(chalk.yellow('⚠️ Template warnings:'));
+      console.log(chalk.yellow('[WARN] Template warnings:'));
       for (const warn of warnings) {
         console.log(chalk.yellow(`   ${warn}`));
       }
     } else if (!options.quiet && !options.verbose) {
-      console.log(chalk.green('   ✓ Templates validated'));
+      console.log(chalk.green('   [OK] Templates validated'));
     }
 
     return { success: true, warnings };
@@ -134,7 +165,7 @@ class BuildRunner {
   /**
    * Find build runner (BUILDME.sh or package.json build script)
    */
-  findBuildRunner() {
+  findBuildRunner(): { type: 'buildme' | 'npm'; path?: string; script?: string } | null {
     // Priority 1: BUILDME.sh
     if (fs.existsSync(this.buildmeScript)) {
       return {
@@ -160,7 +191,7 @@ class BuildRunner {
   /**
    * Check if sc version needs to be published (for CI/Vercel awareness)
    */
-  async checkVersionStatus(options = {}) {
+  async checkVersionStatus(options: BuildOptions = {}): Promise<{ needsPublish: boolean; message?: string }> {
     if (options.skipVersionCheck) {
       return { needsPublish: false };
     }
@@ -170,15 +201,16 @@ class BuildRunner {
       const status = await checkPublishRequired();
       
       if (status.needsPublish && !options.quiet) {
-        console.log(chalk.yellow(`⚠️  Version notice: ${status.message}`));
+        console.log(chalk.yellow(`[WARN] Version notice: ${status.message}`));
         console.log(chalk.gray('   Run "npm publish" in supernal-code-package before deploying to Vercel'));
       }
       
       return status;
     } catch (error) {
       // Don't fail build for version check issues
+      const err = error as Error;
       if (options.verbose) {
-        console.log(chalk.gray(`   Version check skipped: ${error.message}`));
+        console.log(chalk.gray(`   Version check skipped: ${err.message}`));
       }
       return { needsPublish: false };
     }
@@ -192,8 +224,8 @@ class BuildRunner {
    * 3. Template validation
    * 4. Actual build (BUILDME.sh or npm run build)
    */
-  async run(options = {}) {
-    const results = {
+  async run(options: BuildOptions = {}): Promise<BuildResults> {
+    const results: BuildResults = {
       versionCheck: null,
       docsGeneration: null,
       templateValidation: null,
@@ -213,7 +245,7 @@ class BuildRunner {
     const runner = this.findBuildRunner();
 
     if (!runner) {
-      console.error(chalk.red('❌ No build runner found'));
+      console.error(chalk.red('[ERROR] No build runner found'));
       console.error(chalk.gray('Expected:'));
       console.error(chalk.gray('  - BUILDME.sh script'));
       console.error(chalk.gray('  - package.json with "build" script'));
@@ -221,8 +253,8 @@ class BuildRunner {
     }
 
     // Build command based on runner type
-    let command;
-    let commandDescription;
+    let command: string;
+    let commandDescription: string;
 
     if (runner.type === 'buildme') {
       commandDescription = 'Running BUILDME.sh';
@@ -234,7 +266,7 @@ class BuildRunner {
 
     // Display what we're running
     if (!options.quiet) {
-      console.log(chalk.blue(`🔨 ${commandDescription}...`));
+      console.log(chalk.blue(`[BUILD] ${commandDescription}...`));
       if (options.verbose) {
         console.log(chalk.gray(`   Command: ${command}`));
       }
@@ -253,14 +285,14 @@ class BuildRunner {
       });
 
       if (!options.quiet) {
-        console.log(chalk.green('✅ Build completed successfully'));
+        console.log(chalk.green('[OK] Build completed successfully'));
       }
       results.build = { success: true };
     } catch (error) {
       if (!options.quiet) {
-        console.error(chalk.red('❌ Build failed'));
+        console.error(chalk.red('[ERROR] Build failed'));
       }
-      results.build = { success: false, error };
+      results.build = { success: false, error: error as Error };
     }
 
     return results;
@@ -269,7 +301,7 @@ class BuildRunner {
   /**
    * Build BUILDME.sh command with options
    */
-  buildBuildmeCommand(options) {
+  buildBuildmeCommand(options: BuildOptions): string {
     const parts = ['bash', this.buildmeScript];
 
     // Map sc build options to BUILDME.sh arguments
@@ -291,7 +323,7 @@ class BuildRunner {
   /**
    * Build npm build command with options
    */
-  buildNpmCommand(options) {
+  buildNpmCommand(_options: BuildOptions): string {
     const parts = ['npm', 'run', 'build'];
 
     // npm run build typically doesn't take many options
@@ -302,7 +334,7 @@ class BuildRunner {
   /**
    * Show help
    */
-  showHelp() {
+  showHelp(): void {
     console.log(chalk.bold('sc build - Unified build with docs generation and validation'));
     console.log('');
     console.log(chalk.cyan('Usage:'));
@@ -329,7 +361,7 @@ class BuildRunner {
     console.log('  sc build --verbose          # Verbose output');
     console.log('');
     console.log(chalk.cyan('For Docs Sites (detected by next.config.js + docs/ + supernal.yaml):'));
-    console.log('  - Generates CLI reference from CommandRegistry → docs/cli/');
+    console.log('  - Generates CLI reference from CommandRegistry -> docs/cli/');
     console.log('  - Validates guides, compliance, workflow templates installed');
     console.log('');
     console.log(chalk.cyan('In package.json (Vercel/CI integration):'));
@@ -349,7 +381,7 @@ class BuildRunner {
 /**
  * CLI handler
  */
-async function handleBuildCommand(args = [], options = {}) {
+async function handleBuildCommand(args: string[] = [], options: BuildOptions = {}): Promise<void> {
   // Handle help
   if (options.help || options.h || args.includes('--help') || args.includes('-h')) {
     const runner = new BuildRunner();
@@ -358,7 +390,7 @@ async function handleBuildCommand(args = [], options = {}) {
   }
 
   // Parse options from args if not already provided
-  const parsedOptions = { ...options };
+  const parsedOptions: BuildOptions = { ...options };
   
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -379,16 +411,12 @@ async function handleBuildCommand(args = [], options = {}) {
 }
 
 // Export for CLI integration
-module.exports = {
+export {
   BuildRunner,
   handleBuildCommand
 };
 
-// Handle direct execution
-if (require.main === module) {
-  const args = process.argv.slice(2);
-  handleBuildCommand(args).catch((error) => {
-    console.error(chalk.red(`❌ Error: ${error.message}`));
-    process.exit(1);
-  });
-}
+module.exports = {
+  BuildRunner,
+  handleBuildCommand
+};

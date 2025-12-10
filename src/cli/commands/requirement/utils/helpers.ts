@@ -1,26 +1,18 @@
-// @ts-nocheck
-const chalk = require('chalk');
+import chalk from 'chalk';
 
-/**
- * Shared utility functions for requirement management
- */
+type ChalkColor = (text: string) => string;
+
 class RequirementHelpers {
-  /**
-   * Normalize requirement ID to standard format
-   */
-  static normalizeReqId(reqId) {
-    // Handle various formats: "REQ-039", "req-039", "039", 39
+  static normalizeReqId(reqId: string | number | null | undefined): string | null {
     if (!reqId) return null;
 
     const idStr = reqId.toString();
 
-    // If it's already in REQ-XXX format, extract the number
     const match = idStr.match(/^(?:REQ-|req-)?(\d+)$/i);
     if (match) {
       return match[1].padStart(3, '0');
     }
 
-    // If it's just a number, pad it
     if (/^\d+$/.test(idStr)) {
       return idStr.padStart(3, '0');
     }
@@ -28,10 +20,7 @@ class RequirementHelpers {
     return null;
   }
 
-  /**
-   * Extract requirement ID from filename
-   */
-  static extractReqIdFromFile(fileName) {
+  static extractReqIdFromFile(fileName: string): string {
     const match = fileName.match(/req-([a-z0-9]+)-(\d+)/);
     if (match) {
       const [, domain, num] = match;
@@ -40,25 +29,19 @@ class RequirementHelpers {
     return fileName.replace('.md', '');
   }
 
-  /**
-   * Map epic names to categories
-   */
-  static epicToCategory(epic) {
-    const mapping = {
+  static epicToCategory(epic: string | undefined): string {
+    const mapping: Record<string, string> = {
       'enhanced-workflow-system': 'workflow',
       'dashboard-system': 'core',
       'agent-workflow-enhancement': 'workflow',
       'supernal-code-package': 'infrastructure',
     };
 
-    return mapping[epic] || 'workflow';
+    return mapping[epic || ''] || 'workflow';
   }
 
-  /**
-   * Convert priority name to number
-   */
-  static priorityNameToNumber(priority) {
-    const mapping = {
+  static priorityNameToNumber(priority: string | undefined): string {
+    const mapping: Record<string, string> = {
       critical: '0',
       high: '1',
       medium: '2',
@@ -66,14 +49,11 @@ class RequirementHelpers {
       deferred: '4',
     };
 
-    return mapping[priority?.toLowerCase()] || priority;
+    return mapping[priority?.toLowerCase() || ''] || priority || '2';
   }
 
-  /**
-   * Get colored status display
-   */
-  static getStatusColor(status) {
-    const colors = {
+  static getStatusColor(status: string | undefined): ChalkColor {
+    const colors: Record<string, ChalkColor> = {
       pending: chalk.yellow,
       'in-progress': chalk.blue,
       done: chalk.green,
@@ -81,28 +61,22 @@ class RequirementHelpers {
       blocked: chalk.magenta,
     };
 
-    return colors[status?.toLowerCase()] || chalk.white;
+    return colors[status?.toLowerCase() || ''] || chalk.white;
   }
 
-  /**
-   * Get priority icon
-   */
-  static getPriorityIcon(priority) {
-    const icons = {
-      0: '🚨', // Critical
-      1: '🔥', // High
-      2: '📋', // Medium
-      3: '📝', // Low
-      4: '⏸️', // Deferred
+  static getPriorityIcon(priority: string | number | undefined): string {
+    const icons: Record<string, string> = {
+      '0': '🚨',
+      '1': '🔥',
+      '2': '📋',
+      '3': '📝',
+      '4': '⏸️',
     };
 
-    return icons[priority?.toString()] || '📋';
+    return icons[priority?.toString() || ''] || '📋';
   }
 
-  /**
-   * Get colored status display for search results
-   */
-  static getColoredStatus(status) {
+  static getColoredStatus(status: string | undefined): string {
     switch (status?.toLowerCase()) {
       case 'done':
       case 'implemented':
@@ -115,14 +89,11 @@ class RequirementHelpers {
       case 'blocked':
         return chalk.red(status);
       default:
-        return chalk.gray(status);
+        return chalk.gray(status || '');
     }
   }
 
-  /**
-   * Get colored priority display
-   */
-  static getPriorityColor(priority) {
+  static getPriorityColor(priority: string | undefined): string {
     switch (priority?.toLowerCase()) {
       case 'critical':
         return chalk.red.bold(priority);
@@ -133,14 +104,11 @@ class RequirementHelpers {
       case 'low':
         return chalk.blue(priority);
       default:
-        return chalk.gray(priority);
+        return chalk.gray(priority || '');
     }
   }
 
-  /**
-   * Find line number for a search text in content
-   */
-  static findLineNumber(content, searchText) {
+  static findLineNumber(content: string, searchText: string): number {
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].includes(searchText)) {
@@ -150,28 +118,23 @@ class RequirementHelpers {
     return 1;
   }
 
-  /**
-   * Parse command line options
-   */
-  static parseOptions(args) {
-    const options = {};
+  static parseOptions(args: unknown[]): Record<string, string | boolean> {
+    const options: Record<string, string | boolean> = {};
 
-    // Ensure args is an array
     if (!Array.isArray(args)) {
-      args = [];
+      return options;
     }
 
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
 
-      // Ensure arg is a string before calling startsWith
       if (arg && typeof arg === 'string' && arg.startsWith('--')) {
         const key = arg.slice(2);
         const value = args[i + 1];
 
         if (value && typeof value === 'string' && !value.startsWith('--')) {
           options[key] = value;
-          i++; // Skip the value in next iteration
+          i++;
         } else {
           options[key] = true;
         }
@@ -182,4 +145,5 @@ class RequirementHelpers {
   }
 }
 
+export default RequirementHelpers;
 module.exports = RequirementHelpers;

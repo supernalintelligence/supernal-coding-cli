@@ -1,20 +1,24 @@
-// @ts-nocheck
-/**
- * CLI Command Descriptions
- *
- * Enhanced descriptions for CLI commands and their actions.
- * Used by: generate-cli-map.js, CommandBadge component, generated docs
- *
- * Structure:
- *   COMMAND_NAME: {
- *     description: "Main command description",
- *     actions: {
- *       ACTION_NAME: "Description of what this action does"
- *     }
- *   }
- */
+interface ActionDescriptions {
+  [actionName: string]: string;
+}
 
-const COMMAND_DESCRIPTIONS = {
+interface CommandDescription {
+  description: string;
+  actions: ActionDescriptions;
+}
+
+interface CommandDescriptions {
+  [commandName: string]: CommandDescription;
+}
+
+interface CommandData {
+  name: string;
+  description?: string;
+  actions?: string[];
+  actionDetails?: Array<{ name: string; description: string }>;
+}
+
+const COMMAND_DESCRIPTIONS: CommandDescriptions = {
   requirement: {
     description:
       'Create, validate, and manage software requirements with Gherkin specifications',
@@ -234,41 +238,27 @@ const COMMAND_DESCRIPTIONS = {
   },
 };
 
-/**
- * Get enhanced description for a command
- */
-function getCommandDescription(commandName) {
+function getCommandDescription(commandName: string): string | null {
   return COMMAND_DESCRIPTIONS[commandName]?.description || null;
 }
 
-/**
- * Get description for a specific action
- */
-function getActionDescription(commandName, actionName) {
+function getActionDescription(commandName: string, actionName: string): string | null {
   return COMMAND_DESCRIPTIONS[commandName]?.actions?.[actionName] || null;
 }
 
-/**
- * Get all action descriptions for a command
- */
-function getActionDescriptions(commandName) {
+function getActionDescriptions(commandName: string): ActionDescriptions {
   return COMMAND_DESCRIPTIONS[commandName]?.actions || {};
 }
 
-/**
- * Merge descriptions into command data
- */
-function enhanceCommandData(commands) {
+function enhanceCommandData(commands: CommandData[]): CommandData[] {
   return commands.map((cmd) => {
     const enhanced = { ...cmd };
 
-    // Enhance main description if better one exists
     const betterDesc = getCommandDescription(cmd.name);
     if (betterDesc) {
       enhanced.description = betterDesc;
     }
 
-    // Add action descriptions
     if (cmd.actions && cmd.actions.length > 0) {
       enhanced.actionDetails = cmd.actions.map((action) => ({
         name: action,
@@ -281,6 +271,14 @@ function enhanceCommandData(commands) {
     return enhanced;
   });
 }
+
+export {
+  COMMAND_DESCRIPTIONS,
+  getCommandDescription,
+  getActionDescription,
+  getActionDescriptions,
+  enhanceCommandData,
+};
 
 module.exports = {
   COMMAND_DESCRIPTIONS,

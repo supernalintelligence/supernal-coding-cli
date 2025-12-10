@@ -1,25 +1,23 @@
-// @ts-nocheck
-const { execSync } = require('node:child_process');
-const chalk = require('chalk');
-const path = require('node:path');
-const fs = require('node:fs');
+import { execSync } from 'node:child_process';
+import chalk from 'chalk';
+import path from 'node:path';
+import fs from 'node:fs';
 
-/**
- * PackageUpdater - Handles updating the global sc package installation
- * This is separate from RepoSyncChecker which handles repository state synchronization
- */
+interface PackageUpdaterOptions {
+  verbose?: boolean;
+  projectRoot?: string;
+}
+
 class PackageUpdater {
-  projectRoot: any;
-  verbose: any;
-  constructor(options = {}) {
+  protected verbose: boolean;
+  protected projectRoot: string;
+
+  constructor(options: PackageUpdaterOptions = {}) {
     this.verbose = options.verbose || false;
     this.projectRoot = options.projectRoot || process.cwd();
   }
 
-  /**
-   * Get the currently installed global sc version
-   */
-  getGlobalScVersion() {
+  getGlobalScVersion(): string | null {
     try {
       const version = execSync('sc --version', { encoding: 'utf8' }).trim();
       return version;
@@ -28,10 +26,7 @@ class PackageUpdater {
     }
   }
 
-  /**
-   * Check if we're in the supernal-coding source repository
-   */
-  isSourceRepository() {
+  isSourceRepository(): boolean {
     try {
       const packagePath = path.join(
         this.projectRoot,
@@ -44,10 +39,7 @@ class PackageUpdater {
     }
   }
 
-  /**
-   * Get the version from local source package
-   */
-  getSourceVersion() {
+  getSourceVersion(): string | null {
     try {
       const packagePath = path.join(
         this.projectRoot,
@@ -61,10 +53,7 @@ class PackageUpdater {
     }
   }
 
-  /**
-   * Check if an update is available
-   */
-  async checkForUpdates() {
+  async checkForUpdates(): Promise<boolean> {
     console.log(chalk.blue('🔍 Checking for sc package updates...'));
     console.log(chalk.blue('='.repeat(50)));
 
@@ -113,14 +102,11 @@ class PackageUpdater {
       console.log('');
       console.log(chalk.blue('💡 To update to latest release:'));
       console.log(`   ${chalk.cyan('sc update')}`);
-      return false; // Can't determine without npm registry check
+      return false;
     }
   }
 
-  /**
-   * Update the global sc package (dry run mode)
-   */
-  async updatePackage(dryRun = false) {
+  async updatePackage(dryRun: boolean = false): Promise<boolean> {
     const isSource = this.isSourceRepository();
 
     if (dryRun) {
@@ -174,7 +160,6 @@ class PackageUpdater {
         console.log(chalk.green('✅ Global sc updated from official release!'));
       }
 
-      // Show new version
       const newVersion = this.getGlobalScVersion();
       console.log(`📦 New global version: ${chalk.cyan(newVersion)}`);
       console.log('');
@@ -185,7 +170,7 @@ class PackageUpdater {
 
       return true;
     } catch (error) {
-      console.error(chalk.red('❌ Package update failed:'), error.message);
+      console.error(chalk.red('❌ Package update failed:'), (error as Error).message);
 
       if (!isSource) {
         console.log('');
@@ -199,4 +184,5 @@ class PackageUpdater {
   }
 }
 
+export default PackageUpdater;
 module.exports = PackageUpdater;

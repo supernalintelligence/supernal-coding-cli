@@ -1,63 +1,76 @@
-// @ts-nocheck
-const fs = require('node:fs').promises;
-const path = require('node:path');
-const yaml = require('yaml');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import yaml from 'yaml';
 
-/**
- * TemplateLoader - Load and manage document templates
- */
+interface TemplateSection {
+  id: string;
+  name: string;
+  required?: boolean;
+  order?: number;
+}
+
+interface TemplateFrontmatter {
+  required?: string[];
+  [key: string]: unknown;
+}
+
+interface Template {
+  name: string;
+  type: string;
+  version: string;
+  description?: string;
+  sections?: TemplateSection[];
+  frontmatter?: TemplateFrontmatter;
+}
+
+interface TemplateSummary {
+  name: string;
+  fullName: string;
+  type: string;
+  version: string;
+  description: string;
+}
+
 class TemplateLoader {
-  cache: any;
-  templatesDir: any;
+  protected templatesDir: string;
+  protected cache: Map<string, Template>;
+
   constructor() {
     this.templatesDir = path.join(__dirname, '..', 'templates');
     this.cache = new Map();
   }
 
-  /**
-   * Load template by name
-   * @param {string} templateName - Template name (without .yaml extension)
-   * @returns {Promise<Object>} Template definition
-   */
-  async loadTemplate(templateName) {
-    // Check cache
+  async loadTemplate(templateName: string): Promise<Template> {
     if (this.cache.has(templateName)) {
-      return this.cache.get(templateName);
+      return this.cache.get(templateName)!;
     }
 
     try {
       const templatePath = path.join(this.templatesDir, `${templateName}.yaml`);
       const content = await fs.readFile(templatePath, 'utf8');
-      const template = yaml.parse(content);
+      const template: Template = yaml.parse(content);
 
-      // Validate template structure
       this.validateTemplateStructure(template);
 
-      // Cache it
       this.cache.set(templateName, template);
 
       return template;
     } catch (error) {
-      if (error.code === 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw new Error(`Template "${templateName}" not found`);
       }
       throw new Error(
-        `Failed to load template "${templateName}": ${error.message}`
+        `Failed to load template "${templateName}": ${(error as Error).message}`
       );
     }
   }
 
-  /**
-   * List all available templates
-   * @param {string} type - Optional: filter by document type
-   * @returns {Promise<Array<Object>>} Array of template summaries
-   */
-  async listTemplates(type = null) {
+  async listTemplates(type: string | null = null): Promise<TemplateSummary[]> {
     try {
       const files = await fs.readdir(this.templatesDir);
       const yamlFiles = files.filter((f) => f.endsWith('.yaml'));
 
-      const templates = [];
+      const templates: TemplateSummary[] = [];
 
       for (const file of yamlFiles) {
         const templateName = file.replace('.yaml', '');
@@ -76,26 +89,16 @@ class TemplateLoader {
 
       return templates;
     } catch (error) {
-      throw new Error(`Failed to list templates: ${error.message}`);
+      throw new Error(`Failed to list templates: ${(error as Error).message}`);
     }
   }
 
-  /**
-   * Get template by document type
-   * @param {string} type - Document type (e.g., 'architecture', 'decision')
-   * @returns {Promise<Array<Object>>} Templates matching type
-   */
-  async getTemplatesByType(type) {
+  async getTemplatesByType(type: string): Promise<TemplateSummary[]> {
     return this.listTemplates(type);
   }
 
-  /**
-   * Validate template structure
-   * @param {Object} template
-   * @throws {Error} If template is invalid
-   */
-  validateTemplateStructure(template) {
-    const required = ['name', 'type', 'version'];
+  validateTemplateStructure(template: Template): void {
+    const required: Array<keyof Template> = ['name', 'type', 'version'];
 
     for (const field of required) {
       if (!template[field]) {
@@ -103,7 +106,6 @@ class TemplateLoader {
       }
     }
 
-    // Validate sections if present
     if (template.sections) {
       if (!Array.isArray(template.sections)) {
         throw new Error('Template sections must be an array');
@@ -116,7 +118,6 @@ class TemplateLoader {
       }
     }
 
-    // Validate frontmatter if present
     if (template.frontmatter) {
       if (typeof template.frontmatter !== 'object') {
         throw new Error('Template frontmatter must be an object');
@@ -124,12 +125,7 @@ class TemplateLoader {
     }
   }
 
-  /**
-   * Get required sections for a template
-   * @param {string} templateName
-   * @returns {Promise<Array<Object>>} Required sections
-   */
-  async getRequiredSections(templateName) {
+  async getRequiredSections(templateName: string): Promise<TemplateSection[]> {
     const template = await this.loadTemplate(templateName);
     if (!template.sections) return [];
 
@@ -138,43 +134,25 @@ class TemplateLoader {
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
-  /**
-   * Get all sections for a template
-   * @param {string} templateName
-   * @returns {Promise<Array<Object>>} All sections
-   */
-  async getAllSections(templateName) {
+  async getAllSections(templateName: string): Promise<TemplateSection[]> {
     const template = await this.loadTemplate(templateName);
     if (!template.sections) return [];
 
     return template.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
-  /**
-   * Get required frontmatter fields
-   * @param {string} templateName
-   * @returns {Promise<Array<string>>} Required fields
-   */
-  async getRequiredFrontmatter(templateName) {
+  async getRequiredFrontmatter(templateName: string): Promise<string[]> {
     const template = await this.loadTemplate(templateName);
     if (!template.frontmatter || !template.frontmatter.required) return [];
 
     return template.frontmatter.required;
   }
 
-  /**
-   * Clear template cache
-   */
-  clearCache() {
+  clearCache(): void {
     this.cache.clear();
   }
 
-  /**
-   * Check if template exists
-   * @param {string} templateName
-   * @returns {Promise<boolean>}
-   */
-  async exists(templateName) {
+  async exists(templateName: string): Promise<boolean> {
     try {
       const templatePath = path.join(this.templatesDir, `${templateName}.yaml`);
       await fs.access(templatePath);
@@ -185,4 +163,5 @@ class TemplateLoader {
   }
 }
 
+export { TemplateLoader };
 module.exports = { TemplateLoader };

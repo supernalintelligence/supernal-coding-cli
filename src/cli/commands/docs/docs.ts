@@ -1,20 +1,50 @@
-// @ts-nocheck
-const chalk = require('chalk');
+import chalk from 'chalk';
 
-/**
- * Documentation command handler
- * Routes to specific doc actions (cleanup, build, serve)
- */
+interface DocsOptions {
+  file?: string;
+  _?: string[];
+  autoFix?: boolean;
+  interactive?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+  cleanup?: boolean;
+  mergeTemplates?: boolean;
+  report?: boolean;
+  path?: string | null;
+  links?: boolean;
+  fix?: boolean;
+  fullReport?: boolean;
+  help?: boolean;
+  build?: boolean;
+  serve?: boolean;
+  port?: number;
+  json?: boolean;
+  since?: string;
+  author?: string;
+  showDiff?: boolean;
+  signedOnly?: boolean;
+  limit?: string;
+  staged?: boolean;
+  quiet?: boolean;
+  level?: string;
+  structure?: boolean;
+  template?: boolean;
+  all?: boolean;
+  output?: string;
+}
 
-async function handleDocsCommand(action, options) {
-  // Handle validate action
+interface CommandResult {
+  success: boolean;
+  errors?: string[];
+}
+
+async function handleDocsCommand(action: string | undefined, options: DocsOptions): Promise<CommandResult | void> {
   if (action === 'validate') {
     const DocsWrapper = require('../documentation/docs');
     const wrapper = new DocsWrapper();
     return await wrapper.validateDocumentation(options);
   }
 
-  // Handle process action
   if (action === 'process') {
     const processCmd = require('./process');
     const docFile = options.file || options._?.[0];
@@ -27,7 +57,6 @@ async function handleDocsCommand(action, options) {
     return await processCmd.processDocumentation(docFile, options);
   }
 
-  // Handle cleanup action
   if (action === 'cleanup' || options.cleanup) {
     const cleanupCmd = require('./cleanup');
     return await cleanupCmd.run({
@@ -38,7 +67,6 @@ async function handleDocsCommand(action, options) {
     });
   }
 
-  // Handle merge-templates action
   if (action === 'merge-templates' || options.mergeTemplates) {
     const { mergeTemplatesCommand } = require('./merge-templates');
     return await mergeTemplatesCommand({
@@ -49,7 +77,6 @@ async function handleDocsCommand(action, options) {
     });
   }
 
-  // Handle links action
   if (action === 'links' || options.links) {
     const LinkChecker = require('./validate-links');
     const checker = new LinkChecker({
@@ -61,19 +88,17 @@ async function handleDocsCommand(action, options) {
     return await checker.run();
   }
 
-  // Handle generate action - Generate CLI reference docs
   if (action === 'generate') {
     const generateCmd = require('./generate');
-    
+
     if (options.help) {
       generateCmd.showHelp();
       return { success: true };
     }
-    
+
     return await generateCmd.handleDocsGenerateCommand(options);
   }
 
-  // Handle build action
   if (action === 'build' || options.build) {
     console.log(chalk.yellow('📚 Documentation build feature coming soon...'));
     console.log(
@@ -82,7 +107,6 @@ async function handleDocsCommand(action, options) {
     return;
   }
 
-  // Handle serve action
   if (action === 'serve' || options.serve) {
     const port = options.port || 3001;
     console.log(chalk.yellow(`📖 Documentation server feature coming soon...`));
@@ -90,7 +114,6 @@ async function handleDocsCommand(action, options) {
     return;
   }
 
-  // Handle history action (REQ-101)
   if (action === 'history') {
     const DocumentHistory = require('../../../doc/DocumentHistory');
     const history = new DocumentHistory();
@@ -114,7 +137,6 @@ async function handleDocsCommand(action, options) {
     });
   }
 
-  // Handle check action (REQ-102)
   if (action === 'check') {
     const DocumentRegistryCheck = require('../../../doc/DocumentRegistryCheck');
     const checker = new DocumentRegistryCheck();
@@ -125,7 +147,6 @@ async function handleDocsCommand(action, options) {
     });
   }
 
-  // Handle registry action (REQ-103)
   if (action === 'registry') {
     const DocumentRegistry = require('../../../doc/DocumentRegistry');
     const registry = new DocumentRegistry();
@@ -170,7 +191,6 @@ async function handleDocsCommand(action, options) {
     }
   }
 
-  // Default: show help
   console.log(chalk.bold('📚 Documentation Management'));
   console.log('');
   console.log(chalk.cyan('Available commands:'));
@@ -241,4 +261,5 @@ async function handleDocsCommand(action, options) {
   console.log('  sc docs cleanup --auto-fix         # Fix automatically');
 }
 
+export default handleDocsCommand;
 module.exports = handleDocsCommand;

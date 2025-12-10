@@ -1,22 +1,54 @@
-// @ts-nocheck
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
+
 const { findGitRoot } = require('./git-utils');
 const { loadProjectConfig } = require('./config-loader');
 
-/**
- * Supernal Coding state directory name
- * All state files (workflow, rules, consent, traceability, etc.) go here
- * Default value - should be overridden by supernal.yaml project.state_dir
- */
 const DEFAULT_STATE_DIR = '.supernal-coding';
 
-/**
- * Get state directory from config or use default
- * @param {string} projectRoot - Project root directory
- * @returns {string} State directory name
- */
-function getStateDir(projectRoot) {
+interface DirectoryContent {
+  name: string;
+  type: 'directory' | 'file';
+  path: string;
+}
+
+interface DirectoryAnalysis {
+  path: string;
+  type: 'directory';
+  contents: DirectoryContent[];
+}
+
+interface RepositoryStructure {
+  type: string;
+  hasRequirements: boolean;
+  hasKanban: boolean;
+  hasWorkflowRules: boolean;
+  hasTemplates: boolean;
+  hasTests: boolean;
+  hasDocs: boolean;
+  directories: Record<string, DirectoryAnalysis>;
+  patterns: string[];
+}
+
+interface ResolvedPaths {
+  gitRoot: string;
+  requirements: string | null;
+  kanban: string | null;
+  workflowRules: string | null;
+  templates: string | null;
+  tests: string | null;
+  docs: string | null;
+  config: string | null;
+}
+
+interface PathValidation {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  missing: string[];
+}
+
+function getStateDir(projectRoot: string): string {
   try {
     const config = loadProjectConfig(projectRoot);
     return config?.project?.state_dir || DEFAULT_STATE_DIR;
@@ -25,13 +57,8 @@ function getStateDir(projectRoot) {
   }
 }
 
-/**
- * Repository structure analyzer
- * @param {string} repoPath - Repository root path
- * @returns {Object} - Analyzed structure information
- */
-function analyzeRepositoryStructure(repoPath) {
-  const structure = {
+function analyzeRepositoryStructure(repoPath: string): RepositoryStructure {
+  const structure: RepositoryStructure = {
     type: 'unknown',
     hasRequirements: false,
     hasKanban: false,
@@ -46,26 +73,6 @@ function analyzeRepositoryStructure(repoPath) {
   try {
     const items = fs.readdirSync(repoPath);
 
-    // Detect common directory patterns
-    const _commonDirs = [
-      'requirements',
-      'reqs',
-      'specs',
-      'docs/requirements',
-      'kanban',
-      'tasks',
-      'workflow',
-      'workflow-rules',
-      'templates',
-      'template',
-      'tests',
-      'test',
-      'spec',
-      'docs',
-      'documentation',
-      'readme'
-    ];
-
     for (const item of items) {
       const itemPath = path.join(repoPath, item);
       const stat = fs.statSync(itemPath);
@@ -77,7 +84,6 @@ function analyzeRepositoryStructure(repoPath) {
           contents: analyzeDirectoryContents(itemPath)
         };
 
-        // Detect structure patterns
         if (['requirements', 'reqs', 'specs'].includes(item)) {
           structure.hasRequirements = true;
           structure.patterns.push('requirements');
@@ -110,21 +116,15 @@ function analyzeRepositoryStructure(repoPath) {
       }
     }
 
-    // Determine repository type
     structure.type = determineRepositoryType(structure);
   } catch (error) {
-    console.warn('Error analyzing repository structure:', error.message);
+    console.warn('Error analyzing repository structure:', (error as Error).message);
   }
 
   return structure;
 }
 
-/**
- * Analyze contents of a directory
- * @param {string} dirPath - Directory path
- * @returns {Array} - Directory contents analysis
- */
-function analyzeDirectoryContents(dirPath) {
+function analyzeDirectoryContents(dirPath: string): DirectoryContent[] {
   try {
     const items = fs.readdirSync(dirPath);
     return items.map((item) => {
@@ -132,7 +132,7 @@ function analyzeDirectoryContents(dirPath) {
       const stat = fs.statSync(itemPath);
       return {
         name: item,
-        type: stat.isDirectory() ? 'directory' : 'file',
+        type: stat.isDirectory() ? 'directory' as const : 'file' as const,
         path: itemPath
       };
     });
@@ -141,12 +141,7 @@ function analyzeDirectoryContents(dirPath) {
   }
 }
 
-/**
- * Determine repository type based on structure
- * @param {Object} structure - Repository structure analysis
- * @returns {string} - Repository type
- */
-function determineRepositoryType(structure) {
+function determineRepositoryType(structure: RepositoryStructure): string {
   if (
     structure.hasRequirements &&
     structure.hasKanban &&
@@ -170,13 +165,7 @@ function determineRepositoryType(structure) {
   return 'standard';
 }
 
-/**
- * Find directory by pattern
- * @param {string} repoPath - Repository root path
- * @param {Array} patterns - Array of possible directory names
- * @returns {string|null} - Found directory path or null
- */
-function findDirectoryByPattern(repoPath, patterns) {
+function findDirectoryByPattern(repoPath: string, patterns: string[]): string | null {
   for (const pattern of patterns) {
     const dirPath = path.join(repoPath, pattern);
     if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
@@ -186,19 +175,11 @@ function findDirectoryByPattern(repoPath, patterns) {
   return null;
 }
 
-/**
- * Resolve path dynamically based on repository structure
- * @param {string} pathType - Type of path to resolve
- * @param {string} repoPath - Repository root path (optional)
- * @returns {string|null} - Resolved path or null
- */
-function resolvePath(pathType, repoPath = null) {
+function resolvePath(pathType: string, repoPath: string | null = null): string | null {
   const gitRoot = repoPath || findGitRoot();
   if (!gitRoot) {
     return null;
   }
-
-  const _structure = analyzeRepositoryStructure(gitRoot);
 
   switch (pathType) {
     case 'requirements':
@@ -260,12 +241,7 @@ function resolvePath(pathType, repoPath = null) {
   }
 }
 
-/**
- * Get all resolved paths for a repository
- * @param {string} repoPath - Repository root path (optional)
- * @returns {Object} - All resolved paths
- */
-function getAllResolvedPaths(repoPath = null) {
+function getAllResolvedPaths(repoPath: string | null = null): ResolvedPaths | null {
   const gitRoot = repoPath || findGitRoot();
   if (!gitRoot) {
     return null;
@@ -283,31 +259,20 @@ function getAllResolvedPaths(repoPath = null) {
   };
 }
 
-/**
- * Create directory structure if it doesn't exist
- * @param {string} dirPath - Directory path to create
- * @param {boolean} recursive - Create parent directories
- * @returns {boolean} - Success status
- */
-function ensureDirectoryExists(dirPath, recursive = true) {
+function ensureDirectoryExists(dirPath: string, recursive = true): boolean {
   try {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive });
     }
     return true;
   } catch (error) {
-    console.error('Error creating directory:', error.message);
+    console.error('Error creating directory:', (error as Error).message);
     return false;
   }
 }
 
-/**
- * Validate path resolution
- * @param {Object} paths - Resolved paths object
- * @returns {Object} - Validation results
- */
-function validatePathResolution(paths) {
-  const validation = {
+function validatePathResolution(paths: ResolvedPaths | null): PathValidation {
+  const validation: PathValidation = {
     isValid: true,
     errors: [],
     warnings: [],
@@ -320,10 +285,9 @@ function validatePathResolution(paths) {
     return validation;
   }
 
-  const requiredPaths = ['gitRoot', 'requirements', 'kanban'];
-  const optionalPaths = ['workflowRules', 'templates', 'tests', 'docs'];
+  const requiredPaths: Array<keyof ResolvedPaths> = ['gitRoot', 'requirements', 'kanban'];
+  const optionalPaths: Array<keyof ResolvedPaths> = ['workflowRules', 'templates', 'tests', 'docs'];
 
-  // Check required paths
   for (const pathType of requiredPaths) {
     if (!paths[pathType]) {
       validation.isValid = false;
@@ -332,7 +296,6 @@ function validatePathResolution(paths) {
     }
   }
 
-  // Check optional paths
   for (const pathType of optionalPaths) {
     if (!paths[pathType]) {
       validation.warnings.push(`Missing optional path: ${pathType}`);
@@ -342,6 +305,18 @@ function validatePathResolution(paths) {
 
   return validation;
 }
+
+export {
+  DEFAULT_STATE_DIR,
+  getStateDir,
+  analyzeRepositoryStructure,
+  findDirectoryByPattern,
+  resolvePath,
+  getAllResolvedPaths,
+  ensureDirectoryExists,
+  validatePathResolution,
+  determineRepositoryType
+};
 
 module.exports = {
   DEFAULT_STATE_DIR,

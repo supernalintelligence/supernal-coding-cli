@@ -1,17 +1,83 @@
-// @ts-nocheck
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const path = require('node:path');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'node:path';
+
+interface Feature {
+  name: string;
+  domain: string;
+  path: string;
+  readmePath: string;
+}
+
+interface FrontmatterResult {
+  valid: boolean;
+  errors: string[];
+  phase: string | null;
+  data: Record<string, string | boolean | string[]>;
+}
+
+interface DirectoryResult {
+  existing: string[];
+  missing: string[];
+}
+
+interface TestResult {
+  connected: boolean;
+  testDirs: string[];
+  symlinks: string[];
+  requirementTests: string[];
+}
+
+interface FeatureValidation {
+  name: string;
+  domain: string;
+  path: string;
+  compliant: boolean;
+  warnings: string[];
+  errors: string[];
+  checks: {
+    frontmatter?: FrontmatterResult;
+    directories?: DirectoryResult;
+    tests?: TestResult;
+  };
+}
+
+interface HealthCheckResults {
+  total: number;
+  compliant: number;
+  warnings: string[];
+  errors: string[];
+  features: FeatureValidation[];
+  summary?: string;
+  hasIssues?: boolean;
+}
+
+interface CheckOptions {
+  noCache?: boolean;
+}
+
+interface DisplayOptions {
+  quiet?: boolean;
+  errorsOnly?: boolean;
+}
+
+interface CacheData {
+  timestamp: string;
+  summary: string;
+  hasIssues: boolean;
+  complianceRate: number;
+}
 
 /**
  * Feature Health Check System
  * Non-blocking health monitoring for feature documentation compliance
  */
 class FeatureHealthCheck {
-  cacheFile: any;
-  featuresDir: any;
-  projectRoot: any;
-  constructor(projectRoot = process.cwd()) {
+  protected cacheFile: string;
+  protected featuresDir: string;
+  protected projectRoot: string;
+
+  constructor(projectRoot: string = process.cwd()) {
     this.projectRoot = projectRoot;
     this.featuresDir = path.join(projectRoot, 'docs', 'features');
     this.cacheFile = path.join(
@@ -24,8 +90,8 @@ class FeatureHealthCheck {
   /**
    * Run comprehensive feature health check
    */
-  async check(options = {}) {
-    const results = {
+  async check(options: CheckOptions = {}): Promise<HealthCheckResults> {
+    const results: HealthCheckResults = {
       total: 0,
       compliant: 0,
       warnings: [],
@@ -33,7 +99,6 @@ class FeatureHealthCheck {
       features: []
     };
 
-    // Find all features
     const features = await this.findFeatures();
     results.total = features.length;
 
@@ -45,7 +110,6 @@ class FeatureHealthCheck {
       };
     }
 
-    // Validate each feature
     for (const feature of features) {
       const validation = await this.validateFeature(feature);
       results.features.push(validation);
@@ -58,12 +122,10 @@ class FeatureHealthCheck {
       results.errors.push(...validation.errors);
     }
 
-    // Generate summary
     results.summary = this.generateSummary(results);
     results.hasIssues =
       results.errors.length > 0 || results.warnings.length > 0;
 
-    // Cache results
     if (!options.noCache) {
       await this.cacheResults(results);
     }
@@ -74,14 +136,13 @@ class FeatureHealthCheck {
   /**
    * Find all feature directories
    */
-  async findFeatures() {
-    const features = [];
+  async findFeatures(): Promise<Feature[]> {
+    const features: Feature[] = [];
 
     if (!(await fs.pathExists(this.featuresDir))) {
       return features;
     }
 
-    // Directories that are feature subdirectories, not features themselves
     const FEATURE_SUBDIRS = [
       'planning',
       'design',
@@ -101,11 +162,9 @@ class FeatureHealthCheck {
       if (!stat.isDirectory() || domain === 'archive' || domain === 'archived')
         continue;
 
-      // Look for features in this domain
       const items = await fs.readdir(domainPath);
 
       for (const item of items) {
-        // Skip feature subdirectories (planning, design, etc.)
         if (FEATURE_SUBDIRS.includes(item)) continue;
 
         const itemPath = path.join(domainPath, item);
@@ -113,7 +172,6 @@ class FeatureHealthCheck {
 
         if (!itemStat.isDirectory()) continue;
 
-        // Check if it has a README.md
         const readmePath = path.join(itemPath, 'README.md');
         if (await fs.pathExists(readmePath)) {
           features.push({
@@ -132,8 +190,8 @@ class FeatureHealthCheck {
   /**
    * Validate a single feature
    */
-  async validateFeature(feature) {
-    const validation = {
+  async validateFeature(feature: Feature): Promise<FeatureValidation> {
+    const validation: FeatureValidation = {
       name: feature.name,
       domain: feature.domain,
       path: feature.path,
@@ -143,7 +201,6 @@ class FeatureHealthCheck {
       checks: {}
     };
 
-    // Check frontmatter
     const frontmatter = await this.checkFrontmatter(feature);
     validation.checks.frontmatter = frontmatter;
     if (!frontmatter.valid) {
@@ -151,7 +208,6 @@ class FeatureHealthCheck {
       validation.errors.push(...frontmatter.errors);
     }
 
-    // Check required directories
     const directories = await this.checkDirectories(feature, frontmatter.phase);
     validation.checks.directories = directories;
     if (directories.missing.length > 0) {
@@ -160,7 +216,6 @@ class FeatureHealthCheck {
       );
     }
 
-    // Check test connections (skip if tests_pending is true)
     const tests = await this.checkTestConnections(feature);
     validation.checks.tests = tests;
     const testsPending =
@@ -168,7 +223,6 @@ class FeatureHealthCheck {
       (frontmatter.data.tests_pending === true ||
         frontmatter.data.tests_pending === 'true');
     if (!tests.connected && !testsPending) {
-      // Only warn for complete/implementing features without test connections
       const phase = frontmatter.data?.phase || frontmatter.data?.status;
       if (
         phase === 'complete' ||
@@ -187,8 +241,8 @@ class FeatureHealthCheck {
   /**
    * Check feature frontmatter
    */
-  async checkFrontmatter(feature) {
-    const result = {
+  async checkFrontmatter(feature: Feature): Promise<FrontmatterResult> {
+    const result: FrontmatterResult = {
       valid: true,
       errors: [],
       phase: null,
@@ -205,7 +259,6 @@ class FeatureHealthCheck {
         return result;
       }
 
-      // Parse frontmatter (simple YAML-like parsing)
       const frontmatterText = frontmatterMatch[1];
       const lines = frontmatterText.split('\n');
 
@@ -216,17 +269,16 @@ class FeatureHealthCheck {
         }
       }
 
-      // Check required fields
       if (!result.data.title && !result.data.feature_id) {
         result.valid = false;
         result.errors.push(`${feature.name}: Missing title or feature_id`);
       }
 
-      result.phase = result.data.status || result.data.phase;
+      result.phase = (result.data.status as string) || (result.data.phase as string) || null;
     } catch (error) {
       result.valid = false;
       result.errors.push(
-        `${feature.name}: Error reading frontmatter: ${error.message}`
+        `${feature.name}: Error reading frontmatter: ${(error as Error).message}`
       );
     }
 
@@ -236,15 +288,14 @@ class FeatureHealthCheck {
   /**
    * Check required directories based on phase
    */
-  async checkDirectories(feature, phase) {
+  async checkDirectories(feature: Feature, phase: string | null): Promise<DirectoryResult> {
     const featurePath = path.join(this.projectRoot, feature.path);
-    const result = {
+    const result: DirectoryResult = {
       existing: [],
       missing: []
     };
 
-    // Define required directories by phase
-    const requiredDirs = {
+    const requiredDirs: Record<string, string[]> = {
       planning: ['planning'],
       drafting: ['planning', 'requirements'],
       implementing: ['design', 'planning', 'requirements', 'tests'],
@@ -252,7 +303,7 @@ class FeatureHealthCheck {
       complete: ['design', 'requirements', 'tests']
     };
 
-    const required = requiredDirs[phase] || [];
+    const required = phase ? requiredDirs[phase] || [] : [];
 
     for (const dir of required) {
       const dirPath = path.join(featurePath, dir);
@@ -270,21 +321,16 @@ class FeatureHealthCheck {
 
   /**
    * Check test connections
-   * Tests can be connected via:
-   * 1. Feature's tests/ subdirectory (symlink or actual)
-   * 2. Corresponding tests/{feature-name}/ directory
-   * 3. Requirements linked in frontmatter → tests/requirements/{req-id}/
    */
-  async checkTestConnections(feature) {
+  async checkTestConnections(feature: Feature): Promise<TestResult> {
     const featurePath = path.join(this.projectRoot, feature.path);
-    const result = {
+    const result: TestResult = {
       connected: false,
       testDirs: [],
       symlinks: [],
       requirementTests: []
     };
 
-    // Check for tests/ directory or symlink in feature
     const testsPath = path.join(featurePath, 'tests');
     if (await fs.pathExists(testsPath)) {
       const stat = await fs.lstat(testsPath);
@@ -300,7 +346,6 @@ class FeatureHealthCheck {
       }
     }
 
-    // Check for corresponding tests/{feature-name}/ directory
     const testPath = path.join(
       this.projectRoot,
       'tests',
@@ -311,12 +356,9 @@ class FeatureHealthCheck {
       result.connected = true;
     }
 
-    // Check if feature has requirements linked, and those requirements have tests
-    // This is the primary test connection method in this codebase
     const frontmatter = await this.checkFrontmatter(feature);
     if (frontmatter.data?.requirements) {
       let requirements = frontmatter.data.requirements;
-      // Handle YAML array format
       if (typeof requirements === 'string') {
         requirements = requirements
           .replace(/[[\]']/g, '')
@@ -324,13 +366,9 @@ class FeatureHealthCheck {
           .map((r) => r.trim());
       }
 
-      for (const reqId of requirements) {
-        // Normalize requirement ID format (req-xxx, REQ-xxx, req-infra-070, req-workflow-004, etc.)
-        // Extract just the numeric part
+      for (const reqId of requirements as string[]) {
         const normalizedId = reqId.toLowerCase();
 
-        // Try multiple formats:
-        // 1. Extract numeric suffix (req-workflow-004 -> 004, req-infra-070 -> 070)
         const numericMatch = normalizedId.match(/(\d+)$/);
         if (numericMatch) {
           const numericId = numericMatch[1].padStart(3, '0');
@@ -348,7 +386,6 @@ class FeatureHealthCheck {
           }
         }
 
-        // 2. Try exact match after removing 'req-' prefix
         const exactId = normalizedId.replace(/^req-/, '');
         const exactTestPath = path.join(
           this.projectRoot,
@@ -369,7 +406,7 @@ class FeatureHealthCheck {
   /**
    * Generate summary message
    */
-  generateSummary(results) {
+  generateSummary(results: HealthCheckResults): string {
     const complianceRate =
       results.total > 0
         ? Math.round((results.compliant / results.total) * 100)
@@ -384,9 +421,8 @@ class FeatureHealthCheck {
   /**
    * Display results
    */
-  display(results, options = {}) {
+  display(results: HealthCheckResults, options: DisplayOptions = {}): void {
     if (options.quiet) {
-      // Quiet mode: only show summary if there are issues
       if (results.hasIssues) {
         console.log(chalk.yellow('⚠️  Feature Health Issues'));
         console.log(chalk.yellow(`   ${results.summary}`));
@@ -395,11 +431,9 @@ class FeatureHealthCheck {
       return;
     }
 
-    // Full display
     console.log(chalk.blue('\n🏥 Feature Health Check\n'));
     console.log(chalk.blue('─'.repeat(60)));
 
-    // Summary
     const complianceRate =
       results.total > 0 ? (results.compliant / results.total) * 100 : 0;
 
@@ -416,7 +450,6 @@ class FeatureHealthCheck {
     console.log(chalk.red(`Errors: ${results.errors.length}`));
     console.log(chalk.yellow(`Warnings: ${results.warnings.length}`));
 
-    // Show errors
     if (results.errors.length > 0) {
       console.log(chalk.red('\n❌ Errors:\n'));
       results.errors.slice(0, 10).forEach((error) => {
@@ -429,7 +462,6 @@ class FeatureHealthCheck {
       }
     }
 
-    // Show warnings
     if (results.warnings.length > 0 && !options.errorsOnly) {
       console.log(chalk.yellow('\n⚠️  Warnings:\n'));
       results.warnings.slice(0, 10).forEach((warning) => {
@@ -442,7 +474,6 @@ class FeatureHealthCheck {
       }
     }
 
-    // Recommendations
     console.log(chalk.blue('\n💡 Recommendations:\n'));
     if (results.errors.length > 0) {
       console.log(
@@ -471,12 +502,12 @@ class FeatureHealthCheck {
   /**
    * Cache results for fast checks
    */
-  async cacheResults(results) {
+  async cacheResults(results: HealthCheckResults): Promise<void> {
     try {
-      const cache = {
+      const cache: CacheData = {
         timestamp: new Date().toISOString(),
-        summary: results.summary,
-        hasIssues: results.hasIssues,
+        summary: results.summary || '',
+        hasIssues: results.hasIssues || false,
         complianceRate:
           results.total > 0
             ? Math.round((results.compliant / results.total) * 100)
@@ -493,13 +524,12 @@ class FeatureHealthCheck {
   /**
    * Get cached results
    */
-  async getCachedResults() {
+  async getCachedResults(): Promise<CacheData | null> {
     try {
       if (await fs.pathExists(this.cacheFile)) {
-        const cache = await fs.readJson(this.cacheFile);
+        const cache: CacheData = await fs.readJson(this.cacheFile);
         const cacheAge = Date.now() - new Date(cache.timestamp).getTime();
 
-        // Cache valid for 1 hour
         if (cacheAge < 3600000) {
           return cache;
         }
@@ -511,4 +541,5 @@ class FeatureHealthCheck {
   }
 }
 
+export default FeatureHealthCheck;
 module.exports = FeatureHealthCheck;

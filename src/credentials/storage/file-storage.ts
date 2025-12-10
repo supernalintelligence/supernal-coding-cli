@@ -1,102 +1,126 @@
-// @ts-nocheck
 /**
  * File-based Credential Storage
- * 
- * Stores encrypted credentials in ~/.supernal/credentials/
- * Each service gets its own encrypted file.
  */
 
-const fs = require('node:fs/promises');
-const path = require('node:path');
-const os = require('node:os');
-const { encrypt, decrypt } = require('../encryption');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { encrypt, decrypt } from '../encryption';
 
-// Storage paths
 const SUPERNAL_DIR = path.join(os.homedir(), '.supernal');
 const CREDENTIALS_DIR = path.join(SUPERNAL_DIR, 'credentials');
 const AUDIT_DIR = path.join(SUPERNAL_DIR, 'audit');
 
-/**
- * Initialize storage directories with proper permissions
- */
-async function initialize() {
-  // Create directories with restricted permissions
+interface Credentials {
+  [key: string]: unknown;
+}
+
+interface StoreOptions {
+  passphrase?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface RetrieveOptions {
+  passphrase?: string;
+}
+
+interface GetAuditLogOptions {
+  limit?: number;
+  service?: string;
+}
+
+interface AuditEntry {
+  timestamp: string;
+  operation: string;
+  service: string;
+  pid: number;
+  user: string;
+  [key: string]: unknown;
+}
+
+interface StoredPayload {
+  service: string;
+  credentials: Credentials;
+  storedAt: string;
+  metadata: Record<string, unknown>;
+}
+
+async function initialize(): Promise<void> {
   await fs.mkdir(SUPERNAL_DIR, { recursive: true, mode: 0o700 });
   await fs.mkdir(CREDENTIALS_DIR, { recursive: true, mode: 0o700 });
   await fs.mkdir(AUDIT_DIR, { recursive: true, mode: 0o700 });
 }
 
-/**
- * Get the storage path for a service
- */
-function getStoragePath(service) {
+function getStoragePath(service: string): string {
   const sanitized = service.replace(/[^a-zA-Z0-9-_]/g, '-');
   return path.join(CREDENTIALS_DIR, `${sanitized}.enc`);
 }
 
-/**
- * Store credentials for a service
- * 
- * @param {string} service - Service identifier (e.g., 'google', 'github')
- * @param {Object} credentials - Credentials to store
- * @param {Object} options - Storage options
- */
-async function store(service, credentials, options = {}) {
+async function logAuditEntry(operation: string, service: string, details: Record<string, unknown> = {}): Promise<void> {
   await initialize();
-  
+
+  const logPath = path.join(AUDIT_DIR, 'access.log');
+
+  const entry: AuditEntry = {
+    timestamp: new Date().toISOString(),
+    operation,
+    service,
+    ...details,
+    pid: process.pid,
+    user: os.userInfo().username
+  };
+
+  const line = JSON.stringify(entry) + '\n';
+
+  try {
+    await fs.appendFile(logPath, line, { mode: 0o600 });
+  } catch {
+    // Audit logging should not fail the operation
+  }
+}
+
+async function store(service: string, credentials: Credentials, options: StoreOptions = {}): Promise<{ success: boolean; path: string }> {
+  await initialize();
+
   const storagePath = getStoragePath(service);
-  
-  // Add metadata
-  const payload = {
+
+  const payload: StoredPayload = {
     service,
     credentials,
     storedAt: new Date().toISOString(),
     metadata: options.metadata || {}
   };
-  
-  // Encrypt and store
+
   const encrypted = await encrypt(payload, options.passphrase);
-  await fs.writeFile(storagePath, encrypted, { mode: 0o600 });
-  
-  // Log audit entry
-  await logAuditEntry('store', service, { 
+  await fs.writeFile(storagePath, encrypted as string, { mode: 0o600 });
+
+  await logAuditEntry('store', service, {
     action: 'credentials_stored',
-    metadata: options.metadata 
+    metadata: options.metadata
   });
-  
+
   return { success: true, path: storagePath };
 }
 
-/**
- * Retrieve credentials for a service
- * 
- * @param {string} service - Service identifier
- * @param {Object} options - Retrieval options
- * @returns {Object|null} Credentials or null if not found
- */
-async function retrieve(service, options = {}) {
+async function retrieve(service: string, options: RetrieveOptions = {}): Promise<Credentials | null> {
   const storagePath = getStoragePath(service);
-  
+
   try {
     const encrypted = await fs.readFile(storagePath, 'utf-8');
-    const payload = await decrypt(encrypted, options.passphrase);
-    
-    // Log audit entry
+    const payload = await decrypt(encrypted, options.passphrase) as StoredPayload;
+
     await logAuditEntry('retrieve', service, { action: 'credentials_accessed' });
-    
+
     return payload.credentials;
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      return null; // Not found
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
     }
     throw error;
   }
 }
 
-/**
- * Check if credentials exist for a service
- */
-async function exists(service) {
+async function exists(service: string): Promise<boolean> {
   const storagePath = getStoragePath(service);
   try {
     await fs.access(storagePath);
@@ -106,114 +130,87 @@ async function exists(service) {
   }
 }
 
-/**
- * Delete credentials for a service
- */
-async function remove(service) {
+async function remove(service: string): Promise<{ success: boolean; reason?: string }> {
   const storagePath = getStoragePath(service);
-  
+
   try {
     await fs.unlink(storagePath);
-    
-    // Log audit entry
+
     await logAuditEntry('remove', service, { action: 'credentials_deleted' });
-    
+
     return { success: true };
   } catch (error) {
-    if (error.code === 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return { success: false, reason: 'not_found' };
     }
     throw error;
   }
 }
 
-/**
- * List all stored services
- */
-async function list() {
+async function list(): Promise<string[]> {
   await initialize();
-  
+
   try {
     const files = await fs.readdir(CREDENTIALS_DIR);
     return files
-      .filter(f => f.endsWith('.enc'))
-      .map(f => f.replace('.enc', ''));
+      .filter((f) => f.endsWith('.enc'))
+      .map((f) => f.replace('.enc', ''));
   } catch {
     return [];
   }
 }
 
-/**
- * Update specific fields in credentials
- */
-async function update(service, updates, options = {}) {
+async function update(service: string, updates: Credentials, options: StoreOptions = {}): Promise<Credentials> {
   const current = await retrieve(service, options);
   if (!current) {
     throw new Error(`No credentials found for service: ${service}`);
   }
-  
+
   const merged = { ...current, ...updates };
   await store(service, merged, options);
-  
-  // Log audit entry
-  await logAuditEntry('update', service, { 
+
+  await logAuditEntry('update', service, {
     action: 'credentials_updated',
     fields: Object.keys(updates)
   });
-  
+
   return merged;
 }
 
-/**
- * Log an audit entry
- */
-async function logAuditEntry(operation, service, details = {}) {
-  await initialize();
-  
-  const logPath = path.join(AUDIT_DIR, 'access.log');
-  
-  const entry = {
-    timestamp: new Date().toISOString(),
-    operation,
-    service,
-    ...details,
-    pid: process.pid,
-    user: os.userInfo().username
-  };
-  
-  const line = JSON.stringify(entry) + '\n';
-  
-  try {
-    await fs.appendFile(logPath, line, { mode: 0o600 });
-  } catch {
-    // Audit logging should not fail the operation
-  }
-}
-
-/**
- * Get audit log entries
- */
-async function getAuditLog(options = {}) {
+async function getAuditLog(options: GetAuditLogOptions = {}): Promise<AuditEntry[]> {
   const logPath = path.join(AUDIT_DIR, 'access.log');
   const { limit = 100, service } = options;
-  
+
   try {
     const content = await fs.readFile(logPath, 'utf-8');
-    let entries = content
+    let entries: AuditEntry[] = content
       .split('\n')
-      .filter(line => line.trim())
-      .map(line => JSON.parse(line));
-    
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
+
     if (service) {
-      entries = entries.filter(e => e.service === service);
+      entries = entries.filter((e) => e.service === service);
     }
-    
-    // Return most recent first
+
     return entries.reverse().slice(0, limit);
   } catch {
     return [];
   }
 }
+
+export {
+  initialize,
+  store,
+  retrieve,
+  exists,
+  remove,
+  list,
+  update,
+  getAuditLog,
+  SUPERNAL_DIR,
+  CREDENTIALS_DIR,
+  AUDIT_DIR
+};
 
 module.exports = {
   initialize,
@@ -224,9 +221,7 @@ module.exports = {
   list,
   update,
   getAuditLog,
-  // Paths for testing
   SUPERNAL_DIR,
   CREDENTIALS_DIR,
   AUDIT_DIR
 };
-

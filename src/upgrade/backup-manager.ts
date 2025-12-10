@@ -1,40 +1,81 @@
-// @ts-nocheck
 /**
  * Backup Manager - Create and restore backups for safe upgrades
  * Ensures atomic updates with rollback capability
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const archiver = require('archiver');
-const extract = require('extract-zip');
+import fs from 'fs-extra';
+import path from 'node:path';
+import archiver from 'archiver';
+import extract from 'extract-zip';
+
+interface BackupManagerOptions {
+  verbose?: boolean;
+}
+
+interface BackupMetadata {
+  name: string;
+  created: string;
+  paths: string[];
+  projectRoot: string;
+  scVersion: string;
+}
+
+interface BackupInfo {
+  success: boolean;
+  name: string;
+  path: string;
+  metadata: BackupMetadata;
+}
+
+interface RestoreResult {
+  success: boolean;
+  restored: string[];
+  failed: Array<{ path: string; error: string }>;
+  metadata: BackupMetadata;
+}
+
+interface BackupListItem {
+  name: string;
+  created: string;
+  size: number;
+  paths: number;
+  scVersion: string;
+}
+
+interface VerifyResult {
+  zipExists: boolean;
+  metadataExists: boolean;
+  zipReadable: boolean;
+  metadataValid: boolean;
+  valid?: boolean;
+}
+
+interface HistoryEntry {
+  name: string;
+  created?: string;
+  restored?: string;
+  type: 'backup' | 'restore';
+  paths?: number;
+}
 
 class BackupManager {
-  backupDir: any;
-  projectRoot: any;
-  scDir: any;
-  verbose: any;
-  constructor(projectRoot, options = {}) {
+  protected backupDir: string;
+  protected projectRoot: string;
+  protected scDir: string;
+  protected verbose: boolean;
+
+  constructor(projectRoot: string, options: BackupManagerOptions = {}) {
     this.projectRoot = projectRoot;
     this.scDir = path.join(projectRoot, '.supernal-coding');
     this.backupDir = path.join(this.scDir, 'backups');
     this.verbose = options.verbose || false;
   }
 
-  /**
-   * Initialize backup system
-   */
-  async initialize() {
+  async initialize(): Promise<void> {
     await fs.ensureDir(this.backupDir);
   }
 
-  /**
-   * Create a backup before upgrade
-   * @param {string} name - Backup name (e.g., 'upgrade-1.3.0')
-   * @param {Array<string>} paths - Paths to backup (relative to project root)
-   * @returns {Promise<BackupInfo>}
-   */
-  async createBackup(name, paths = []) {
+  async createBackup(name: string, paths: string[] = []): Promise<BackupInfo> {
     await this.initialize();
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -42,13 +83,11 @@ class BackupManager {
     const backupPath = path.join(this.backupDir, `${backupName}.zip`);
     const metadataPath = path.join(this.backupDir, `${backupName}.json`);
 
-    // Default to backing up SC-managed directories
     if (paths.length === 0) {
       paths = this.getDefaultBackupPaths();
     }
 
-    // Create metadata
-    const metadata = {
+    const metadata: BackupMetadata = {
       name: backupName,
       created: new Date().toISOString(),
       paths,
@@ -56,13 +95,10 @@ class BackupManager {
       scVersion: await this.getSCVersion(),
     };
 
-    // Create zip archive
     await this.createZipArchive(backupPath, paths);
 
-    // Save metadata
     await fs.writeJson(metadataPath, metadata, { spaces: 2 });
 
-    // Add to backup history
     await this.addToHistory(metadata);
 
     if (this.verbose) {
@@ -79,10 +115,7 @@ class BackupManager {
     };
   }
 
-  /**
-   * Get default paths to backup
-   */
-  getDefaultBackupPaths() {
+  getDefaultBackupPaths(): string[] {
     return [
       '.cursor/rules',
       'templates',
@@ -92,14 +125,11 @@ class BackupManager {
     ];
   }
 
-  /**
-   * Create zip archive of specified paths
-   */
-  async createZipArchive(outputPath, paths) {
+  async createZipArchive(outputPath: string, paths: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
       const output = fs.createWriteStream(outputPath);
       const archive = archiver('zip', {
-        zlib: { level: 9 }, // Maximum compression
+        zlib: { level: 9 },
       });
 
       output.on('close', () => resolve());
@@ -107,7 +137,6 @@ class BackupManager {
 
       archive.pipe(output);
 
-      // Add each path to archive
       for (const relPath of paths) {
         const fullPath = path.join(this.projectRoot, relPath);
 
@@ -131,22 +160,15 @@ class BackupManager {
     });
   }
 
-  /**
-   * Restore from backup
-   * @param {string} backupName - Name of backup to restore
-   * @returns {Promise<RestoreResult>}
-   */
-  async restoreBackup(backupName) {
+  async restoreBackup(backupName: string): Promise<RestoreResult> {
     const backupPath = path.join(this.backupDir, `${backupName}.zip`);
     const metadataPath = path.join(this.backupDir, `${backupName}.json`);
 
-    // Verify backup exists
     if (!(await fs.pathExists(backupPath))) {
       throw new Error(`Backup not found: ${backupName}`);
     }
 
-    // Load metadata
-    const metadata = await fs.readJson(metadataPath);
+    const metadata: BackupMetadata = await fs.readJson(metadataPath);
 
     if (this.verbose) {
       console.log(`🔄 Restoring backup: ${backupName}`);
@@ -154,17 +176,14 @@ class BackupManager {
       console.log(`   Files: ${metadata.paths.length}`);
     }
 
-    // Create temp directory for extraction
     const tempDir = path.join(this.backupDir, `restore-temp-${Date.now()}`);
     await fs.ensureDir(tempDir);
 
     try {
-      // Extract backup
       await extract(backupPath, { dir: tempDir });
 
-      // Restore each path
-      const restored = [];
-      const failed = [];
+      const restored: string[] = [];
+      const failed: Array<{ path: string; error: string }> = [];
 
       for (const relPath of metadata.paths) {
         const sourcePath = path.join(tempDir, relPath);
@@ -172,21 +191,18 @@ class BackupManager {
 
         try {
           if (await fs.pathExists(sourcePath)) {
-            // Backup existing target first (in case restore fails)
             if (await fs.pathExists(targetPath)) {
               await fs.remove(targetPath);
             }
 
-            // Copy from temp to target
             await fs.copy(sourcePath, targetPath);
             restored.push(relPath);
           }
         } catch (error) {
-          failed.push({ path: relPath, error: error.message });
+          failed.push({ path: relPath, error: (error as Error).message });
         }
       }
 
-      // Cleanup temp directory
       await fs.remove(tempDir);
 
       if (this.verbose) {
@@ -203,25 +219,21 @@ class BackupManager {
         metadata,
       };
     } catch (error) {
-      // Cleanup on error
       await fs.remove(tempDir);
       throw error;
     }
   }
 
-  /**
-   * List available backups
-   */
-  async listBackups() {
+  async listBackups(): Promise<BackupListItem[]> {
     await this.initialize();
 
     const files = await fs.readdir(this.backupDir);
-    const backups = [];
+    const backups: BackupListItem[] = [];
 
     for (const file of files) {
       if (file.endsWith('.json')) {
         const metadataPath = path.join(this.backupDir, file);
-        const metadata = await fs.readJson(metadataPath);
+        const metadata: BackupMetadata = await fs.readJson(metadataPath);
 
         const zipPath = path.join(
           this.backupDir,
@@ -242,24 +254,17 @@ class BackupManager {
       }
     }
 
-    // Sort by creation date (newest first)
-    backups.sort((a, b) => new Date(b.created) - new Date(a.created));
+    backups.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
 
     return backups;
   }
 
-  /**
-   * Get most recent backup
-   */
-  async getLatestBackup() {
+  async getLatestBackup(): Promise<BackupListItem | null> {
     const backups = await this.listBackups();
     return backups.length > 0 ? backups[0] : null;
   }
 
-  /**
-   * Delete old backups (keep only N most recent)
-   */
-  async cleanupOldBackups(keepCount = 5) {
+  async cleanupOldBackups(keepCount: number = 5): Promise<{ deleted: number }> {
     const backups = await this.listBackups();
 
     if (backups.length <= keepCount) {
@@ -285,12 +290,9 @@ class BackupManager {
     return { deleted };
   }
 
-  /**
-   * Add backup to history
-   */
-  async addToHistory(metadata) {
+  async addToHistory(metadata: BackupMetadata): Promise<void> {
     const historyFile = path.join(this.scDir, 'backup-history.json');
-    let history = [];
+    let history: HistoryEntry[] = [];
 
     if (await fs.pathExists(historyFile)) {
       history = await fs.readJson(historyFile);
@@ -303,7 +305,6 @@ class BackupManager {
       paths: metadata.paths.length,
     });
 
-    // Keep last 50 entries
     if (history.length > 50) {
       history = history.slice(-50);
     }
@@ -311,12 +312,9 @@ class BackupManager {
     await fs.writeJson(historyFile, history, { spaces: 2 });
   }
 
-  /**
-   * Add restore to history
-   */
-  async addRestoreToHistory(backupName) {
+  async addRestoreToHistory(backupName: string): Promise<void> {
     const historyFile = path.join(this.scDir, 'backup-history.json');
-    let history = [];
+    let history: HistoryEntry[] = [];
 
     if (await fs.pathExists(historyFile)) {
       history = await fs.readJson(historyFile);
@@ -331,10 +329,7 @@ class BackupManager {
     await fs.writeJson(historyFile, history, { spaces: 2 });
   }
 
-  /**
-   * Get backup history
-   */
-  async getHistory() {
+  async getHistory(): Promise<HistoryEntry[]> {
     const historyFile = path.join(this.scDir, 'backup-history.json');
 
     if (!(await fs.pathExists(historyFile))) {
@@ -344,10 +339,7 @@ class BackupManager {
     return await fs.readJson(historyFile);
   }
 
-  /**
-   * Get SC version
-   */
-  async getSCVersion() {
+  async getSCVersion(): Promise<string> {
     try {
       const packageJson = path.join(__dirname, '../../package.json');
       const pkg = await fs.readJson(packageJson);
@@ -357,14 +349,11 @@ class BackupManager {
     }
   }
 
-  /**
-   * Verify backup integrity
-   */
-  async verifyBackup(backupName) {
+  async verifyBackup(backupName: string): Promise<VerifyResult> {
     const backupPath = path.join(this.backupDir, `${backupName}.zip`);
     const metadataPath = path.join(this.backupDir, `${backupName}.json`);
 
-    const checks = {
+    const checks: VerifyResult = {
       zipExists: await fs.pathExists(backupPath),
       metadataExists: await fs.pathExists(metadataPath),
       zipReadable: false,
@@ -395,19 +384,5 @@ class BackupManager {
   }
 }
 
-/**
- * @typedef {Object} BackupInfo
- * @property {string} name - Backup name
- * @property {string} path - Path to backup file
- * @property {Object} metadata - Backup metadata
- */
-
-/**
- * @typedef {Object} RestoreResult
- * @property {boolean} success - Whether restore was fully successful
- * @property {Array<string>} restored - List of restored paths
- * @property {Array<Object>} failed - List of failed restores
- * @property {Object} metadata - Backup metadata
- */
-
+export default BackupManager;
 module.exports = BackupManager;

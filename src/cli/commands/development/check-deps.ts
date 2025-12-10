@@ -1,6 +1,3 @@
-#!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * SC Dev Check Dependencies Command
  * Moved from scripts/check-undeclared-deps.js for self-contained package architecture
@@ -8,16 +5,37 @@
  * Scans for require() and import statements and verifies they're properly declared in package.json
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
-const chalk = require('chalk');
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
+
+interface ScanResult {
+  file: string;
+  undeclared: string[];
+}
+
+interface MainOptions {
+  directory: string;
+  verbose: boolean;
+}
+
+interface MainResult {
+  success: boolean;
+}
+
+interface PackageJson {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+}
 
 class UndeclaredDependencyChecker {
-  builtInModules: any;
-  declaredDeps: any;
-  packageJson: any;
-  projectRoot: any;
-  constructor(projectRoot = process.cwd()) {
+  readonly builtInModules: Set<string>;
+  readonly declaredDeps: Set<string>;
+  readonly packageJson: PackageJson;
+  readonly projectRoot: string;
+
+  constructor(projectRoot: string = process.cwd()) {
     this.projectRoot = projectRoot;
 
     // Load package.json
@@ -72,9 +90,9 @@ class UndeclaredDependencyChecker {
     ]);
   }
 
-  scanFile(filePath) {
+  scanFile(filePath: string): string[] {
     const content = fs.readFileSync(filePath, 'utf8');
-    const imports = new Set();
+    const imports = new Set<string>();
 
     // Match require() statements
     const requireRegex = /require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g;
@@ -98,7 +116,7 @@ class UndeclaredDependencyChecker {
     return Array.from(imports);
   }
 
-  getPackageName(importPath) {
+  getPackageName(importPath: string): string {
     // Handle scoped packages
     if (importPath.startsWith('@')) {
       const parts = importPath.split('/');
@@ -109,14 +127,14 @@ class UndeclaredDependencyChecker {
     return importPath.split('/')[0];
   }
 
-  isRelativeImport(importPath) {
+  isRelativeImport(importPath: string): boolean {
     return importPath.startsWith('./') || importPath.startsWith('../');
   }
 
-  scanDirectory(directory = this.projectRoot) {
-    const results = [];
+  scanDirectory(directory: string = this.projectRoot): ScanResult[] {
+    const results: ScanResult[] = [];
 
-    const scanRecursive = (dir) => {
+    const scanRecursive = (dir: string): void => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
 
       for (const entry of entries) {
@@ -137,7 +155,7 @@ class UndeclaredDependencyChecker {
           if (/\.(js|ts|jsx|tsx|mjs|cjs)$/.test(entry.name)) {
             try {
               const imports = this.scanFile(fullPath);
-              const undeclared = [];
+              const undeclared: string[] = [];
 
               for (const importPath of imports) {
                 if (this.isRelativeImport(importPath)) continue;
@@ -159,8 +177,9 @@ class UndeclaredDependencyChecker {
                 });
               }
             } catch (error) {
+              const err = error as Error;
               console.warn(
-                `Warning: Could not scan ${fullPath}: ${error.message}`
+                `Warning: Could not scan ${fullPath}: ${err.message}`
               );
             }
           }
@@ -172,23 +191,23 @@ class UndeclaredDependencyChecker {
     return results;
   }
 
-  generateReport(results) {
+  generateReport(results: ScanResult[]): void {
     if (results.length === 0) {
-      console.log(chalk.green('✅ No undeclared dependencies found!'));
+      console.log(chalk.green('[OK] No undeclared dependencies found!'));
       return;
     }
 
     console.log(
       chalk.red(
-        `❌ Found ${results.length} files with undeclared dependencies:`
+        `[X] Found ${results.length} files with undeclared dependencies:`
       )
     );
     console.log('');
 
-    const allUndeclared = new Set();
+    const allUndeclared = new Set<string>();
 
     for (const result of results) {
-      console.log(chalk.yellow(`📄 ${result.file}:`));
+      console.log(chalk.yellow(`[i] ${result.file}:`));
       for (const dep of result.undeclared) {
         console.log(`   - ${dep}`);
         allUndeclared.add(this.getPackageName(dep));
@@ -196,7 +215,7 @@ class UndeclaredDependencyChecker {
       console.log('');
     }
 
-    console.log(chalk.blue('💡 Suggested package.json additions:'));
+    console.log(chalk.blue('[i] Suggested package.json additions:'));
     console.log('');
     console.log(
       chalk.cyan('npm install --save'),
@@ -214,8 +233,8 @@ class UndeclaredDependencyChecker {
 }
 
 // CLI Interface
-async function main(args) {
-  const options = {
+async function main(args: string[]): Promise<MainResult> {
+  const options: MainOptions = {
     directory: process.cwd(),
     verbose: false
   };
@@ -261,7 +280,7 @@ ${chalk.cyan('Examples:')}
     if (options.verbose) {
       console.log(
         chalk.blue(
-          `🔍 Scanning ${options.directory} for undeclared dependencies...`
+          `[i] Scanning ${options.directory} for undeclared dependencies...`
         )
       );
     }
@@ -272,13 +291,14 @@ ${chalk.cyan('Examples:')}
 
     return { success: results.length === 0 };
   } catch (error) {
-    console.error(chalk.red(`❌ Error: ${error.message}`));
+    const err = error as Error;
+    console.error(chalk.red(`[X] Error: ${err.message}`));
     return { success: false };
   }
 }
 
 // Export for CLI system
-module.exports = main;
+export default main;
 
 // Allow direct execution
 if (require.main === module) {

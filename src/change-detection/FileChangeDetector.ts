@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * FileChangeDetector - Unified base class for hash-based change detection
  *
@@ -12,34 +11,119 @@
  * See README.md for usage examples.
  */
 
-const fs = require('fs-extra');
-const path = require('node:path');
-const crypto = require('node:crypto');
-const { glob } = require('glob');
+import fs from 'fs-extra';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { glob } from 'glob';
 
-// Standard hash algorithm for all SC change detection
 const HASH_ALGORITHM = 'sha256';
 
+interface FileMetadata {
+  path: string;
+  relativePath: string;
+  size: number;
+  modified: string;
+  hash: string | null;
+}
+
+interface FileState {
+  files: Record<string, FileMetadata>;
+  metadata?: {
+    watchPatterns: string[];
+    ignorePatterns: string[];
+    fileCount: number;
+  };
+  timestamp?: string;
+  detector?: string;
+}
+
+interface Change {
+  type: 'added' | 'modified' | 'deleted';
+  path: string;
+  file: FileMetadata;
+  previousFile?: FileMetadata;
+  previousHash?: string | null;
+  currentHash?: string | null;
+  timestamp: string;
+}
+
+interface ChangeSummary {
+  added: Change[];
+  modified: Change[];
+  deleted: Change[];
+  counts: {
+    added: number;
+    modified: number;
+    deleted: number;
+    total: number;
+  };
+}
+
+interface DetectionResult {
+  hasChanges: boolean;
+  changes: Change[];
+  summary: ChangeSummary;
+  previousTimestamp?: string;
+  currentTimestamp?: string;
+}
+
+interface DetectOptions {
+  saveState?: boolean;
+}
+
+interface FileChangeDetectorOptions {
+  projectRoot?: string;
+  stateFile?: string;
+  watchPatterns?: string[];
+  ignorePatterns?: string[];
+  normalizeLineEndings?: boolean;
+  name?: string;
+}
+
+interface ProofDocument {
+  version: string;
+  type: string;
+  detector: string;
+  generatedAt: string;
+  projectRoot: string;
+  stateFile: string;
+  configuration: {
+    watchPatterns: string[];
+    ignorePatterns: string[];
+    hashAlgorithm: string;
+  };
+  state: {
+    timestamp: string | undefined;
+    fileCount: number;
+    files: Record<string, FileMetadata>;
+  };
+  stateHash: string | null;
+}
+
+interface VerificationResult {
+  verified: boolean;
+  proofTimestamp: string;
+  verifiedAt: string;
+  discrepancies: Array<{
+    path: string;
+    type: 'missing' | 'modified' | 'added';
+    expected?: string | null | FileMetadata;
+    actual?: string | null;
+  }>;
+}
+
 class FileChangeDetector {
-  changes: any;
-  currentState: any;
-  ignorePatterns: any;
-  name: any;
-  normalizeLineEndings: any;
-  previousState: any;
-  projectRoot: any;
-  stateFile: any;
-  watchPatterns: any;
-  /**
-   * @param {Object} options
-   * @param {string} options.projectRoot - Project root directory
-   * @param {string} options.stateFile - Relative path to state file
-   * @param {string[]} options.watchPatterns - Glob patterns to watch
-   * @param {string[]} options.ignorePatterns - Glob patterns to ignore
-   * @param {boolean} options.normalizeLineEndings - Normalize CRLF to LF before hashing
-   * @param {string} options.name - Detector name for logging/audit
-   */
-  constructor(options = {}) {
+  protected changes: Change[];
+  protected currentState: FileState | null;
+  protected ignorePatterns: string[];
+  protected name: string;
+  protected normalizeLineEndings: boolean;
+  protected previousState: FileState | null;
+  public projectRoot: string;
+  protected stateFile: string;
+  protected watchPatterns: string[];
+
+  constructor(options: FileChangeDetectorOptions = {}) {
     this.projectRoot = options.projectRoot || process.cwd();
     this.stateFile = path.join(
       this.projectRoot,
@@ -55,36 +139,21 @@ class FileChangeDetector {
     this.normalizeLineEndings = options.normalizeLineEndings !== false;
     this.name = options.name || 'FileChangeDetector';
 
-    // State
     this.previousState = null;
     this.currentState = null;
     this.changes = [];
   }
 
-  // ========================================
-  // Core Hashing Functions
-  // ========================================
-
-  /**
-   * Hash file contents
-   * @param {string} filePath - Absolute path to file
-   * @returns {Promise<string|null>} SHA-256 hash or null if file unreadable
-   */
-  async hashFile(filePath) {
+  async hashFile(filePath: string): Promise<string | null> {
     try {
       const content = await fs.readFile(filePath, 'utf8');
       return this.hashContent(content);
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
 
-  /**
-   * Hash string content
-   * @param {string} content - Content to hash
-   * @returns {string} SHA-256 hash
-   */
-  hashContent(content) {
+  hashContent(content: string | null): string | null {
     if (!content) return null;
 
     let normalized = content;
@@ -95,64 +164,39 @@ class FileChangeDetector {
     return crypto.createHash(HASH_ALGORITHM).update(normalized).digest('hex');
   }
 
-  /**
-   * Hash binary file (for non-text files)
-   * @param {string} filePath - Absolute path to file
-   * @returns {Promise<string|null>} SHA-256 hash or null
-   */
-  async hashBinaryFile(filePath) {
+  async hashBinaryFile(filePath: string): Promise<string | null> {
     try {
       const content = await fs.readFile(filePath);
       return crypto.createHash(HASH_ALGORITHM).update(content).digest('hex');
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
 
-  // ========================================
-  // State Management
-  // ========================================
-
-  /**
-   * Load previous state from disk
-   * @returns {Promise<Object>} Previous state or empty object
-   */
-  async loadState() {
+  async loadState(): Promise<FileState> {
     try {
       if (await fs.pathExists(this.stateFile)) {
         this.previousState = await fs.readJson(this.stateFile);
-        return this.previousState;
+        return this.previousState!;
       }
     } catch (error) {
-      console.warn(`[${this.name}] Could not load state: ${error.message}`);
+      console.warn(`[${this.name}] Could not load state: ${(error as Error).message}`);
     }
-    this.previousState = { files: {}, metadata: {} };
+    this.previousState = { files: {}, metadata: { watchPatterns: [], ignorePatterns: [], fileCount: 0 } };
     return this.previousState;
   }
 
-  /**
-   * Save current state to disk
-   * @returns {Promise<void>}
-   */
-  async saveState() {
+  async saveState(): Promise<void> {
     try {
       await fs.ensureDir(path.dirname(this.stateFile));
       await fs.writeJson(this.stateFile, this.currentState, { spaces: 2 });
     } catch (error) {
-      console.warn(`[${this.name}] Could not save state: ${error.message}`);
+      console.warn(`[${this.name}] Could not save state: ${(error as Error).message}`);
     }
   }
 
-  // ========================================
-  // File Scanning
-  // ========================================
-
-  /**
-   * Scan for files matching watch patterns
-   * @returns {Promise<string[]>} Array of absolute file paths
-   */
-  async scanFiles() {
-    const allFiles = new Set();
+  async scanFiles(): Promise<string[]> {
+    const allFiles = new Set<string>();
 
     for (const pattern of this.watchPatterns) {
       try {
@@ -165,13 +209,12 @@ class FileChangeDetector {
         files.forEach((f) => allFiles.add(f));
       } catch (error) {
         console.warn(
-          `[${this.name}] Error scanning pattern "${pattern}": ${error.message}`
+          `[${this.name}] Error scanning pattern "${pattern}": ${(error as Error).message}`
         );
       }
     }
 
-    // Filter to existing files only
-    const existingFiles = [];
+    const existingFiles: string[] = [];
     for (const file of allFiles) {
       if (await fs.pathExists(file)) {
         existingFiles.push(file);
@@ -181,12 +224,7 @@ class FileChangeDetector {
     return existingFiles;
   }
 
-  /**
-   * Get metadata for a file
-   * @param {string} filePath - Absolute path
-   * @returns {Promise<Object|null>} File metadata or null
-   */
-  async getFileMetadata(filePath) {
+  async getFileMetadata(filePath: string): Promise<FileMetadata | null> {
     try {
       const stats = await fs.stat(filePath);
       const hash = await this.hashFile(filePath);
@@ -198,22 +236,14 @@ class FileChangeDetector {
         modified: stats.mtime.toISOString(),
         hash: hash
       };
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
 
-  // ========================================
-  // Change Detection
-  // ========================================
-
-  /**
-   * Build current state from filesystem
-   * @returns {Promise<Object>} Current state
-   */
-  async buildCurrentState() {
+  async buildCurrentState(): Promise<FileState> {
     const files = await this.scanFiles();
-    const currentState = {
+    const currentState: FileState = {
       timestamp: new Date().toISOString(),
       detector: this.name,
       files: {},
@@ -235,16 +265,11 @@ class FileChangeDetector {
     return currentState;
   }
 
-  /**
-   * Compare previous and current state to detect changes
-   * @returns {Object[]} Array of change objects
-   */
-  compareStates() {
-    const changes = [];
+  compareStates(): Change[] {
+    const changes: Change[] = [];
     const previousFiles = this.previousState?.files || {};
     const currentFiles = this.currentState?.files || {};
 
-    // Check for added files
     for (const [relativePath, currentFile] of Object.entries(currentFiles)) {
       if (!previousFiles[relativePath]) {
         changes.push({
@@ -256,7 +281,6 @@ class FileChangeDetector {
       }
     }
 
-    // Check for modified files
     for (const [relativePath, currentFile] of Object.entries(currentFiles)) {
       const previousFile = previousFiles[relativePath];
       if (previousFile && previousFile.hash !== currentFile.hash) {
@@ -272,7 +296,6 @@ class FileChangeDetector {
       }
     }
 
-    // Check for deleted files
     for (const [relativePath, previousFile] of Object.entries(previousFiles)) {
       if (!currentFiles[relativePath]) {
         changes.push({
@@ -288,13 +311,7 @@ class FileChangeDetector {
     return changes;
   }
 
-  /**
-   * Main entry point - detect changes
-   * @param {Object} options
-   * @param {boolean} options.saveState - Whether to save state after detection
-   * @returns {Promise<Object>} Detection result
-   */
-  async detectChanges(options = {}) {
+  async detectChanges(options: DetectOptions = {}): Promise<DetectionResult> {
     const { saveState = true } = options;
 
     await this.loadState();
@@ -314,12 +331,7 @@ class FileChangeDetector {
     };
   }
 
-  /**
-   * Get summary of changes
-   * @param {Object[]} changes - Array of changes
-   * @returns {Object} Summary object
-   */
-  getSummary(changes) {
+  getSummary(changes: Change[]): ChangeSummary {
     const summary = {
       added: changes.filter((c) => c.type === 'added'),
       modified: changes.filter((c) => c.type === 'modified'),
@@ -337,21 +349,12 @@ class FileChangeDetector {
     };
   }
 
-  // ========================================
-  // Audit & Evidence Generation
-  // ========================================
-
-  /**
-   * Generate proof-of-state document
-   * Useful for compliance evidence
-   * @returns {Object} Proof document
-   */
-  async generateProofDocument() {
+  async generateProofDocument(): Promise<ProofDocument> {
     if (!this.currentState) {
       await this.buildCurrentState();
     }
 
-    const proof = {
+    const proof: ProofDocument = {
       version: '1.0.0',
       type: 'file-state-proof',
       detector: this.name,
@@ -364,13 +367,12 @@ class FileChangeDetector {
         hashAlgorithm: HASH_ALGORITHM
       },
       state: {
-        timestamp: this.currentState.timestamp,
-        fileCount: Object.keys(this.currentState.files).length,
-        files: this.currentState.files
+        timestamp: this.currentState!.timestamp,
+        fileCount: Object.keys(this.currentState!.files).length,
+        files: this.currentState!.files
       },
-      // Create a single hash of all file hashes for quick verification
       stateHash: this.hashContent(
-        Object.values(this.currentState.files)
+        Object.values(this.currentState!.files)
           .map((f) => f.hash)
           .sort()
           .join('')
@@ -380,36 +382,30 @@ class FileChangeDetector {
     return proof;
   }
 
-  /**
-   * Verify a proof document against current state
-   * @param {Object} proof - Proof document to verify
-   * @returns {Object} Verification result
-   */
-  async verifyProofDocument(proof) {
+  async verifyProofDocument(proof: ProofDocument): Promise<VerificationResult> {
     await this.buildCurrentState();
 
     const currentStateHash = this.hashContent(
-      Object.values(this.currentState.files)
+      Object.values(this.currentState!.files)
         .map((f) => f.hash)
         .sort()
         .join('')
     );
 
     const matches = proof.stateHash === currentStateHash;
-    const discrepancies = [];
+    const discrepancies: VerificationResult['discrepancies'] = [];
 
     if (!matches) {
-      // Find specific discrepancies
       const proofFiles = proof.state.files || {};
-      const currentFiles = this.currentState.files || {};
+      const currentFiles = this.currentState!.files || {};
 
-      for (const [path, proofFile] of Object.entries(proofFiles)) {
-        const currentFile = currentFiles[path];
+      for (const [filePath, proofFile] of Object.entries(proofFiles)) {
+        const currentFile = currentFiles[filePath];
         if (!currentFile) {
-          discrepancies.push({ path, type: 'missing', expected: proofFile });
+          discrepancies.push({ path: filePath, type: 'missing', expected: proofFile });
         } else if (currentFile.hash !== proofFile.hash) {
           discrepancies.push({
-            path,
+            path: filePath,
             type: 'modified',
             expected: proofFile.hash,
             actual: currentFile.hash
@@ -417,9 +413,9 @@ class FileChangeDetector {
         }
       }
 
-      for (const path of Object.keys(currentFiles)) {
-        if (!proofFiles[path]) {
-          discrepancies.push({ path, type: 'added' });
+      for (const filePath of Object.keys(currentFiles)) {
+        if (!proofFiles[filePath]) {
+          discrepancies.push({ path: filePath, type: 'added' });
         }
       }
     }
@@ -433,9 +429,11 @@ class FileChangeDetector {
   }
 }
 
-// Export class and constants
+export {
+  FileChangeDetector,
+  HASH_ALGORITHM
+};
 module.exports = {
   FileChangeDetector,
   HASH_ALGORITHM
 };
-
