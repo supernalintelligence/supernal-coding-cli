@@ -381,9 +381,410 @@ export class CoverageManager {
     return { passed, details };
   }
 
+  /**
+   * Generate coverage report in specified format
+   */
+  async report(options: {
+    format?: 'html' | 'lcov' | 'json' | 'text' | 'compliance';
+    withRequirements?: boolean;
+    output?: string;
+  } = {}): Promise<{ success: boolean; outputPath: string | null; error?: string }> {
+    const format = options.format || 'html';
+    const coverageDir = path.join(this.projectRoot, 'coverage');
+
+    // Check if coverage data exists
+    const summaryPath = path.join(coverageDir, 'coverage-summary.json');
+    if (!fs.existsSync(summaryPath)) {
+      return {
+        success: false,
+        outputPath: null,
+        error: 'No coverage data found. Run: sc coverage run',
+      };
+    }
+
+    console.log(chalk.blue(`📊 Generating ${format} coverage report...\n`));
+
+    try {
+      let outputPath: string;
+
+      switch (format) {
+        case 'html': {
+          // HTML report should already exist from coverage run
+          outputPath = path.join(coverageDir, 'index.html');
+          if (!fs.existsSync(outputPath)) {
+            outputPath = path.join(coverageDir, 'lcov-report', 'index.html');
+          }
+          if (fs.existsSync(outputPath)) {
+            console.log(chalk.green(`✅ HTML report: ${outputPath}`));
+          } else {
+            console.log(chalk.yellow('⚠️  HTML report not found'));
+            console.log(chalk.gray('   Add "html" to coverage reporters in your test config'));
+            return { success: false, outputPath: null, error: 'HTML report not generated' };
+          }
+          break;
+        }
+
+        case 'lcov': {
+          outputPath = path.join(coverageDir, 'lcov.info');
+          if (fs.existsSync(outputPath)) {
+            console.log(chalk.green(`✅ LCOV report: ${outputPath}`));
+          } else {
+            console.log(chalk.yellow('⚠️  LCOV report not found'));
+            console.log(chalk.gray('   Add "lcov" to coverage reporters in your test config'));
+            return { success: false, outputPath: null, error: 'LCOV report not generated' };
+          }
+          break;
+        }
+
+        case 'json': {
+          outputPath = options.output || path.join(coverageDir, 'coverage-report.json');
+          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
+          
+          const report = {
+            timestamp: new Date().toISOString(),
+            gitCommit: this.getGitCommit(),
+            gitBranch: this.getGitBranch(),
+            coverageSummary: {
+              lines: summary.total.lines,
+              branches: summary.total.branches,
+              functions: summary.total.functions,
+              statements: summary.total.statements,
+            },
+            files: Object.keys(summary)
+              .filter(k => k !== 'total')
+              .map(file => ({
+                file,
+                lines: summary[file].lines.pct,
+                branches: summary[file].branches.pct,
+                functions: summary[file].functions.pct,
+              })),
+          };
+
+          fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
+          console.log(chalk.green(`✅ JSON report: ${outputPath}`));
+          break;
+        }
+
+        case 'text': {
+          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
+          outputPath = options.output || 'stdout';
+          
+          console.log(chalk.blue('Coverage Summary:'));
+          console.log(`  Lines:      ${summary.total.lines.pct.toFixed(2)}% (${summary.total.lines.covered}/${summary.total.lines.total})`);
+          console.log(`  Branches:   ${summary.total.branches.pct.toFixed(2)}% (${summary.total.branches.covered}/${summary.total.branches.total})`);
+          console.log(`  Functions:  ${summary.total.functions.pct.toFixed(2)}% (${summary.total.functions.covered}/${summary.total.functions.total})`);
+          console.log(`  Statements: ${summary.total.statements.pct.toFixed(2)}% (${summary.total.statements.covered}/${summary.total.statements.total})`);
+          break;
+        }
+
+        case 'compliance': {
+          outputPath = options.output || path.join(coverageDir, 'compliance-report.json');
+          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
+          
+          const complianceReport = {
+            type: 'coverage-evidence',
+            timestamp: new Date().toISOString(),
+            gitCommit: this.getGitCommit(),
+            gitBranch: this.getGitBranch(),
+            executor: process.env.USER || 'unknown',
+            coverageSummary: {
+              lines: { covered: summary.total.lines.covered, total: summary.total.lines.total, percent: summary.total.lines.pct },
+              branches: { covered: summary.total.branches.covered, total: summary.total.branches.total, percent: summary.total.branches.pct },
+              functions: { covered: summary.total.functions.covered, total: summary.total.functions.total, percent: summary.total.functions.pct },
+            },
+            isComplianceEvidence: true,
+            evidenceReason: options.withRequirements ? 'linked to requirements' : 'manual compliance report',
+          };
+
+          fs.writeFileSync(outputPath, JSON.stringify(complianceReport, null, 2));
+          console.log(chalk.green(`✅ Compliance report: ${outputPath}`));
+          break;
+        }
+
+        default:
+          return { success: false, outputPath: null, error: `Unknown format: ${format}` };
+      }
+
+      return { success: true, outputPath };
+    } catch (error) {
+      return { success: false, outputPath: null, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Upload coverage to external service
+   */
+  async upload(options: {
+    service?: 'codecov' | 'coveralls' | 'sonarqube';
+    token?: string;
+    dryRun?: boolean;
+  } = {}): Promise<{ success: boolean; url?: string; error?: string }> {
+    const config = this.loadConfig();
+    const service = options.service || config?.reporting.service || 'codecov';
+
+    if (service === 'none') {
+      return { success: false, error: 'No reporting service configured' };
+    }
+
+    const coverageDir = path.join(this.projectRoot, 'coverage');
+    const lcovPath = path.join(coverageDir, 'lcov.info');
+
+    if (!fs.existsSync(lcovPath)) {
+      return { success: false, error: 'No LCOV report found. Run: sc coverage run' };
+    }
+
+    // Get token from options, config, or environment
+    const tokenEnv = config?.reporting.tokenEnv || `${service.toUpperCase()}_TOKEN`;
+    const token = options.token || process.env[tokenEnv];
+
+    if (!token && !options.dryRun) {
+      return { success: false, error: `${tokenEnv} not set. Set environment variable or use --token` };
+    }
+
+    console.log(chalk.blue(`📤 Uploading coverage to ${service}...\n`));
+
+    if (options.dryRun) {
+      console.log(chalk.yellow('Dry-run mode - would upload:'));
+      console.log(chalk.gray(`  Service: ${service}`));
+      console.log(chalk.gray(`  File: ${lcovPath}`));
+      console.log(chalk.gray(`  Token: ${token ? '***' : 'not set'}`));
+      return { success: true };
+    }
+
+    try {
+      if (service === 'codecov') {
+        // Use Codecov uploader
+        const command = `npx codecov -f ${lcovPath} -t ${token}`;
+        execSync(command, { cwd: this.projectRoot, stdio: 'inherit' });
+        console.log(chalk.green('\n✅ Coverage uploaded to Codecov'));
+        return { success: true, url: 'https://codecov.io' };
+      }
+
+      if (service === 'coveralls') {
+        // Use Coveralls
+        const command = `cat ${lcovPath} | npx coveralls`;
+        execSync(command, { 
+          cwd: this.projectRoot, 
+          stdio: 'inherit',
+          env: { ...process.env, COVERALLS_REPO_TOKEN: token },
+        });
+        console.log(chalk.green('\n✅ Coverage uploaded to Coveralls'));
+        return { success: true, url: 'https://coveralls.io' };
+      }
+
+      return { success: false, error: `Upload for ${service} not implemented` };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Manage coverage git hooks
+   */
+  async hooks(action: 'install' | 'uninstall' | 'status'): Promise<{ success: boolean; message: string }> {
+    const huskyDir = path.join(this.projectRoot, '.husky');
+    const prePushPath = path.join(huskyDir, 'pre-push');
+
+    const coverageHookMarker = '# SC_COVERAGE_CHECK';
+    const coverageHookCode = `
+${coverageHookMarker}
+# Coverage threshold check (added by sc coverage hooks install)
+if [ -f ".supernal/coverage.yaml" ]; then
+  echo "📊 Running coverage check..."
+  if [ "$SC_SKIP_COVERAGE_CHECK" != "true" ]; then
+    npx sc coverage run --check
+    if [ $? -ne 0 ]; then
+      echo "❌ Coverage thresholds not met. Push blocked."
+      echo "   To skip: SC_SKIP_COVERAGE_CHECK=true git push"
+      exit 1
+    fi
+  else
+    echo "⚠️ Coverage check skipped (SC_SKIP_COVERAGE_CHECK=true)"
+  fi
+fi
+# END SC_COVERAGE_CHECK
+`;
+
+    switch (action) {
+      case 'install': {
+        if (!fs.existsSync(huskyDir)) {
+          return { success: false, message: 'Husky not installed. Run: npx husky init' };
+        }
+
+        let prePushContent = '';
+        if (fs.existsSync(prePushPath)) {
+          prePushContent = fs.readFileSync(prePushPath, 'utf-8');
+          if (prePushContent.includes(coverageHookMarker)) {
+            return { success: true, message: 'Coverage hook already installed' };
+          }
+        } else {
+          prePushContent = '#!/usr/bin/env sh\n. "$(dirname -- "$0")/_/husky.sh"\n';
+        }
+
+        prePushContent += coverageHookCode;
+        fs.writeFileSync(prePushPath, prePushContent);
+        fs.chmodSync(prePushPath, '755');
+
+        console.log(chalk.green('✅ Coverage hook installed in .husky/pre-push'));
+        return { success: true, message: 'Coverage hook installed' };
+      }
+
+      case 'uninstall': {
+        if (!fs.existsSync(prePushPath)) {
+          return { success: true, message: 'No pre-push hook found' };
+        }
+
+        let content = fs.readFileSync(prePushPath, 'utf-8');
+        const startMarker = coverageHookMarker;
+        const endMarker = '# END SC_COVERAGE_CHECK';
+        
+        const startIdx = content.indexOf(startMarker);
+        const endIdx = content.indexOf(endMarker);
+        
+        if (startIdx !== -1 && endIdx !== -1) {
+          content = content.substring(0, startIdx) + content.substring(endIdx + endMarker.length);
+          fs.writeFileSync(prePushPath, content.trim() + '\n');
+          console.log(chalk.green('✅ Coverage hook removed from .husky/pre-push'));
+        }
+
+        return { success: true, message: 'Coverage hook uninstalled' };
+      }
+
+      case 'status': {
+        const hasHusky = fs.existsSync(huskyDir);
+        const hasPrePush = fs.existsSync(prePushPath);
+        let hasCoverageHook = false;
+
+        if (hasPrePush) {
+          const content = fs.readFileSync(prePushPath, 'utf-8');
+          hasCoverageHook = content.includes(coverageHookMarker);
+        }
+
+        console.log(chalk.blue('🔗 Coverage Hook Status\n'));
+        console.log(`  Husky installed: ${hasHusky ? chalk.green('yes') : chalk.yellow('no')}`);
+        console.log(`  Pre-push hook: ${hasPrePush ? chalk.green('exists') : chalk.gray('not found')}`);
+        console.log(`  Coverage check: ${hasCoverageHook ? chalk.green('enabled') : chalk.gray('not installed')}`);
+
+        if (!hasCoverageHook) {
+          console.log(chalk.gray('\n  Run: sc coverage hooks install'));
+        }
+
+        return { success: true, message: hasCoverageHook ? 'Coverage hook enabled' : 'Coverage hook not installed' };
+      }
+
+      default:
+        return { success: false, message: `Unknown action: ${action}` };
+    }
+  }
+
+  /**
+   * Generate CI workflow template
+   */
+  generateCITemplate(platform: 'github' | 'gitlab'): string {
+    const config = this.loadConfig();
+    const service = config?.reporting.service || 'codecov';
+
+    if (platform === 'github') {
+      return `# .github/workflows/coverage.yml
+# Generated by: sc coverage ci-template --platform=github
+
+name: Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      
+      - run: pnpm install
+      
+      - name: Run tests with coverage
+        run: pnpm test:coverage
+      
+      - name: Check coverage thresholds
+        run: npx sc coverage check
+      
+${service === 'codecov' ? `      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: \${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: true
+` : ''}`;
+    }
+
+    if (platform === 'gitlab') {
+      return `# .gitlab-ci.yml coverage job
+# Generated by: sc coverage ci-template --platform=gitlab
+
+coverage:
+  stage: test
+  image: node:20
+  before_script:
+    - corepack enable
+    - pnpm install
+  script:
+    - pnpm test:coverage
+    - npx sc coverage check
+  coverage: '/Lines\\s*:\\s*(\\d+\\.?\\d*)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+    paths:
+      - coverage/
+    expire_in: 7 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+`;
+    }
+
+    return '';
+  }
+
   // ============================================================================
   // Private Helper Methods
   // ============================================================================
+
+  /**
+   * Get current git commit hash
+   */
+  private getGitCommit(): string {
+    try {
+      return execSync('git rev-parse HEAD', { cwd: this.projectRoot }).toString().trim().substring(0, 7);
+    } catch {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * Get current git branch
+   */
+  private getGitBranch(): string {
+    try {
+      return execSync('git branch --show-current', { cwd: this.projectRoot }).toString().trim();
+    } catch {
+      return 'unknown';
+    }
+  }
 
   /**
    * Detect the project stack based on config files

@@ -1161,6 +1161,7 @@ function buildProgram() {
     .command('coverage [action]')
     .description('Coverage ecosystem integration (Vitest, Jest, Codecov)')
     .argument('[args...]', 'Action-specific arguments')
+    // Init options
     .option('--stack <stack>', 'Stack type (react-vite|nextjs|node|auto)')
     .option('--tool <tool>', 'Coverage tool (vitest|jest|c8|auto)')
     .option('--min-line <n>', 'Minimum line coverage %')
@@ -1168,11 +1169,22 @@ function buildProgram() {
     .option('--min-function <n>', 'Minimum function coverage %')
     .option('--min-statement <n>', 'Minimum statement coverage %')
     .option('--force', 'Overwrite existing config')
-    .option('--dry-run', 'Show config without writing')
+    .option('--dry-run', 'Show what would happen without doing it')
+    // Run options
     .option('--check', 'Validate thresholds after run')
     .option('--include <pattern>', 'Include only matching files')
     .option('--e2e', 'Include E2E tests')
     .option('--quiet', 'Minimal output')
+    // Report options
+    .option('--format <format>', 'Report format (html|lcov|json|text|compliance)')
+    .option('--output <path>', 'Output file path')
+    .option('--with-requirements', 'Link coverage to requirements')
+    // Upload options
+    .option('--service <service>', 'Upload service (codecov|coveralls)')
+    .option('--token <token>', 'Service auth token')
+    // CI template options
+    .option('--platform <platform>', 'CI platform (github|gitlab)')
+    // General options
     .option('--json', 'Output as JSON')
     .option('-v, --verbose', 'Verbose output')
     .action(async (action, args, options) => {

@@ -159,11 +159,18 @@ async function handleCoverageReport(options: {
   withRequirements?: boolean;
   output?: string;
 }): Promise<void> {
-  // TODO: Implement report generation
-  console.log(chalk.blue('📊 Coverage Report\n'));
-  console.log(chalk.yellow('⚠️  Report generation not yet implemented'));
-  console.log(chalk.gray('\nAvailable formats: html, lcov, json, text, compliance'));
-  console.log(chalk.gray('\nFor now, check ./coverage/index.html after running sc coverage run'));
+  const manager = new CoverageManager();
+  
+  const result = await manager.report({
+    format: options.format as 'html' | 'lcov' | 'json' | 'text' | 'compliance',
+    withRequirements: options.withRequirements,
+    output: options.output,
+  });
+
+  if (!result.success) {
+    console.error(chalk.red(`\n❌ ${result.error}`));
+    process.exit(1);
+  }
 }
 
 /**
@@ -201,29 +208,79 @@ async function handleCoverageConfig(options: {
 /**
  * Handle coverage hooks command
  */
-async function handleCoverageHooks(action: string, options: {
+async function handleCoverageHooks(action: string, _options: {
   verbose?: boolean;
 }): Promise<void> {
+  const manager = new CoverageManager();
+
+  if (action === 'install' || action === 'uninstall' || action === 'status') {
+    const result = await manager.hooks(action as 'install' | 'uninstall' | 'status');
+    if (!result.success) {
+      console.error(chalk.red(`\n❌ ${result.message}`));
+      process.exit(1);
+    }
+    return;
+  }
+
   console.log(chalk.blue('🔗 Coverage Hooks\n'));
-
-  if (action === 'install') {
-    console.log(chalk.yellow('⚠️  Hook installation not yet implemented'));
-    console.log(chalk.gray('\nAdd to .husky/pre-push manually:'));
-    console.log(chalk.gray('  sc coverage run --check'));
-    return;
-  }
-
-  if (action === 'status') {
-    console.log(chalk.gray('Hook status:'));
-    console.log(chalk.gray('  pre-commit: disabled'));
-    console.log(chalk.gray('  pre-push: not installed'));
-    console.log(chalk.gray('\nRun: sc coverage hooks install'));
-    return;
-  }
-
   console.log(chalk.gray('Available actions:'));
-  console.log(chalk.gray('  sc coverage hooks install  - Install pre-push coverage check'));
-  console.log(chalk.gray('  sc coverage hooks status   - Show hook status'));
+  console.log(chalk.gray('  sc coverage hooks install    - Install pre-push coverage check'));
+  console.log(chalk.gray('  sc coverage hooks uninstall  - Remove pre-push coverage check'));
+  console.log(chalk.gray('  sc coverage hooks status     - Show hook status'));
+}
+
+/**
+ * Handle coverage upload command
+ */
+async function handleCoverageUpload(options: {
+  service?: string;
+  token?: string;
+  dryRun?: boolean;
+}): Promise<void> {
+  const manager = new CoverageManager();
+  
+  const result = await manager.upload({
+    service: options.service as 'codecov' | 'coveralls' | 'sonarqube',
+    token: options.token,
+    dryRun: options.dryRun,
+  });
+
+  if (!result.success) {
+    console.error(chalk.red(`\n❌ ${result.error}`));
+    process.exit(1);
+  }
+
+  if (result.url) {
+    console.log(chalk.gray(`\n   View: ${result.url}`));
+  }
+}
+
+/**
+ * Handle coverage ci-template command
+ */
+async function handleCoverageCITemplate(options: {
+  platform?: string;
+  output?: string;
+}): Promise<void> {
+  const manager = new CoverageManager();
+  const platform = (options.platform || 'github') as 'github' | 'gitlab';
+  
+  const template = manager.generateCITemplate(platform);
+  
+  if (!template) {
+    console.error(chalk.red(`\n❌ Unknown platform: ${platform}`));
+    process.exit(1);
+  }
+
+  if (options.output) {
+    const fs = await import('node:fs');
+    fs.writeFileSync(options.output, template);
+    console.log(chalk.green(`✅ CI template written to: ${options.output}`));
+  } else {
+    console.log(chalk.blue(`📋 ${platform === 'github' ? 'GitHub Actions' : 'GitLab CI'} Coverage Template:\n`));
+    console.log(template);
+    console.log(chalk.gray('\nUse --output <path> to save to file'));
+  }
 }
 
 /**
@@ -264,6 +321,14 @@ async function handleCoverageCommand(
         await handleCoverageHooks(args[0], options as Parameters<typeof handleCoverageHooks>[1]);
         break;
 
+      case 'upload':
+        await handleCoverageUpload(options as Parameters<typeof handleCoverageUpload>[0]);
+        break;
+
+      case 'ci-template':
+        await handleCoverageCITemplate(options as Parameters<typeof handleCoverageCITemplate>[0]);
+        break;
+
       default:
         showHelp();
         break;
@@ -290,8 +355,10 @@ function showHelp(): void {
   console.log(chalk.white('  sc coverage run            Run tests with coverage'));
   console.log(chalk.white('  sc coverage check          Check coverage thresholds'));
   console.log(chalk.white('  sc coverage report         Generate coverage report'));
-  console.log(chalk.white('  sc coverage config         View/modify configuration'));
+  console.log(chalk.white('  sc coverage upload         Upload to Codecov/Coveralls'));
   console.log(chalk.white('  sc coverage hooks          Manage git hooks'));
+  console.log(chalk.white('  sc coverage ci-template    Generate CI workflow'));
+  console.log(chalk.white('  sc coverage config         View/modify configuration'));
 
   console.log(chalk.cyan('\nInit options:'));
   console.log(chalk.gray('  --stack <stack>            Stack type (react-vite|nextjs|node|auto)'));
@@ -301,17 +368,33 @@ function showHelp(): void {
   console.log(chalk.gray('  --force                    Overwrite existing config'));
   console.log(chalk.gray('  --dry-run                  Show config without writing'));
 
+  console.log(chalk.cyan('\nReport options:'));
+  console.log(chalk.gray('  --format <fmt>             Format: html, lcov, json, text, compliance'));
+  console.log(chalk.gray('  --output <path>            Output file path'));
+  console.log(chalk.gray('  --with-requirements        Link to requirements (compliance)'));
+
+  console.log(chalk.cyan('\nUpload options:'));
+  console.log(chalk.gray('  --service <svc>            Service: codecov, coveralls'));
+  console.log(chalk.gray('  --token <token>            Auth token (or use env var)'));
+  console.log(chalk.gray('  --dry-run                  Show what would upload'));
+
+  console.log(chalk.cyan('\nCI template options:'));
+  console.log(chalk.gray('  --platform <plat>          Platform: github, gitlab'));
+  console.log(chalk.gray('  --output <path>            Write to file instead of stdout'));
+
   console.log(chalk.cyan('\nRun options:'));
   console.log(chalk.gray('  --check                    Validate thresholds after run'));
   console.log(chalk.gray('  --include <pattern>        Include only matching files'));
-  console.log(chalk.gray('  --e2e                      Include E2E tests'));
   console.log(chalk.gray('  --quiet                    Minimal output'));
   console.log(chalk.gray('  --verbose                  Show detailed output'));
 
   console.log(chalk.cyan('\nExamples:'));
   console.log(chalk.gray('  sc coverage init --stack=react-vite'));
   console.log(chalk.gray('  sc coverage run --check'));
-  console.log(chalk.gray('  sc coverage check --min-line=80'));
+  console.log(chalk.gray('  sc coverage report --format=json'));
+  console.log(chalk.gray('  sc coverage upload --service=codecov'));
+  console.log(chalk.gray('  sc coverage hooks install'));
+  console.log(chalk.gray('  sc coverage ci-template --platform=github'));
 }
 
 export {
@@ -323,6 +406,8 @@ export {
   handleCoverageReport,
   handleCoverageConfig,
   handleCoverageHooks,
+  handleCoverageUpload,
+  handleCoverageCITemplate,
 };
 
 // Default export for CLI
