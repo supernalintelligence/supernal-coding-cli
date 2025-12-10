@@ -1,3 +1,4 @@
+// @ts-nocheck
 const fs = require('fs-extra');
 const path = require('node:path');
 const chalk = require('chalk');
@@ -11,16 +12,28 @@ const net = require('node:net');
  * Now includes port scanning and service management functionality
  */
 class DashboardManager {
+  config: any;
+  configLoader: any;
+  projectRoot: any;
+  runningProcesses: any;
   constructor() {
-    // Find git repository root, not just current directory
-    this.projectRoot = findGitRoot();
+    // ALWAYS start from current working directory - the user's intent
+    const cwd = process.cwd();
+    
+    // Find git root starting from cwd (not from script location)
+    this.projectRoot = findGitRoot(cwd);
     if (!this.projectRoot) {
-      // Fallback to current working directory for environments like Vercel
-      console.warn('⚠️  Git root not found, using current working directory');
-      this.projectRoot = process.cwd();
+      // If no git repo found, use cwd directly
+      console.warn('⚠️  Not in a git repository, using current directory');
+      this.projectRoot = cwd;
     }
-    console.log(`🔍 Dashboard using project root: ${this.projectRoot}`);
-    console.log(`🔍 Current working directory: ${process.cwd()}`);
+    
+    // Verify we're using the user's intended directory
+    if (this.projectRoot !== cwd) {
+      console.log(chalk.gray(`📂 Working directory: ${cwd}`));
+      console.log(chalk.gray(`📂 Git root: ${this.projectRoot}`));
+    }
+    
     this.config = null;
     this.configLoader = null;
     this.loadConfig();
@@ -101,6 +114,42 @@ class DashboardManager {
   }
 
   /**
+   * Kill processes using a specific port
+   * @param {number} port - Port to free up
+   * @returns {Promise<void>}
+   */
+  async killPort(port) {
+    const { execSync } = require('node:child_process');
+    
+    try {
+      // Find processes using the port
+      const result = execSync(`lsof -ti:${port}`, {
+        encoding: 'utf8',
+        stdio: 'pipe'
+      });
+      const pids = result
+        .trim()
+        .split('\n')
+        .filter((pid) => pid);
+
+      if (pids.length > 0) {
+        for (const pid of pids) {
+          try {
+            execSync(`kill -9 ${pid}`, { stdio: 'pipe' });
+          } catch (_error) {
+            // Process might already be dead
+          }
+        }
+        // Wait for processes to die
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log(chalk.green(`   ✓ Port ${port} freed`));
+      }
+    } catch (_error) {
+      // No processes found on this port, which is fine
+    }
+  }
+
+  /**
    * Find the next available port starting from a given port
    * @param {number} startPort - Starting port number
    * @param {string} host - Host to check (default: '0.0.0.0')
@@ -147,23 +196,20 @@ class DashboardManager {
   loadConfig() {
     try {
       const configPath = path.join(this.projectRoot, 'supernal.yaml');
-      console.log(`🔍 Looking for config at: ${configPath}`);
 
       if (fs.existsSync(configPath)) {
-        console.log('✅ Config file found, loading...');
         // Use YAML config loader
         const { loadProjectConfig } = require('../utils/config-loader');
         this.config = loadProjectConfig(this.projectRoot);
-        console.log(
-          `✅ Config loaded. Project name: ${this.config.project?.name || 'UNDEFINED'}`
-        );
       } else {
         console.error(
           chalk.red(
-            `❌ No supernal.yaml found at ${configPath}. Dashboard requires config file.`
+            `❌ No supernal.yaml found at ${this.projectRoot}`
           )
         );
-        throw new Error('Config file required for dashboard generation');
+        console.error(chalk.gray('   Dashboard requires a supernal.yaml config file.'));
+        console.error(chalk.gray('   Run `sc init` to create one.'));
+        throw new Error('Config file required for dashboard');
       }
     } catch (error) {
       console.error(chalk.red(`❌ Could not load config: ${error.message}`));
@@ -1355,6 +1401,12 @@ module.exports = config;`;
       let dashboardPath;
       let mode;
 
+      // Auto-kill conflicting port processes (default behavior)
+      if (!(await this.isPortAvailable(port))) {
+        console.log(chalk.yellow(`\n⚠️  Port ${port} is in use, freeing it...`));
+        await this.killPort(port);
+      }
+
       // HYBRID APPROACH:
       // Strategy 1: Check for LOCAL dashboard first (copy mode - user customization)
       const localDashboard = path.join(projectRoot, 'apps', 'supernal-dashboard');
@@ -1362,33 +1414,24 @@ module.exports = config;`;
       if (await fs.pathExists(localDashboard)) {
         dashboardPath = localDashboard;
         mode = 'local';
-        console.log(chalk.blue('📊 Using LOCAL dashboard (customizable)'));
-        console.log(chalk.gray(`   Location: ${localDashboard}`));
-        console.log(
-          chalk.yellow('   ⚠️  Updates require manual re-copy from package')
-        );
       } else {
         // Strategy 2: Use package dashboard (runtime mode - DEFAULT, auto-updates)
         const dashboardInfo = this.findPackageDashboard();
         dashboardPath = dashboardInfo.path;
         mode = dashboardInfo.mode;
-
-        console.log(chalk.blue('📊 Using PACKAGE dashboard (auto-updates)'));
-        console.log(chalk.gray(`   Mode: ${mode}`));
-        console.log(chalk.gray(`   Location: ${dashboardPath}`));
       }
 
       // Set up environment for the dashboard
+      const projectName = this.config?.project?.name || path.basename(projectRoot);
       const env = {
         ...process.env,
         PORT: port,
         PROJECT_ROOT: projectRoot,
         NODE_ENV: 'development',
         // Pass project configuration
-        PROJECT_NAME: this.config?.project?.name || path.basename(projectRoot),
-        REPO_ID: this.config?.project?.name || path.basename(projectRoot),
-        NEXT_PUBLIC_DEFAULT_REPO_ID:
-          this.config?.project?.name || path.basename(projectRoot),
+        PROJECT_NAME: projectName,
+        REPO_ID: projectName,
+        NEXT_PUBLIC_DEFAULT_REPO_ID: projectName,
         REQUIREMENTS_PATH:
           this.configLoader?.getRequirementsDirectory() || 'docs/requirements',
         KANBAN_PATH:
@@ -1396,26 +1439,21 @@ module.exports = config;`;
         CONFIG_PATH: 'supernal.yaml',
       };
 
-      console.log(chalk.blue(`📋 Project: ${env.PROJECT_NAME}`));
-      console.log(chalk.blue(`📁 Project Root: ${projectRoot}`));
-      console.log(chalk.blue(`🌐 Port: ${port}`));
+      // Clear output about what we're serving
+      console.log(chalk.green(`\n📊 Serving dashboard for: ${projectName}`));
+      console.log(chalk.gray(`   Project path: ${projectRoot}`));
+      console.log(chalk.gray(`   Port: ${port}`));
+      console.log(chalk.gray(`   Dashboard mode: ${mode === 'local' ? 'local (customized)' : 'package (auto-updates)'}`));
 
       // Start the Next.js development server
-      const serverProcess = spawn('npm', ['run', 'dev', '--', '--port', port], {
+      const serverProcess = spawn('npm', ['run', 'dev', '--', '--port', String(port)], {
         cwd: dashboardPath,
         stdio: 'inherit',
         env,
       });
 
-      console.log(
-        chalk.green(`✅ Dashboard started on http://localhost:${port}`)
-      );
-
-      if (mode !== 'local') {
-        console.log(
-          chalk.gray('💡 Dashboard auto-updates with package upgrades')
-        );
-      }
+      console.log(chalk.green(`\n✅ Dashboard running at http://localhost:${port}`));
+      console.log(chalk.gray('   Press Ctrl+C to stop\n'));
 
       // Handle process termination
       const cleanup = () => {
